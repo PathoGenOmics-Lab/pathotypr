@@ -1,0 +1,13 @@
+[package]
+name = "pathotypr"
+version = "0.1.0"
+edition = "2021"
+authors = ["Paula Ruiz Rodriguez <paula.ruiz.rodriguez@csic.es>"]
+
+[dependencies]
+clap = { version = "4.1", features = ["derive"] }
+csv = "1.1"
+log = "0.4"
+env_logger = "0.10"
+bio = "2.0.3"
+rayon = "1.7"
