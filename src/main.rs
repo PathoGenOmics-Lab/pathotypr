@@ -8,6 +8,7 @@ use csv::ReaderBuilder;
 use log::{error, info};
 use rayon::prelude::*;
 use bio::io::fasta;
+use indicatif::{ProgressBar, ProgressStyle};
 
 /// Command-line arguments
 #[derive(Parser, Debug)]
@@ -224,7 +225,7 @@ fn analyze_genome_seq(
         for (kmer, (position, ref_position, lineage)) in matched_markers.into_iter() {
             let snp_position = position + k / 2;
             result.push(format!(
-                "{}\t{}\t{}\t{}\t{}\t{}\n",
+                "{}\t{}\t{}\t{}\t{}\t{}\\n",
                 genome_name, kmer, position, snp_position, ref_position, lineage
             ));
         }
@@ -254,21 +255,43 @@ fn process_genomes(args: &Args, markers_kmers: &HashMap<String, (usize, String)>
     let mut results = Vec::new();
     if let Some(tsv_genomes) = &args.tsv_genomes {
         let genome_paths = get_genomepaths(tsv_genomes)?;
+        let pb = ProgressBar::new(genome_paths.len() as u64);
+        pb.set_style(ProgressStyle::default_bar()
+            .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
+            .unwrap()
+            .progress_chars("=>-"));
+        
         let res: Vec<String> = genome_paths
             .par_iter()
-            .flat_map_iter(|(genome_name, fasta_path)| {
-                analyze_genome(genome_name, fasta_path, markers_kmers, k)
+            .map(|(genome_name, fasta_path)| {
+                let result = analyze_genome(genome_name, fasta_path, markers_kmers, k);
+                pb.inc(1);
+                result
             })
+            .flatten()
             .collect();
+        
+        pb.finish_with_message("Done!");
         results.extend(res);
     } else if let Some(fasta_genomes) = &args.fasta_genomes {
         let genomes = get_genomes_from_fasta(fasta_genomes)?;
+        let pb = ProgressBar::new(genomes.len() as u64);
+        pb.set_style(ProgressStyle::default_bar()
+            .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
+            .unwrap()
+            .progress_chars("=>-"));
+        
         let res: Vec<String> = genomes
             .par_iter()
-            .flat_map_iter(|(genome_name, genome_seq)| {
-                analyze_genome_seq(genome_name, genome_seq, markers_kmers, k)
+            .map(|(genome_name, genome_seq)| {
+                let result = analyze_genome_seq(genome_name, genome_seq, markers_kmers, k);
+                pb.inc(1);
+                result
             })
+            .flatten()
             .collect();
+        
+        pb.finish_with_message("Done!");
         results.extend(res);
     }
     Ok(results)
