@@ -5,9 +5,9 @@ edition = "2021"
 authors = ["Paula Ruiz Rodriguez <paula.ruiz.rodriguez@csic.es>"]
 
 [dependencies]
-clap = { version = "4.1", features = ["derive"] }
-csv = "1.1"
+clap = { version = "4.5.28", features = ["derive"] }
+csv = "1.3.1"
 log = "0.4"
-env_logger = "0.10"
+env_logger = "0.11.6"
 bio = "2.0.3"
-rayon = "1.7"
+rayon = "1.10.0"
