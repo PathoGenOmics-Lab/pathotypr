@@ -232,83 +232,70 @@ fn analyze_genome_seq(
     result
 }
 
+fn check_input_files(args: &Args) -> Result<(), Box<dyn Error>> {
+    let all_files = vec![
+        (args.tsv_pos.as_str(), "TSV positions file"),
+        (args.ref_fasta.as_str(), "Reference FASTA file"),
+        (args.tsv_genomes.as_deref().unwrap_or(""), "TSV genomes file"),
+        (args.fasta_genomes.as_deref().unwrap_or(""), "FASTA genomes file"),
+    ];
+
+    for (path, description) in all_files.into_iter().filter(|(p, _)| !p.is_empty()) {
+        if !Path::new(path).exists() {
+            error!("The {} {} does not exist", description, path);
+            return Err(format!("File {} does not exist", path).into());
+        }
+    }
+
+    Ok(())
+}
+
+fn process_genomes(args: &Args, markers_kmers: &HashMap<String, (usize, String)>, k: usize) -> Result<Vec<String>, Box<dyn Error>> {
+    let mut results = Vec::new();
+    if let Some(tsv_genomes) = &args.tsv_genomes {
+        let genome_paths = get_genomepaths(tsv_genomes)?;
+        let res: Vec<String> = genome_paths
+            .par_iter()
+            .flat_map_iter(|(genome_name, fasta_path)| {
+                analyze_genome(genome_name, fasta_path, markers_kmers, k)
+            })
+            .collect();
+        results.extend(res);
+    } else if let Some(fasta_genomes) = &args.fasta_genomes {
+        let genomes = get_genomes_from_fasta(fasta_genomes)?;
+        let res: Vec<String> = genomes
+            .par_iter()
+            .flat_map_iter(|(genome_name, genome_seq)| {
+                analyze_genome_seq(genome_name, genome_seq, markers_kmers, k)
+            })
+            .collect();
+        results.extend(res);
+    }
+    Ok(results)
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     let args = Args::parse();
-    let tsv_pos = args.tsv_pos;
-    let ref_fasta = args.ref_fasta;
-    let output_file = args.ofile;
-    let num_cpu = args.num_cpu;
-
-    // Optionally set the number of threads for Rayon.
-    if let Some(n) = num_cpu {
+    
+    if let Some(n) = args.num_cpu {
         rayon::ThreadPoolBuilder::new()
             .num_threads(n)
             .build_global()
             .unwrap();
     }
 
-    // Check that required input files exist.
-    if !Path::new(&tsv_pos).exists() {
-        error!("The file {} does not exist", tsv_pos);
-        return Err(format!("File {} does not exist", tsv_pos).into());
-    }
-    if !Path::new(&ref_fasta).exists() {
-        error!("The file {} does not exist", ref_fasta);
-        return Err(format!("File {} does not exist", ref_fasta).into());
-    }
-    if let Some(ref tsv_genomes) = args.tsv_genomes {
-        if !Path::new(tsv_genomes).exists() {
-            error!("The file {} does not exist", tsv_genomes);
-            return Err(format!("File {} does not exist", tsv_genomes).into());
-        }
-    }
-    if let Some(ref fasta_genomes) = args.fasta_genomes {
-        if !Path::new(fasta_genomes).exists() {
-            error!("The file {} does not exist", fasta_genomes);
-            return Err(format!("File {} does not exist", fasta_genomes).into());
-        }
-    }
+    check_input_files(&args)?;
 
-    // Read the reference genome sequence.
-    let ref_seq = get_ref(&ref_fasta)?;
-    // Read marker positions and lineages from the TSV file.
-    let (reference_positions, markers_lineage) = get_positions(&tsv_pos)?;
-    // Set kmer length.
+    let ref_seq = get_ref(&args.ref_fasta)?;
+    let (reference_positions, markers_lineage) = get_positions(&args.tsv_pos)?;
     let k: usize = 21;
-    // Generate marker kmers from the reference genome.
     let markers_kmers = generate_markerkmer(&reference_positions, &ref_seq, &markers_lineage, k);
 
-    // Open the output file and write the header.
-    let mut outfile = File::create(&output_file)?;
+    let mut outfile = File::create(&args.ofile)?;
     writeln!(outfile, "genome\tk-mer\tk-merPOS\tSNPgenome\tSNPreference\tlineage")?;
 
-    let mut results = Vec::new();
-
-    // Process genomes based on the input type.
-    if let Some(tsv_genomes) = args.tsv_genomes {
-        // Process genomes using the TSV file with genome paths.
-        let genome_paths = get_genomepaths(&tsv_genomes)?;
-        let res: Vec<String> = genome_paths
-            .par_iter()
-            .flat_map_iter(|(genome_name, fasta_path)| {
-                analyze_genome(genome_name, fasta_path, &markers_kmers, k)
-            })
-            .collect();
-        results.extend(res);
-    } else if let Some(fasta_genomes) = args.fasta_genomes {
-        // Process genomes directly from a FASTA file (single or multi-FASTA).
-        let genomes = get_genomes_from_fasta(&fasta_genomes)?;
-        let res: Vec<String> = genomes
-            .par_iter()
-            .flat_map_iter(|(genome_name, genome_seq)| {
-                analyze_genome_seq(genome_name, genome_seq, &markers_kmers, k)
-            })
-            .collect();
-        results.extend(res);
-    }
-
-    // Write the results to the output file.
+    let results = process_genomes(&args, &markers_kmers, k)?;
     for line in results {
         write!(outfile, "{}", line)?;
     }
