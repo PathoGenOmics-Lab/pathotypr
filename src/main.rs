@@ -281,38 +281,25 @@ fn load_input_data(args: &Args, k: usize) -> Result<(Vec<GenomeSequence>, Vec<Li
     }
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
-    // Parse command-line arguments.
-    let args = Args::parse();
-    let k = 21;
-
-    // Load input data as domain types.
-    let (genome_vec, lineage_vec) = load_input_data(&args, k)?;
-    // Convert domain types to plain strings for processing.
-    let texts: Vec<String> = genome_vec.iter().map(|g| g.as_str().to_string()).collect();
-    let labels: Vec<String> = lineage_vec.iter().map(|l| l.as_str().to_string()).collect();
-
-    // Fit the vectorizer on all texts.
+fn prepare_data(texts: &[String], labels: &[String]) -> Result<(CountVectorizer, LabelEncoder, Vec<Vec<f64>>, Vec<usize>), Box<dyn Error>> {
     let mut vectorizer = CountVectorizer::new();
-    vectorizer.fit(&texts);
-    let x_data = vectorizer.transform(&texts);
-    let _x = DenseMatrix::from_2d_vec(&x_data).expect("Failed to create matrix");
+    vectorizer.fit(texts);
+    let x_data = vectorizer.transform(texts);
 
-    // Encode the labels.
     let mut label_encoder = LabelEncoder::new();
-    label_encoder.fit(&labels);
-    let y = label_encoder.transform(&labels);
+    label_encoder.fit(labels);
+    let y = label_encoder.transform(labels);
 
-    // Check that there are at least 2 distinct classes.
     if label_encoder.int_to_label.len() < 2 {
         return Err("Training data must contain at least two distinct classes.".into());
     }
 
-    let n_samples = x_data.len();
-    let n_features = vectorizer.vocabulary.len();
+    Ok((vectorizer, label_encoder, x_data, y))
+}
 
-    // Perform an 80/20 train/test split.
-    let raw_test_size = ((n_samples as f64) * 0.2).round() as usize;
+fn split_train_test(x_data: &[Vec<f64>], y: &[usize], test_ratio: f64) -> Result<(DenseMatrix<f64>, Vec<usize>, DenseMatrix<f64>, Vec<usize>), Box<dyn Error>> {
+    let n_samples = x_data.len();
+    let raw_test_size = ((n_samples as f64) * test_ratio).round() as usize;
     let test_size = if raw_test_size == 0 && n_samples > 1 { 1 } else { raw_test_size };
 
     if n_samples - test_size == 0 {
@@ -322,6 +309,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut indices: Vec<usize> = (0..n_samples).collect();
     let mut rng = rand::rngs::StdRng::seed_from_u64(42);
     indices.shuffle(&mut rng);
+
     let test_indices = &indices[..test_size];
     let train_indices = &indices[test_size..];
 
@@ -330,10 +318,40 @@ fn main() -> Result<(), Box<dyn Error>> {
     let y_test: Vec<usize> = test_indices.iter().map(|&i| y[i]).collect();
     let y_train: Vec<usize> = train_indices.iter().map(|&i| y[i]).collect();
 
-    let x_train =
-        DenseMatrix::from_2d_vec(&train_data).expect("Failed to create training matrix");
-    let x_test =
-        DenseMatrix::from_2d_vec(&test_data).expect("Failed to create test matrix");
+    let x_train = DenseMatrix::from_2d_vec(&train_data).expect("Failed to create training matrix");
+    let x_test = DenseMatrix::from_2d_vec(&test_data).expect("Failed to create test matrix");
+
+    Ok((x_train, y_train, x_test, y_test))
+}
+
+fn save_model_artifacts(vectorizer: &CountVectorizer, label_encoder: &LabelEncoder, output_base: &str) -> Result<(), Box<dyn Error>> {
+    let vectorizer_filename = format!("{}_vectorizer.bin.gz", output_base);
+    let vec_file = File::create(&vectorizer_filename)?;
+    let mut vec_encoder = GzEncoder::new(vec_file, Compression::default());
+    bincode::serialize_into(&mut vec_encoder, vectorizer)?;
+    vec_encoder.finish()?;
+    println!("INFO: Saved the vectorizer to {}", vectorizer_filename);
+
+    let label_filename = format!("{}_label_encoder.bin.gz", output_base);
+    let label_file = File::create(&label_filename)?;
+    let mut label_encoder_gz = GzEncoder::new(label_file, Compression::default());
+    bincode::serialize_into(&mut label_encoder_gz, label_encoder)?;
+    label_encoder_gz.finish()?;
+    println!("INFO: Saved the label encoder to {}", label_filename);
+
+    Ok(())
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+    let args = Args::parse();
+    let k = 21;
+
+    let (genome_vec, lineage_vec) = load_input_data(&args, k)?;
+    let texts: Vec<String> = genome_vec.iter().map(|g| g.as_str().to_string()).collect();
+    let labels: Vec<String> = lineage_vec.iter().map(|l| l.as_str().to_string()).collect();
+
+    let (vectorizer, label_encoder, x_data, y) = prepare_data(&texts, &labels)?;
+    let (x_train, y_train, x_test, y_test) = split_train_test(&x_data, &y, 0.2)?;
 
     println!("INFO: Starting to train the model: {}", args.output);
 
@@ -342,9 +360,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         min_samples_leaf: 1,
         min_samples_split: 2,
         n_trees: 100,
-        m: Some((n_features as f64).sqrt().floor() as usize),
+        m: Some((vectorizer.vocabulary.len() as f64).sqrt().floor() as usize),
         seed: 42,
-        criterion: SplitCriterion::Gini, // Use the default Gini criterion.
+        criterion: SplitCriterion::Gini,
         keep_samples: true,
     };
 
@@ -355,33 +373,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         .predict(&x_test)
         .map_err(|e| format!("Error during prediction: {:?}", e))?;
 
-    let correct = y_pred
-        .iter()
-        .zip(y_test.iter())
-        .filter(|(&pred, &true_val)| pred == true_val)
-        .count();
+    let correct = y_pred.iter().zip(y_test.iter()).filter(|(&pred, &true_val)| pred == true_val).count();
     let accuracy = correct as f64 / y_test.len() as f64;
     println!("INFO: Model's accuracy on the test set is: {}", accuracy);
     println!("INFO: Finished training the model: {}", args.output);
 
-    // Serialize the vectorizer.
-    {
-        let vectorizer_filename = format!("{}_vectorizer.bin.gz", args.output);
-        let vec_file = File::create(&vectorizer_filename)?;
-        let mut vec_encoder = GzEncoder::new(vec_file, Compression::default());
-        bincode::serialize_into(&mut vec_encoder, &vectorizer)?;
-        vec_encoder.finish()?;
-        println!("INFO: Saved the vectorizer to {}", vectorizer_filename);
-    }
-    // Serialize the label encoder.
-    {
-        let label_filename = format!("{}_label_encoder.bin.gz", args.output);
-        let label_file = File::create(&label_filename)?;
-        let mut label_encoder_gz = GzEncoder::new(label_file, Compression::default());
-        bincode::serialize_into(&mut label_encoder_gz, &label_encoder)?;
-        label_encoder_gz.finish()?;
-        println!("INFO: Saved the label encoder to {}", label_filename);
-    }
+    save_model_artifacts(&vectorizer, &label_encoder, &args.output)?;
 
     Ok(())
 }
