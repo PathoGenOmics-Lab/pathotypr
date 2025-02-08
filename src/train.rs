@@ -94,7 +94,7 @@ pub struct Args {
     /// Base name for the output model artifacts.
     #[arg(short, long)]
     pub output: String,
-    /// k-mer size (default is 21)
+    /// k-mer size (default is 6)
     #[arg(long, default_value_t = DEFAULT_KMER_SIZE)]
     pub kmer_size: usize,
 }
