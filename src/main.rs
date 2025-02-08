@@ -10,11 +10,11 @@ use serde::{Deserialize, Serialize};
 use smartcore::ensemble::random_forest_classifier::{
     RandomForestClassifier, RandomForestClassifierParameters,
 };
-use smartcore::linalg::dense_matrix::DenseMatrix;
+use nalgebra::DenseMatrix; // Changed from smartcore::linalg::dense_matrix
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader}; // Removed unused Write import
 
 /// Command line arguments.
 /// Either --tsv or --fasta must be provided for the input.
@@ -303,12 +303,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Train the random forest classifier.
     let rf_params = RandomForestClassifierParameters {
         n_trees: 100,
-        m: None,
-        max_depth: None,
-        min_samples_split: 2,
-        min_samples_leaf: 1,
-        max_features: None,
-        seed: Some(42),
+        criterion: Default::default(), // Default criterion
+        keep_samples: true, // Whether to keep samples for OOB error estimation
+        seed: 42, // Changed from Some(42) to 42
     };
 
     let clf = RandomForestClassifier::fit(&x_train, &y_train, rf_params)
