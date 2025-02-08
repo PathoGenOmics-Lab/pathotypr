@@ -1,5 +1,3 @@
-// src/classify.rs
-
 use clap::Parser;
 use csv::ReaderBuilder;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -8,7 +6,7 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
-use std::io::Write;
+use std::io::{Write, BufWriter};
 use std::path::Path;
 use bio::io::fasta;
 
@@ -18,18 +16,27 @@ pub struct Args {
     /// TSV file with marker positions
     #[arg(short = 'p', long = "tsv_pos")]
     pub tsv_pos: String,
+
     /// Reference genome in FASTA format
     #[arg(short = 'r', long = "ref_fasta")]
     pub ref_fasta: String,
+
     /// TSV file with genome names and paths to FASTA files (required unless --fasta_genomes is provided)
     #[arg(short = 'g', long = "tsv_genomes", required_unless_present = "fasta_genomes")]
     pub tsv_genomes: Option<String>,
+
     /// FASTA file with one or multiple genomes (required unless --tsv_genomes is provided)
     #[arg(short = 'f', long = "fasta_genomes", required_unless_present = "tsv_genomes")]
     pub fasta_genomes: Option<String>,
-    /// Output file
+
+    /// Base name for the output file (the main per-marker file and a second summary TSV)
     #[arg(short = 'o', long = "output")]
     pub ofile: String,
+
+    /// k-mer size (default is 21)
+    #[arg(long, default_value_t = 21)]
+    pub kmer_size: usize,
+
     /// Number of CPUs to use (optional)
     #[arg(short = 'c', long = "num_cpu")]
     pub num_cpu: Option<usize>,
@@ -73,7 +80,9 @@ fn get_positions(tsv_file: &str) -> Result<(HashMap<usize, String>, HashMap<usiz
     let mut markers_lineage = HashMap::new();
     for result in rdr.records() {
         let record = result?;
-        if record.len() < 3 { continue; }
+        if record.len() < 3 {
+            continue;
+        }
         let pos: usize = record[0].parse()?;
         let alt_base = record[1].to_string();
         let lineage = record[2].to_string();
@@ -133,7 +142,9 @@ fn get_genomepaths(tsv_file: &str) -> Result<HashMap<String, String>, Box<dyn Er
     let mut genome_paths = HashMap::new();
     for result in rdr.records() {
         let record = result?;
-        if record.len() < 2 { continue; }
+        if record.len() < 2 {
+            continue;
+        }
         let genome_name = record[0].to_string();
         let fasta_path = record[1].to_string();
         if !Path::new(&fasta_path).exists() {
@@ -157,7 +168,7 @@ fn get_genomes_from_fasta(fasta_file: &str) -> Result<HashMap<String, String>, B
     Ok(genomes)
 }
 
-/// Analyzes a single genome from a FASTA file.
+/// Analyzes a single genome from a FASTA file, returning lines with marker details.
 fn analyze_genome(
     genome_name: &str,
     fasta_path: &str,
@@ -183,14 +194,16 @@ fn analyze_genome(
     } else {
         for (kmer, (position, ref_position, lineage)) in matched_markers {
             let snp_position = position + k / 2;
-            result.push(format!("{}\t{}\t{}\t{}\t{}\t{}\n",
-                genome_name, kmer, position, snp_position, ref_position, lineage));
+            result.push(format!(
+                "{}\t{}\t{}\t{}\t{}\t{}\n",
+                genome_name, kmer, position, snp_position, ref_position, lineage
+            ));
         }
     }
     result
 }
 
-/// Analyzes a single genome from a provided sequence.
+/// Analyzes a single genome from a provided sequence (in memory), returning lines with marker details.
 fn analyze_genome_seq(
     genome_name: &str,
     genome_seq: &str,
@@ -205,8 +218,10 @@ fn analyze_genome_seq(
     } else {
         for (kmer, (position, ref_position, lineage)) in matched_markers {
             let snp_position = position + k / 2;
-            result.push(format!("{}\t{}\t{}\t{}\t{}\t{}\n",
-                genome_name, kmer, position, snp_position, ref_position, lineage));
+            result.push(format!(
+                "{}\t{}\t{}\t{}\t{}\t{}\n",
+                genome_name, kmer, position, snp_position, ref_position, lineage
+            ));
         }
     }
     result
@@ -229,39 +244,52 @@ fn check_input_files(args: &Args) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// Processes genomes and returns the output lines.
-fn process_genomes(args: &Args, markers_kmers: &HashMap<String, (usize, String)>, k: usize)
-    -> Result<Vec<String>, Box<dyn Error>> {
+/// Processes genomes and returns lines with marker matches for each genome.
+fn process_genomes(
+    args: &Args,
+    markers_kmers: &HashMap<String, (usize, String)>,
+    k: usize
+) -> Result<Vec<String>, Box<dyn Error>> {
     let mut results = Vec::new();
+
+    // If we have a TSV of genome names -> paths
     if let Some(tsv_genomes) = &args.tsv_genomes {
         let genome_paths = get_genomepaths(tsv_genomes)?;
         let pb = ProgressBar::new(genome_paths.len() as u64);
-        pb.set_style(ProgressStyle::default_bar()
-            .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
-            .unwrap()
-            .progress_chars("=>-"));
-        let res: Vec<String> = genome_paths.par_iter()
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
+                .unwrap()
+                .progress_chars("=>-"),
+        );
+        let res: Vec<String> = genome_paths
+            .par_iter()
             .map(|(genome_name, fasta_path)| {
-                let result = analyze_genome(genome_name, fasta_path, markers_kmers, k);
+                let lines = analyze_genome(genome_name, fasta_path, markers_kmers, k);
                 pb.inc(1);
-                result
+                lines
             })
             .flatten()
             .collect();
         pb.finish_with_message("Done!");
         results.extend(res);
-    } else if let Some(fasta_genomes) = &args.fasta_genomes {
+    }
+    // Otherwise, we have a multi-FASTA with possibly multiple genomes
+    else if let Some(fasta_genomes) = &args.fasta_genomes {
         let genomes = get_genomes_from_fasta(fasta_genomes)?;
         let pb = ProgressBar::new(genomes.len() as u64);
-        pb.set_style(ProgressStyle::default_bar()
-            .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
-            .unwrap()
-            .progress_chars("=>-"));
-        let res: Vec<String> = genomes.par_iter()
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
+                .unwrap()
+                .progress_chars("=>-"),
+        );
+        let res: Vec<String> = genomes
+            .par_iter()
             .map(|(genome_name, genome_seq)| {
-                let result = analyze_genome_seq(genome_name, genome_seq, markers_kmers, k);
+                let lines = analyze_genome_seq(genome_name, genome_seq, markers_kmers, k);
                 pb.inc(1);
-                result
+                lines
             })
             .flatten()
             .collect();
@@ -282,17 +310,103 @@ pub fn run(args: Args) -> Result<(), Box<dyn Error>> {
     }
     check_input_files(&args)?;
 
+    // use the user-provided kmer_size
+    let k = args.kmer_size;
+
+    // read reference
     let ref_seq = get_ref(&args.ref_fasta)?;
+
+    // read marker data
     let (reference_positions, markers_lineage) = get_positions(&args.tsv_pos)?;
-    let k: usize = 21; // Adjust the k-mer length as needed.
+
+    // generate marker k-mers
     let markers_kmers = generate_markerkmer(&reference_positions, &ref_seq, &markers_lineage, k);
 
-    let mut outfile = File::create(&args.ofile)?;
-    writeln!(outfile, "genome\tk-mer\tk-merPOS\tSNPgenome\tSNPreference\tlineage")?;
-
+    // 1. Process and get all lines
     let results = process_genomes(&args, &markers_kmers, k)?;
-    for line in results {
+
+    // 2. Write the original results to the main output file
+    let mut outfile = BufWriter::new(File::create(&args.ofile)?);
+    writeln!(
+        outfile,
+        "genome\tk-mer\tk-merPOS\tSNPgenome\tSNPreference\tlineage"
+    )?;
+    for line in &results {
         write!(outfile, "{}", line)?;
     }
+
+    // 3. Also produce a second summary file with lineage counts
+    //    The second file name: <output>_summary.tsv
+    let summary_file = format!("{}_summary.tsv", args.ofile);
+    let mut summary_out = BufWriter::new(File::create(&summary_file)?);
+    writeln!(summary_out, "genome\tlineage:count\tmajor_lineage")?;
+
+    // We'll count how many times each lineage was detected per genome
+    let mut lineage_count_map: HashMap<String, HashMap<String, usize>> = HashMap::new();
+
+    // parse the lines from `results`
+    // each line is: genome, k-mer, k-merPOS, SNPgenome, SNPreference, lineage
+    for line in &results {
+        let trimmed = line.trim_end();
+        let fields: Vec<&str> = trimmed.split('\t').collect();
+        if fields.len() < 6 {
+            continue;
+        }
+        let genome_name = fields[0].to_string();
+        let lineage = fields[5].to_string();
+
+        lineage_count_map
+            .entry(genome_name)
+            .or_insert_with(HashMap::new)
+            .entry(lineage)
+            .and_modify(|c| *c += 1)
+            .or_insert(1);
+    }
+
+    // For each genome, gather lineages, build the summary line
+    for (genome, lineage_map) in lineage_count_map {
+        // Convert to vector for sorting
+        let mut lineage_counts: Vec<(String, usize)> = lineage_map.into_iter().collect();
+        // Sort descending by count
+        lineage_counts.sort_by(|a, b| b.1.cmp(&a.1));
+
+        // Build the lineage:count strings
+        let lineage_count_str = lineage_counts
+            .iter()
+            .map(|(lin, cnt)| format!("{}:{}", lin, cnt))
+            .collect::<Vec<_>>()
+            .join(",");
+
+        // Determine majority lineage: if the top is strictly greater than the second
+        let majority_lineage = if lineage_counts.is_empty() {
+            // no lineages found
+            "".to_string()
+        } else if lineage_counts.len() == 1 {
+            // single lineage
+            lineage_counts[0].0.clone()
+        } else {
+            // multiple lineages
+            let top_count = lineage_counts[0].1;
+            let second_count = lineage_counts[1].1;
+            if top_count > second_count {
+                // single majority
+                lineage_counts[0].0.clone()
+            } else {
+                // no single majority -> put them all
+                lineage_counts
+                    .iter()
+                    .map(|(lin, _)| lin.clone())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            }
+        };
+
+        writeln!(
+            summary_out,
+            "{}\t{}\t{}",
+            genome, lineage_count_str, majority_lineage
+        )?;
+    }
+
     Ok(())
 }
