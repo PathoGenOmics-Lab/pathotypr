@@ -12,7 +12,7 @@ use std::time::Instant;
 use chrono::Local;
 
 // Default k-mer size if not provided.
-const DEFAULT_KMER_SIZE: usize = 5;
+const DEFAULT_KMER_SIZE: usize = 6;
 
 /// Converts a genomic sequence into overlapping k-mers separated by spaces.
 /// For example, "ATGCAT" with k=3 becomes "ATG TGC GCA CAT".
