@@ -385,6 +385,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Log the current system finish time.
     println!("INFO: System finish time: {}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"));
-
+    
     Ok(())
 }
