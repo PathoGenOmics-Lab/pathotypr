@@ -1,11 +1,10 @@
 use clap::Parser;
-use csv::StringRecord;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use indicatif::ProgressBar;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
-use rayon::prelude::*; // Note: we use rayon only in parts; we'll disable parallelism in transform.
+use rayon::prelude::*; // Note: We use sequential processing in transform for memory efficiency.
 use serde::{Deserialize, Serialize};
 use smartcore::ensemble::random_forest_classifier::{
     RandomForestClassifier, RandomForestClassifierParameters,
@@ -17,9 +16,8 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use smartcore::tree::decision_tree_classifier::SplitCriterion;
 
-// Limit the vocabulary size to reduce memory consumption.
-const MAX_VOCAB_SIZE: usize = 10000;
-const KMER_SIZE: usize = 21; // k-mer length
+// Optional: Limit vocabulary size (set as needed)
+// const MAX_VOCAB_SIZE: usize = 10000;
 
 /// Converts a genomic sequence into overlapping k-mers separated by spaces.
 /// For example, "ATGCAT" with k=3 becomes "ATG TGC GCA CAT".
@@ -87,20 +85,20 @@ impl std::ops::Deref for Lineage {
     }
 }
 
-/// Command-line arguments.
-/// Either --tsv or --fasta must be provided.
+/// Command-line arguments for training.
+/// Only FASTA input is accepted.
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    /// Input TSV file (tab-separated with headers "genome_sequence" and "lineage")
-    #[arg(long, conflicts_with = "fasta", required_unless_present = "fasta")]
-    tsv: Option<String>,
-    /// Input FASTA file (multifasta file; header is expected to be in the format "Lineage_sequenceID")
-    #[arg(long, conflicts_with = "tsv", required_unless_present = "tsv")]
-    fasta: Option<String>,
+    /// Input FASTA file (multifasta; header is expected to be in the format "Lineage_sequenceID")
+    #[arg(long)]
+    fasta: String,
     /// Base name for the output model artifacts.
     #[arg(short, long)]
     output: String,
+    /// k-mer size (default is 21)
+    #[arg(long, default_value_t = 21)]
+    kmer_size: usize,
 }
 
 /// A simple count vectorizer that splits texts on whitespace.
@@ -118,23 +116,22 @@ impl CountVectorizer {
         }
     }
     /// Fits the vectorizer on a collection of texts.
-    /// It builds a frequency map and retains only the top MAX_VOCAB_SIZE tokens.
+    /// T can be any type that can be converted to a &str.
+    /// Optionally, you can limit the vocabulary size here.
     pub fn fit<T: AsRef<str>>(&mut self, texts: &[T]) {
         let mut freq: HashMap<String, usize> = HashMap::new();
-        // Count token frequencies.
         for text in texts {
             for token in text.as_ref().split_whitespace() {
                 *freq.entry(token.to_string()).or_insert(0) += 1;
             }
         }
-        // Convert frequency map into a vector and sort by frequency (descending).
+        // Sort tokens by frequency (descending)
         let mut freq_vec: Vec<(String, usize)> = freq.into_iter().collect();
         freq_vec.sort_by(|a, b| b.1.cmp(&a.1));
-        // Retain only the top MAX_VOCAB_SIZE tokens.
-        if freq_vec.len() > MAX_VOCAB_SIZE {
-            freq_vec.truncate(MAX_VOCAB_SIZE);
-        }
-        // Build vocabulary from the remaining tokens.
+        // Optionally limit vocabulary size
+        // if freq_vec.len() > MAX_VOCAB_SIZE {
+        //     freq_vec.truncate(MAX_VOCAB_SIZE);
+        // }
         self.vocabulary = freq_vec
             .iter()
             .enumerate()
@@ -143,10 +140,10 @@ impl CountVectorizer {
         self.feature_names = freq_vec.into_iter().map(|(token, _)| token).collect();
     }
     /// Transforms a collection of texts into a 2D vector (one row per text).
-    /// Here, we use sequential iteration to reduce memory overhead.
+    /// We use sequential processing to reduce memory overhead.
     pub fn transform<T: AsRef<str> + Sync>(&self, texts: &[T]) -> Vec<Vec<f64>> {
         texts
-            .iter() // Use sequential processing instead of par_iter()
+            .iter() // Sequential iteration
             .map(|text| {
                 let n_features = self.vocabulary.len();
                 let mut counts = vec![0.0; n_features];
@@ -195,24 +192,9 @@ impl LabelEncoder {
     }
 }
 
-#[allow(dead_code)]
-/// Splits a sequence into k-mers.
-/// (This function is currently not used; you can remove it if desired.)
-fn split_kmers(sequence: &str, k: usize) -> Vec<String> {
-    let seq_len = sequence.len();
-    if seq_len < k {
-        return Vec::new();
-    }
-    (0..=seq_len - k)
-        .map(|i| sequence[i..i + k].to_string())
-        .collect()
-}
-
 /// Reads a FASTA file and returns a tuple: (vector of GenomeSequence, vector of Lineage).
-/// The parameter _k is ignored here.
-/// The header is expected to be in the format "Lineage_sequenceID";
-/// the lineage is taken as the part before the underscore.
-/// A progress bar is used to indicate the processing of records.
+/// The header is expected to be in the format "Lineage_sequenceID"; the lineage is taken as the part before the underscore.
+/// A progress bar indicates processing.
 fn read_fasta(path: &str, _k: usize) -> Result<(Vec<GenomeSequence>, Vec<Lineage>), Box<dyn Error>> {
     let file = File::open(path)?;
     let reader = BufReader::new(file);
@@ -248,72 +230,26 @@ fn read_fasta(path: &str, _k: usize) -> Result<(Vec<GenomeSequence>, Vec<Lineage
     Ok((sequences, lineages))
 }
 
-/// Loads input data from either a TSV or FASTA file, returning vectors of domain types.
+/// Loads input data from a FASTA file, returning vectors of domain types.
 fn load_input_data(args: &Args, k: usize) -> Result<(Vec<GenomeSequence>, Vec<Lineage>), Box<dyn Error>> {
-    if let Some(tsv_file) = &args.tsv {
-        println!("INFO: Reading input TSV file: {}", tsv_file);
-        let mut texts = Vec::new();
-        let mut lineages = Vec::new();
-        let mut rdr = csv::ReaderBuilder::new()
-            .delimiter(b'\t')
-            .from_path(tsv_file)?;
-        let headers = rdr.headers()?.clone();
-        let seq_idx = headers
-            .iter()
-            .position(|h| h == "genome_sequence")
-            .ok_or("Missing 'genome_sequence' column in header")?;
-        let lineage_idx = headers
-            .iter()
-            .position(|h| h == "lineage")
-            .ok_or("Missing 'lineage' column in header")?;
-        let pb = ProgressBar::new_spinner();
-        pb.set_message("Processing TSV records...");
-        for result in rdr.records() {
-            let record: StringRecord = result?;
-            let genome_sequence_str = record
-                .get(seq_idx)
-                .ok_or("Missing genome_sequence field")?;
-            let lineage_str = record
-                .get(lineage_idx)
-                .ok_or("Missing lineage field")?;
-            let genome = GenomeSequence::new(genome_sequence_str.to_string())?;
-            let lineage = Lineage::new(lineage_str.to_string())?;
-            texts.push(genome);
-            lineages.push(lineage);
-            pb.inc(1);
-        }
-        pb.finish_with_message("Finished processing TSV records.");
-        println!("INFO: Finished processing the input TSV file: {}", tsv_file);
-        Ok((texts, lineages))
-    } else if let Some(fasta_file) = &args.fasta {
-        println!("INFO: Reading input FASTA file: {}", fasta_file);
-        read_fasta(fasta_file, k)
-    } else {
-        Err("Either --tsv or --fasta must be provided as input.".into())
-    }
+    println!("INFO: Reading input FASTA file: {}", args.fasta);
+    read_fasta(&args.fasta, k)
 }
 
 /// Prepares the feature matrix and label vector by converting sequences into k-mer strings,
 /// then fitting the vectorizer and label encoder.
-fn prepare_data(texts: &[String], labels: &[String]) -> Result<(CountVectorizer, LabelEncoder, Vec<Vec<f64>>, Vec<usize>), Box<dyn Error>> {
+fn prepare_data(texts: &[String], labels: &[String], kmer_size: usize) -> Result<(CountVectorizer, LabelEncoder, Vec<Vec<f64>>, Vec<usize>), Box<dyn Error>> {
     // Convert each genome sequence into overlapping k-mers.
-    let kmer_texts: Vec<String> = texts
-        .iter()
-        .map(|s| kmerize(s, KMER_SIZE))
-        .collect();
-
+    let kmer_texts: Vec<String> = texts.iter().map(|s| kmerize(s, kmer_size)).collect();
     let mut vectorizer = CountVectorizer::new();
     vectorizer.fit(&kmer_texts);
     let x_data = vectorizer.transform(&kmer_texts);
-
     let mut label_encoder = LabelEncoder::new();
     label_encoder.fit(labels);
     let y = label_encoder.transform(labels);
-
     if label_encoder.int_to_label.len() < 2 {
         return Err("Training data must contain at least two distinct classes.".into());
     }
-
     Ok((vectorizer, label_encoder, x_data, y))
 }
 
@@ -370,15 +306,15 @@ where
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
-    let k = KMER_SIZE;
+    let kmer_size = args.kmer_size;
 
-    // Load input data from TSV or FASTA.
-    let (genome_vec, lineage_vec) = load_input_data(&args, k)?;
+    // Load input data from FASTA.
+    let (genome_vec, lineage_vec) = load_input_data(&args, kmer_size)?;
     let texts: Vec<String> = genome_vec.iter().map(|g| g.as_str().to_string()).collect();
     let labels: Vec<String> = lineage_vec.iter().map(|l| l.as_str().to_string()).collect();
 
-    // Prepare data: convert sequences to k-merized strings, then fit vectorizer and label encoder.
-    let (vectorizer, label_encoder, x_data, y) = prepare_data(&texts, &labels)?;
+    // Prepare data: convert sequences into k-mer strings, fit vectorizer and label encoder.
+    let (vectorizer, label_encoder, x_data, y) = prepare_data(&texts, &labels, kmer_size)?;
     let (x_train, y_train, x_test, y_test) = split_train_test(&x_data, &y, 0.2)?;
 
     println!("INFO: Starting to train the model: {}", args.output);
