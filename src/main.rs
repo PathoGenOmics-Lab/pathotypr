@@ -82,7 +82,7 @@ struct Args {
     #[arg(long, conflicts_with = "fasta", required_unless_present = "fasta")]
     tsv: Option<String>,
 
-    /// Input FASTA file (multifasta file; header is used as the lineage)
+    /// Input FASTA file (multifasta file; header is expected to be in the format "Lineage_sequenceID")
     #[arg(long, conflicts_with = "tsv", required_unless_present = "tsv")]
     fasta: Option<String>,
 
@@ -197,7 +197,8 @@ fn split_kmers(sequence: &str, k: usize) -> Vec<String> {
 
 /// Reads a FASTA file and returns a tuple: (vector of GenomeSequence, vector of Lineage).
 /// The parameter _k is ignored here.
-/// A progress bar is used to indicate processing of records.
+/// The header is expected to be in the format "Lineage_sequenceID"; the lineage is taken as the part before the underscore.
+/// A progress bar is used to indicate the processing of records.
 fn read_fasta(path: &str, _k: usize) -> Result<(Vec<GenomeSequence>, Vec<Lineage>), Box<dyn Error>> {
     let file = File::open(path)?;
     let reader = BufReader::new(file);
@@ -216,7 +217,10 @@ fn read_fasta(path: &str, _k: usize) -> Result<(Vec<GenomeSequence>, Vec<Lineage
                 lineages.push(Lineage::new(current_lineage.clone())?);
                 pb.inc(1);
             }
-            current_lineage = line.trim_start_matches('>').to_string();
+            // Split the header on '_' and take the first element as the lineage.
+            let header = line.trim_start_matches('>');
+            let lineage_part = header.split('_').next().unwrap_or(header);
+            current_lineage = lineage_part.to_string();
             current_seq.clear();
         } else {
             current_seq.push_str(line.trim());
@@ -266,7 +270,7 @@ fn load_input_data(args: &Args, k: usize) -> Result<(Vec<GenomeSequence>, Vec<Li
             lineages.push(lineage);
             pb.inc(1);
         }
-        pb.finish_with_message("Finished processing TSV file.");
+        pb.finish_with_message("Finished processing TSV records.");
         println!("INFO: Finished processing the input TSV file: {}", tsv_file);
         Ok((texts, lineages))
     } else if let Some(fasta_file) = &args.fasta {
@@ -299,11 +303,22 @@ fn main() -> Result<(), Box<dyn Error>> {
     label_encoder.fit(&labels);
     let y = label_encoder.transform(&labels);
 
+    // Check that there are at least 2 distinct classes.
+    if label_encoder.int_to_label.len() < 2 {
+        return Err("Training data must contain at least two distinct classes.".into());
+    }
+
     let n_samples = x_data.len();
     let n_features = vectorizer.vocabulary.len();
 
     // Perform an 80/20 train/test split.
-    let test_size = ((n_samples as f64) * 0.2).round() as usize;
+    let raw_test_size = ((n_samples as f64) * 0.2).round() as usize;
+    let test_size = if raw_test_size == 0 && n_samples > 1 { 1 } else { raw_test_size };
+
+    if n_samples - test_size == 0 {
+        return Err("Not enough samples for training after splitting.".into());
+    }
+
     let mut indices: Vec<usize> = (0..n_samples).collect();
     let mut rng = rand::rngs::StdRng::seed_from_u64(42);
     indices.shuffle(&mut rng);
@@ -313,10 +328,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     let train_data: Vec<Vec<f64>> = train_indices.iter().map(|&i| x_data[i].clone()).collect();
     let test_data: Vec<Vec<f64>> = test_indices.iter().map(|&i| x_data[i].clone()).collect();
     let y_test: Vec<usize> = test_indices.iter().map(|&i| y[i]).collect();
+    let y_train: Vec<usize> = train_indices.iter().map(|&i| y[i]).collect();
 
     let x_train =
         DenseMatrix::from_2d_vec(&train_data).expect("Failed to create training matrix");
-    let x_test = DenseMatrix::from_2d_vec(&test_data).expect("Failed to create test matrix");
+    let x_test =
+        DenseMatrix::from_2d_vec(&test_data).expect("Failed to create test matrix");
 
     println!("INFO: Starting to train the model: {}", args.output);
 
@@ -331,7 +348,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         keep_samples: true,
     };
 
-    let clf = RandomForestClassifier::fit(&x_train, &y, rf_params)
+    let clf = RandomForestClassifier::fit(&x_train, &y_train, rf_params)
         .map_err(|e| format!("Error training model: {:?}", e))?;
 
     let y_pred = clf
