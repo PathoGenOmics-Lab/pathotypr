@@ -197,9 +197,12 @@ fn split_kmers(sequence: &str, k: usize) -> Vec<String> {
 
 /// Reads a FASTA file and returns a tuple: (vector of GenomeSequence, vector of Lineage).
 /// The parameter _k is ignored here.
+/// A progress bar is used to indicate processing of records.
 fn read_fasta(path: &str, _k: usize) -> Result<(Vec<GenomeSequence>, Vec<Lineage>), Box<dyn Error>> {
     let file = File::open(path)?;
     let reader = BufReader::new(file);
+    let pb = ProgressBar::new_spinner();
+    pb.set_message("Processing FASTA records...");
     let mut sequences = Vec::new();
     let mut lineages = Vec::new();
     let mut current_seq = String::new();
@@ -211,6 +214,7 @@ fn read_fasta(path: &str, _k: usize) -> Result<(Vec<GenomeSequence>, Vec<Lineage
             if !current_lineage.is_empty() {
                 sequences.push(GenomeSequence::new(current_seq.clone())?);
                 lineages.push(Lineage::new(current_lineage.clone())?);
+                pb.inc(1);
             }
             current_lineage = line.trim_start_matches('>').to_string();
             current_seq.clear();
@@ -221,7 +225,9 @@ fn read_fasta(path: &str, _k: usize) -> Result<(Vec<GenomeSequence>, Vec<Lineage
     if !current_lineage.is_empty() {
         sequences.push(GenomeSequence::new(current_seq)?);
         lineages.push(Lineage::new(current_lineage)?);
+        pb.inc(1);
     }
+    pb.finish_with_message("Finished processing FASTA file.");
     Ok((sequences, lineages))
 }
 
