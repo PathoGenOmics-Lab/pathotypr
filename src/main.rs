@@ -1,9 +1,27 @@
 use clap::{Parser, Subcommand};
 
-/// Pathotypr tool: classify genomes using three subcommands: train, predict, and classify.
+/// Pathotypr: A tool to classify genomes.
+///
+/// This tool supports three subcommands:
+/// - **train**: Train a machine learning model using an input FASTA file.
+/// - **predict**: Predict genome classifications using a saved model.
+/// - **classify**: Classify genomes using marker data from TSV/FASTA inputs.
+///
+/// Author: Paula Ruiz Rodriguez <paula.ruiz.rodriguez@csic.es>
+/// Version: 0.1.0
 #[derive(Parser)]
-#[command(name = "pathotypr")]
-#[command(author, version, about, long_about = None)]
+#[command(
+    name = "pathotypr",
+    author = "Paula Ruiz Rodriguez <paula.ruiz.rodriguez@csic.es>",
+    version = "0.1.0",
+    about = "A tool to classify genomes using the train, predict, and classify subcommands.",
+    long_about = "Pathotypr is a command-line tool developed to classify genomes. \
+                  It provides various functionalities:\n\n\
+                  * train   - Train a model using an input FASTA file.\n\
+                  * predict - Predict genome classifications using a saved model.\n\
+                  * classify - Classify genomes based on SNPs from TSV/FASTA files.\n\n\
+                  Use the respective subcommand to access the desired functionality."
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -11,11 +29,11 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Train a model using an input FASTA file
+    /// Train a model using an input FASTA file.
     Train(train::Args),
-    /// Predict genome classifications using a saved model and an input FASTA file
+    /// Predict genome classifications using a saved model.
     Predict(predict::PredictArgs),
-    /// Classify genomes (with markers) using TSV/FASTA inputs
+    /// Classify genomes using marker data.
     Classify(classify::Args),
 }
 
