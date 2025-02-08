@@ -15,10 +15,11 @@ use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::time::Instant;
+use chrono::Local;
 use smartcore::tree::decision_tree_classifier::SplitCriterion;
 
-// Constant for default k-mer size.
-const DEFAULT_KMER_SIZE: usize = 4;
+// Default k-mer size if not provided.
+const DEFAULT_KMER_SIZE: usize = 21;
 
 /// Converts a genomic sequence into overlapping k-mers separated by spaces.
 /// For example, "ATGCAT" with k=3 becomes "ATG TGC GCA CAT".
@@ -124,13 +125,10 @@ impl CountVectorizer {
                 *freq.entry(token.to_string()).or_insert(0) += 1;
             }
         }
-        // Sort tokens by frequency in descending order.
+        // Sort tokens by frequency (descending).
         let mut freq_vec: Vec<(String, usize)> = freq.into_iter().collect();
         freq_vec.sort_by(|a, b| b.1.cmp(&a.1));
-        // (Optional) Limit vocabulary size:
-        // if freq_vec.len() > MAX_VOCAB_SIZE {
-        //     freq_vec.truncate(MAX_VOCAB_SIZE);
-        // }
+        // (Optional) You can limit the vocabulary size here if needed.
         self.vocabulary = freq_vec
             .iter()
             .enumerate()
@@ -139,7 +137,7 @@ impl CountVectorizer {
         self.feature_names = freq_vec.into_iter().map(|(token, _)| token).collect();
     }
     /// Transforms a collection of texts into a 2D vector (one row per text).
-    /// Sequential iteration is used for memory efficiency.
+    /// Sequential processing is used for memory efficiency.
     pub fn transform<T: AsRef<str> + Sync>(&self, texts: &[T]) -> Vec<Vec<f64>> {
         texts
             .iter()
@@ -240,19 +238,15 @@ fn load_input_data(args: &Args, k: usize) -> Result<(Vec<GenomeSequence>, Vec<Li
 fn prepare_data(texts: &[String], labels: &[String], kmer_size: usize) -> Result<(CountVectorizer, LabelEncoder, Vec<Vec<f64>>, Vec<usize>), Box<dyn Error>> {
     // Convert each genome sequence into overlapping k-mers.
     let kmer_texts: Vec<String> = texts.iter().map(|s| kmerize(s, kmer_size)).collect();
-
     let mut vectorizer = CountVectorizer::new();
     vectorizer.fit(&kmer_texts);
     let x_data = vectorizer.transform(&kmer_texts);
-
     let mut label_encoder = LabelEncoder::new();
     label_encoder.fit(labels);
     let y = label_encoder.transform(labels);
-
     if label_encoder.int_to_label.len() < 2 {
         return Err("Training data must contain at least two distinct classes.".into());
     }
-
     Ok((vectorizer, label_encoder, x_data, y))
 }
 
@@ -308,13 +302,17 @@ where
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+    // Parse command-line arguments.
     let args = Args::parse();
     let kmer_size = args.kmer_size;
 
-    let overall_start = std::time::Instant::now();
+    // Log the current system start time.
+    println!("INFO: System start time: {}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"));
+
+    let overall_start = Instant::now();
 
     // Load FASTA input.
-    let input_start = std::time::Instant::now();
+    let input_start = Instant::now();
     let (genome_vec, lineage_vec) = load_input_data(&args, kmer_size)?;
     println!(
         "INFO: Finished reading input FASTA file in {:.2} seconds.",
@@ -324,8 +322,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let texts: Vec<String> = genome_vec.iter().map(|g| g.as_str().to_string()).collect();
     let labels: Vec<String> = lineage_vec.iter().map(|l| l.as_str().to_string()).collect();
 
-    // Prepare data.
-    let prep_start = std::time::Instant::now();
+    // Prepare data: convert sequences into k-mer strings, then fit vectorizer and label encoder.
+    let prep_start = Instant::now();
     let (vectorizer, label_encoder, x_data, y) = prepare_data(&texts, &labels, kmer_size)?;
     println!(
         "INFO: Data preparation completed in {:.2} seconds.",
@@ -336,7 +334,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let (x_train, y_train, x_test, y_test) = split_train_test(&x_data, &y, 0.2)?;
 
     println!("INFO: Starting to train the model: {}", args.output);
-    let train_start = std::time::Instant::now();
+    let train_start = Instant::now();
 
     let rf_params = RandomForestClassifierParameters {
         max_depth: None,
@@ -357,7 +355,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         train_start.elapsed().as_secs_f32()
     );
 
-    let pred_start = std::time::Instant::now();
+    let pred_start = Instant::now();
     let y_pred = clf
         .predict(&x_test)
         .map_err(|e| format!("Error during prediction: {:?}", e))?;
@@ -375,7 +373,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("INFO: Model's accuracy on the test set is: {:.2}%", accuracy * 100.0);
     println!("INFO: Finished training the model: {}", args.output);
 
-    let save_start = std::time::Instant::now();
+    let save_start = Instant::now();
     save_artifacts(&clf, &vectorizer, &label_encoder, &args.output)?;
     println!(
         "INFO: Saving artifacts completed in {:.2} seconds.",
@@ -386,6 +384,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         "INFO: Overall process completed in {:.2} seconds.",
         overall_start.elapsed().as_secs_f32()
     );
+
+    // Log the current system finish time.
+    println!("INFO: System finish time: {}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"));
 
     Ok(())
 }
