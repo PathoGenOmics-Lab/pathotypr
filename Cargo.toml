@@ -1,7 +1,11 @@
 [package]
 name = "pathotypr"
 version = "0.1.0"
+authors = ["Paula Ruiz Rodriguez <paula.ruiz.rodriguez@csic.es>"]
 edition = "2021"
+description = "Pathotypr is a tool to classify genomes using the train, predict, and classify subcommands."
+license = "GPL-3"
+repository = "https://github.com/PathoGenOmics-Lab/pathotypr"
 
 [dependencies]
 bio = "2.0.3"
