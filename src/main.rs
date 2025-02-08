@@ -4,7 +4,7 @@ use flate2::Compression;
 use indicatif::ProgressBar;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
-use rayon::prelude::*; // Note: We use sequential processing in transform for memory efficiency.
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use smartcore::ensemble::random_forest_classifier::{
     RandomForestClassifier, RandomForestClassifierParameters,
@@ -14,10 +14,11 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use std::time::Instant;
 use smartcore::tree::decision_tree_classifier::SplitCriterion;
 
-// Optional: Limit vocabulary size (set as needed)
-// const MAX_VOCAB_SIZE: usize = 10000;
+// Constant for default k-mer size.
+const DEFAULT_KMER_SIZE: usize = 4;
 
 /// Converts a genomic sequence into overlapping k-mers separated by spaces.
 /// For example, "ATGCAT" with k=3 becomes "ATG TGC GCA CAT".
@@ -85,8 +86,7 @@ impl std::ops::Deref for Lineage {
     }
 }
 
-/// Command-line arguments for training.
-/// Only FASTA input is accepted.
+/// Command-line arguments for training. Only FASTA input is accepted.
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -97,7 +97,7 @@ struct Args {
     #[arg(short, long)]
     output: String,
     /// k-mer size (default is 21)
-    #[arg(long, default_value_t = 21)]
+    #[arg(long, default_value_t = DEFAULT_KMER_SIZE)]
     kmer_size: usize,
 }
 
@@ -117,7 +117,6 @@ impl CountVectorizer {
     }
     /// Fits the vectorizer on a collection of texts.
     /// T can be any type that can be converted to a &str.
-    /// Optionally, you can limit the vocabulary size here.
     pub fn fit<T: AsRef<str>>(&mut self, texts: &[T]) {
         let mut freq: HashMap<String, usize> = HashMap::new();
         for text in texts {
@@ -125,10 +124,10 @@ impl CountVectorizer {
                 *freq.entry(token.to_string()).or_insert(0) += 1;
             }
         }
-        // Sort tokens by frequency (descending)
+        // Sort tokens by frequency in descending order.
         let mut freq_vec: Vec<(String, usize)> = freq.into_iter().collect();
         freq_vec.sort_by(|a, b| b.1.cmp(&a.1));
-        // Optionally limit vocabulary size
+        // (Optional) Limit vocabulary size:
         // if freq_vec.len() > MAX_VOCAB_SIZE {
         //     freq_vec.truncate(MAX_VOCAB_SIZE);
         // }
@@ -140,10 +139,10 @@ impl CountVectorizer {
         self.feature_names = freq_vec.into_iter().map(|(token, _)| token).collect();
     }
     /// Transforms a collection of texts into a 2D vector (one row per text).
-    /// We use sequential processing to reduce memory overhead.
+    /// Sequential iteration is used for memory efficiency.
     pub fn transform<T: AsRef<str> + Sync>(&self, texts: &[T]) -> Vec<Vec<f64>> {
         texts
-            .iter() // Sequential iteration
+            .iter()
             .map(|text| {
                 let n_features = self.vocabulary.len();
                 let mut counts = vec![0.0; n_features];
@@ -194,7 +193,7 @@ impl LabelEncoder {
 
 /// Reads a FASTA file and returns a tuple: (vector of GenomeSequence, vector of Lineage).
 /// The header is expected to be in the format "Lineage_sequenceID"; the lineage is taken as the part before the underscore.
-/// A progress bar indicates processing.
+/// A progress bar is used to indicate processing.
 fn read_fasta(path: &str, _k: usize) -> Result<(Vec<GenomeSequence>, Vec<Lineage>), Box<dyn Error>> {
     let file = File::open(path)?;
     let reader = BufReader::new(file);
@@ -212,7 +211,7 @@ fn read_fasta(path: &str, _k: usize) -> Result<(Vec<GenomeSequence>, Vec<Lineage
                 lineages.push(Lineage::new(current_lineage.clone())?);
                 pb.inc(1);
             }
-            // Split the header on '_' and take the first element as the lineage.
+            // Extract lineage from header (portion before the underscore).
             let header = line.trim_start_matches('>');
             let lineage_part = header.split('_').next().unwrap_or(header);
             current_lineage = lineage_part.to_string();
@@ -241,15 +240,19 @@ fn load_input_data(args: &Args, k: usize) -> Result<(Vec<GenomeSequence>, Vec<Li
 fn prepare_data(texts: &[String], labels: &[String], kmer_size: usize) -> Result<(CountVectorizer, LabelEncoder, Vec<Vec<f64>>, Vec<usize>), Box<dyn Error>> {
     // Convert each genome sequence into overlapping k-mers.
     let kmer_texts: Vec<String> = texts.iter().map(|s| kmerize(s, kmer_size)).collect();
+
     let mut vectorizer = CountVectorizer::new();
     vectorizer.fit(&kmer_texts);
     let x_data = vectorizer.transform(&kmer_texts);
+
     let mut label_encoder = LabelEncoder::new();
     label_encoder.fit(labels);
     let y = label_encoder.transform(labels);
+
     if label_encoder.int_to_label.len() < 2 {
         return Err("Training data must contain at least two distinct classes.".into());
     }
+
     Ok((vectorizer, label_encoder, x_data, y))
 }
 
@@ -308,16 +311,32 @@ fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
     let kmer_size = args.kmer_size;
 
-    // Load input data from FASTA.
+    let overall_start = std::time::Instant::now();
+
+    // Load FASTA input.
+    let input_start = std::time::Instant::now();
     let (genome_vec, lineage_vec) = load_input_data(&args, kmer_size)?;
+    println!(
+        "INFO: Finished reading input FASTA file in {:.2} seconds.",
+        input_start.elapsed().as_secs_f32()
+    );
+
     let texts: Vec<String> = genome_vec.iter().map(|g| g.as_str().to_string()).collect();
     let labels: Vec<String> = lineage_vec.iter().map(|l| l.as_str().to_string()).collect();
 
-    // Prepare data: convert sequences into k-mer strings, fit vectorizer and label encoder.
+    // Prepare data.
+    let prep_start = std::time::Instant::now();
     let (vectorizer, label_encoder, x_data, y) = prepare_data(&texts, &labels, kmer_size)?;
+    println!(
+        "INFO: Data preparation completed in {:.2} seconds.",
+        prep_start.elapsed().as_secs_f32()
+    );
+
+    // Split data.
     let (x_train, y_train, x_test, y_test) = split_train_test(&x_data, &y, 0.2)?;
 
     println!("INFO: Starting to train the model: {}", args.output);
+    let train_start = std::time::Instant::now();
 
     let rf_params = RandomForestClassifierParameters {
         max_depth: None,
@@ -333,9 +352,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     let clf = RandomForestClassifier::fit(&x_train, &y_train, rf_params)
         .map_err(|e| format!("Error training model: {:?}", e))?;
 
+    println!(
+        "INFO: Model training completed in {:.2} seconds.",
+        train_start.elapsed().as_secs_f32()
+    );
+
+    let pred_start = std::time::Instant::now();
     let y_pred = clf
         .predict(&x_test)
         .map_err(|e| format!("Error during prediction: {:?}", e))?;
+    println!(
+        "INFO: Prediction on test set completed in {:.2} seconds.",
+        pred_start.elapsed().as_secs_f32()
+    );
 
     let correct = y_pred
         .iter()
@@ -343,10 +372,20 @@ fn main() -> Result<(), Box<dyn Error>> {
         .filter(|(&pred, &true_val)| pred == true_val)
         .count();
     let accuracy = correct as f64 / y_test.len() as f64;
-    println!("INFO: Model's accuracy on the test set is: {}", accuracy);
+    println!("INFO: Model's accuracy on the test set is: {:.2}%", accuracy * 100.0);
     println!("INFO: Finished training the model: {}", args.output);
 
+    let save_start = std::time::Instant::now();
     save_artifacts(&clf, &vectorizer, &label_encoder, &args.output)?;
+    println!(
+        "INFO: Saving artifacts completed in {:.2} seconds.",
+        save_start.elapsed().as_secs_f32()
+    );
+
+    println!(
+        "INFO: Overall process completed in {:.2} seconds.",
+        overall_start.elapsed().as_secs_f32()
+    );
 
     Ok(())
 }
