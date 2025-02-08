@@ -4,7 +4,6 @@ use flate2::Compression;
 use indicatif::ProgressBar;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use smartcore::ensemble::random_forest_classifier::{
     RandomForestClassifier, RandomForestClassifierParameters,
@@ -15,11 +14,10 @@ use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::time::Instant;
-use chrono::Local;
+use chrono;
 use smartcore::tree::decision_tree_classifier::SplitCriterion;
-
 // Default k-mer size if not provided.
-const DEFAULT_KMER_SIZE: usize = 21;
+const DEFAULT_KMER_SIZE: usize = 4;
 
 /// Converts a genomic sequence into overlapping k-mers separated by spaces.
 /// For example, "ATGCAT" with k=3 becomes "ATG TGC GCA CAT".
