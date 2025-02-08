@@ -13,9 +13,9 @@ __and Mireia Coscolla<sup>1</sup>__
 <br>
 <sub> 1. Institute for Integrative Systems Biology, I<sup>2</sup>SysBio, University of Valencia-CSIC, Valencia, Spain </sub>  
 
-# Pathotypr
+# pathotypr
 
-**Pathotypr** is a powerful command-line tool for genome classification using machine learning and SNP markers. It provides three main functionalities:
+**pathotypr** is a powerful command-line tool for genome classification using machine learning and SNP markers. It provides three main functionalities:
 
 - 🎓 **Train**: Build ML models from FASTA sequences
 - 🔮 **Predict**: Classify new genomes using trained models
