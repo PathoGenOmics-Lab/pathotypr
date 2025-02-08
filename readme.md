@@ -35,7 +35,7 @@ mamba activate pathotypr
 mamba install -c bioconda pathotypr
 
 # Or build from source
-git clone https://github.com/yourusername/pathotypr.git
+git clone https://github.com/PathoGenOmics-Lab/pathotypr.git
 cd pathotypr
 cargo build --release
 ```
@@ -44,7 +44,7 @@ cargo build --release
 
 ```bash
 # Train a model
-pathotypr train --fasta input.fasta --output my_model --kmer_size 21
+pathotypr train --fasta input.fasta --output my_model --kmer_size 6
 
 # Predict classifications
 pathotypr predict --fasta input.fasta --model_base my_model --output predictions.txt
