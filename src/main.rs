@@ -5,7 +5,7 @@ use flate2::Compression;
 use indicatif::ProgressBar;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
-use rayon::prelude::*;
+use rayon::prelude::*; // Note: we use rayon only in parts; we'll disable parallelism in transform.
 use serde::{Deserialize, Serialize};
 use smartcore::ensemble::random_forest_classifier::{
     RandomForestClassifier, RandomForestClassifierParameters,
@@ -16,6 +16,22 @@ use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use smartcore::tree::decision_tree_classifier::SplitCriterion;
+
+// Limit the vocabulary size to reduce memory consumption.
+const MAX_VOCAB_SIZE: usize = 10000;
+const KMER_SIZE: usize = 21; // k-mer length
+
+/// Converts a genomic sequence into overlapping k-mers separated by spaces.
+/// For example, "ATGCAT" with k=3 becomes "ATG TGC GCA CAT".
+fn kmerize(sequence: &str, k: usize) -> String {
+    if sequence.len() < k {
+        return String::new();
+    }
+    (0..=sequence.len() - k)
+        .map(|i| &sequence[i..i + k])
+        .collect::<Vec<&str>>()
+        .join(" ")
+}
 
 /// Domain type representing a genome sequence.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -102,30 +118,35 @@ impl CountVectorizer {
         }
     }
     /// Fits the vectorizer on a collection of texts.
-    /// T can be any type that can be converted to a &str.
+    /// It builds a frequency map and retains only the top MAX_VOCAB_SIZE tokens.
     pub fn fit<T: AsRef<str>>(&mut self, texts: &[T]) {
+        let mut freq: HashMap<String, usize> = HashMap::new();
+        // Count token frequencies.
         for text in texts {
             for token in text.as_ref().split_whitespace() {
-                if !self.vocabulary.contains_key(token) {
-                    let index = self.vocabulary.len();
-                    self.vocabulary.insert(token.to_string(), index);
-                }
+                *freq.entry(token.to_string()).or_insert(0) += 1;
             }
         }
-        // Ensure feature names are in order of insertion.
-        let mut vocab_vec: Vec<(String, usize)> = self
-            .vocabulary
+        // Convert frequency map into a vector and sort by frequency (descending).
+        let mut freq_vec: Vec<(String, usize)> = freq.into_iter().collect();
+        freq_vec.sort_by(|a, b| b.1.cmp(&a.1));
+        // Retain only the top MAX_VOCAB_SIZE tokens.
+        if freq_vec.len() > MAX_VOCAB_SIZE {
+            freq_vec.truncate(MAX_VOCAB_SIZE);
+        }
+        // Build vocabulary from the remaining tokens.
+        self.vocabulary = freq_vec
             .iter()
-            .map(|(token, &index)| (token.clone(), index))
+            .enumerate()
+            .map(|(i, (token, _))| (token.clone(), i))
             .collect();
-        vocab_vec.sort_by_key(|&(_, index)| index);
-        self.feature_names = vocab_vec.into_iter().map(|(token, _)| token).collect();
+        self.feature_names = freq_vec.into_iter().map(|(token, _)| token).collect();
     }
     /// Transforms a collection of texts into a 2D vector (one row per text).
-    /// Requires that the items are Sync for parallel processing.
+    /// Here, we use sequential iteration to reduce memory overhead.
     pub fn transform<T: AsRef<str> + Sync>(&self, texts: &[T]) -> Vec<Vec<f64>> {
         texts
-            .par_iter()
+            .iter() // Use sequential processing instead of par_iter()
             .map(|text| {
                 let n_features = self.vocabulary.len();
                 let mut counts = vec![0.0; n_features];
@@ -189,7 +210,8 @@ fn split_kmers(sequence: &str, k: usize) -> Vec<String> {
 
 /// Reads a FASTA file and returns a tuple: (vector of GenomeSequence, vector of Lineage).
 /// The parameter _k is ignored here.
-/// The header is expected to be in the format "Lineage_sequenceID"; the lineage is taken as the part before the underscore.
+/// The header is expected to be in the format "Lineage_sequenceID";
+/// the lineage is taken as the part before the underscore.
 /// A progress bar is used to indicate the processing of records.
 fn read_fasta(path: &str, _k: usize) -> Result<(Vec<GenomeSequence>, Vec<Lineage>), Box<dyn Error>> {
     let file = File::open(path)?;
@@ -271,17 +293,27 @@ fn load_input_data(args: &Args, k: usize) -> Result<(Vec<GenomeSequence>, Vec<Li
     }
 }
 
-/// Prepares the feature matrix and label vector by fitting the vectorizer and label encoder.
+/// Prepares the feature matrix and label vector by converting sequences into k-mer strings,
+/// then fitting the vectorizer and label encoder.
 fn prepare_data(texts: &[String], labels: &[String]) -> Result<(CountVectorizer, LabelEncoder, Vec<Vec<f64>>, Vec<usize>), Box<dyn Error>> {
+    // Convert each genome sequence into overlapping k-mers.
+    let kmer_texts: Vec<String> = texts
+        .iter()
+        .map(|s| kmerize(s, KMER_SIZE))
+        .collect();
+
     let mut vectorizer = CountVectorizer::new();
-    vectorizer.fit(texts);
-    let x_data = vectorizer.transform(texts);
+    vectorizer.fit(&kmer_texts);
+    let x_data = vectorizer.transform(&kmer_texts);
+
     let mut label_encoder = LabelEncoder::new();
     label_encoder.fit(labels);
     let y = label_encoder.transform(labels);
+
     if label_encoder.int_to_label.len() < 2 {
         return Err("Training data must contain at least two distinct classes.".into());
     }
+
     Ok((vectorizer, label_encoder, x_data, y))
 }
 
@@ -338,11 +370,14 @@ where
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
-    let k = 21;
+    let k = KMER_SIZE;
+
+    // Load input data from TSV or FASTA.
     let (genome_vec, lineage_vec) = load_input_data(&args, k)?;
     let texts: Vec<String> = genome_vec.iter().map(|g| g.as_str().to_string()).collect();
     let labels: Vec<String> = lineage_vec.iter().map(|l| l.as_str().to_string()).collect();
 
+    // Prepare data: convert sequences to k-merized strings, then fit vectorizer and label encoder.
     let (vectorizer, label_encoder, x_data, y) = prepare_data(&texts, &labels)?;
     let (x_train, y_train, x_test, y_test) = split_train_test(&x_data, &y, 0.2)?;
 
