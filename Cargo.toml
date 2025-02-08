@@ -12,5 +12,5 @@ indicatif = "0.17"
 flate2 = "1.0"
 bincode = "1.3"
 serde = { version = "1.0", features = ["derive"] }
-smartcore = "0.4.0"
+smartcore = { version = "0.4.0", features = ["serde"] }
 nalgebra = "0.33.2"
