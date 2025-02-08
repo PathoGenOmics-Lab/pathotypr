@@ -1,4 +1,3 @@
-# Pathotypr
 
 <p align="center">
   <img src="logo/pathotypr.png" title="pathotypr.png logo" style="width:750px; height: auto;">
@@ -14,6 +13,7 @@ __and Mireia Coscolla<sup>1</sup>__
 <br>
 <sub> 1. Institute for Integrative Systems Biology, I<sup>2</sup>SysBio, University of Valencia-CSIC, Valencia, Spain </sub>  
 
+# Pathotypr
 
 **Pathotypr** is a powerful command-line tool for genome classification using machine learning and SNP markers. It provides three main functionalities:
 
@@ -132,7 +132,7 @@ pathotypr/
 <!-- prettier-ignore-start -->
 <!-- markdownlint-disable -->
 <div align="center">
-SNPick is developed with ❤️ by:
+pathotypr is developed with ❤️ by:
 <table>
   <tr>
     <td align="center">
