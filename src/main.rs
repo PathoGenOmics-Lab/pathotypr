@@ -31,7 +31,6 @@ impl GenomeSequence {
             Ok(Self(s))
         }
     }
-
     /// Returns the inner string slice.
     pub fn as_str(&self) -> &str {
         &self.0
@@ -59,7 +58,6 @@ impl Lineage {
             Ok(Self(s))
         }
     }
-
     /// Returns the inner string slice.
     pub fn as_str(&self) -> &str {
         &self.0
@@ -81,12 +79,10 @@ struct Args {
     /// Input TSV file (tab-separated with headers "genome_sequence" and "lineage")
     #[arg(long, conflicts_with = "fasta", required_unless_present = "fasta")]
     tsv: Option<String>,
-
     /// Input FASTA file (multifasta file; header is expected to be in the format "Lineage_sequenceID")
     #[arg(long, conflicts_with = "tsv", required_unless_present = "tsv")]
     fasta: Option<String>,
-
-    /// Base name for the output model files.
+    /// Base name for the output model artifacts.
     #[arg(short, long)]
     output: String,
 }
@@ -105,7 +101,6 @@ impl CountVectorizer {
             feature_names: Vec::new(),
         }
     }
-
     /// Fits the vectorizer on a collection of texts.
     /// T can be any type that can be converted to a &str.
     pub fn fit<T: AsRef<str>>(&mut self, texts: &[T]) {
@@ -126,7 +121,6 @@ impl CountVectorizer {
         vocab_vec.sort_by_key(|&(_, index)| index);
         self.feature_names = vocab_vec.into_iter().map(|(token, _)| token).collect();
     }
-
     /// Transforms a collection of texts into a 2D vector (one row per text).
     /// Requires that the items are Sync for parallel processing.
     pub fn transform<T: AsRef<str> + Sync>(&self, texts: &[T]) -> Vec<Vec<f64>> {
@@ -160,7 +154,6 @@ impl LabelEncoder {
             int_to_label: Vec::new(),
         }
     }
-
     /// Fits the encoder on a collection of labels.
     pub fn fit<T: AsRef<str>>(&mut self, labels: &[T]) {
         for label in labels {
@@ -172,7 +165,6 @@ impl LabelEncoder {
             }
         }
     }
-
     /// Transforms a collection of labels into numeric values.
     pub fn transform<T: AsRef<str>>(&self, labels: &[T]) -> Vec<usize> {
         labels
@@ -208,7 +200,6 @@ fn read_fasta(path: &str, _k: usize) -> Result<(Vec<GenomeSequence>, Vec<Lineage
     let mut lineages = Vec::new();
     let mut current_seq = String::new();
     let mut current_lineage = String::new();
-
     for line in reader.lines() {
         let line = line?;
         if line.starts_with('>') {
@@ -255,7 +246,6 @@ fn load_input_data(args: &Args, k: usize) -> Result<(Vec<GenomeSequence>, Vec<Li
             .ok_or("Missing 'lineage' column in header")?;
         let pb = ProgressBar::new_spinner();
         pb.set_message("Processing TSV records...");
-
         for result in rdr.records() {
             let record: StringRecord = result?;
             let genome_sequence_str = record
@@ -281,50 +271,47 @@ fn load_input_data(args: &Args, k: usize) -> Result<(Vec<GenomeSequence>, Vec<Li
     }
 }
 
+/// Prepares the feature matrix and label vector by fitting the vectorizer and label encoder.
 fn prepare_data(texts: &[String], labels: &[String]) -> Result<(CountVectorizer, LabelEncoder, Vec<Vec<f64>>, Vec<usize>), Box<dyn Error>> {
     let mut vectorizer = CountVectorizer::new();
     vectorizer.fit(texts);
     let x_data = vectorizer.transform(texts);
-
     let mut label_encoder = LabelEncoder::new();
     label_encoder.fit(labels);
     let y = label_encoder.transform(labels);
-
     if label_encoder.int_to_label.len() < 2 {
         return Err("Training data must contain at least two distinct classes.".into());
     }
-
     Ok((vectorizer, label_encoder, x_data, y))
 }
 
+/// Splits the data into training and testing sets.
 fn split_train_test(x_data: &[Vec<f64>], y: &[usize], test_ratio: f64) -> Result<(DenseMatrix<f64>, Vec<usize>, DenseMatrix<f64>, Vec<usize>), Box<dyn Error>> {
     let n_samples = x_data.len();
     let raw_test_size = ((n_samples as f64) * test_ratio).round() as usize;
     let test_size = if raw_test_size == 0 && n_samples > 1 { 1 } else { raw_test_size };
-
     if n_samples - test_size == 0 {
         return Err("Not enough samples for training after splitting.".into());
     }
-
     let mut indices: Vec<usize> = (0..n_samples).collect();
     let mut rng = rand::rngs::StdRng::seed_from_u64(42);
     indices.shuffle(&mut rng);
-
     let test_indices = &indices[..test_size];
     let train_indices = &indices[test_size..];
-
     let train_data: Vec<Vec<f64>> = train_indices.iter().map(|&i| x_data[i].clone()).collect();
     let test_data: Vec<Vec<f64>> = test_indices.iter().map(|&i| x_data[i].clone()).collect();
     let y_test: Vec<usize> = test_indices.iter().map(|&i| y[i]).collect();
     let y_train: Vec<usize> = train_indices.iter().map(|&i| y[i]).collect();
-
     let x_train = DenseMatrix::from_2d_vec(&train_data).expect("Failed to create training matrix");
     let x_test = DenseMatrix::from_2d_vec(&test_data).expect("Failed to create test matrix");
-
     Ok((x_train, y_train, x_test, y_test))
 }
 
-fn save_model_artifacts(vectorizer: &CountVectorizer, label_encoder: &LabelEncoder, output_base: &str) -> Result<(), Box<dyn Error>> {
+/// Saves the model artifacts (vectorizer, label encoder, and the trained model).
+fn save_artifacts<M>(model: &M, vectorizer: &CountVectorizer, label_encoder: &LabelEncoder, output_base: &str) -> Result<(), Box<dyn Error>>
+where
+    M: Serialize,
+{
     let vectorizer_filename = format!("{}_vectorizer.bin.gz", output_base);
     let vec_file = File::create(&vectorizer_filename)?;
     let mut vec_encoder = GzEncoder::new(vec_file, Compression::default());
@@ -339,13 +326,19 @@ fn save_model_artifacts(vectorizer: &CountVectorizer, label_encoder: &LabelEncod
     label_encoder_gz.finish()?;
     println!("INFO: Saved the label encoder to {}", label_filename);
 
+    let model_filename = format!("{}_rf_model.bin.gz", output_base);
+    let model_file = File::create(&model_filename)?;
+    let mut model_encoder = GzEncoder::new(model_file, Compression::default());
+    bincode::serialize_into(&mut model_encoder, model)?;
+    model_encoder.finish()?;
+    println!("INFO: Saved the model to {}", model_filename);
+
     Ok(())
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
     let k = 21;
-
     let (genome_vec, lineage_vec) = load_input_data(&args, k)?;
     let texts: Vec<String> = genome_vec.iter().map(|g| g.as_str().to_string()).collect();
     let labels: Vec<String> = lineage_vec.iter().map(|l| l.as_str().to_string()).collect();
@@ -373,12 +366,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         .predict(&x_test)
         .map_err(|e| format!("Error during prediction: {:?}", e))?;
 
-    let correct = y_pred.iter().zip(y_test.iter()).filter(|(&pred, &true_val)| pred == true_val).count();
+    let correct = y_pred
+        .iter()
+        .zip(y_test.iter())
+        .filter(|(&pred, &true_val)| pred == true_val)
+        .count();
     let accuracy = correct as f64 / y_test.len() as f64;
     println!("INFO: Model's accuracy on the test set is: {}", accuracy);
     println!("INFO: Finished training the model: {}", args.output);
 
-    save_model_artifacts(&vectorizer, &label_encoder, &args.output)?;
+    save_artifacts(&clf, &vectorizer, &label_encoder, &args.output)?;
 
     Ok(())
 }
