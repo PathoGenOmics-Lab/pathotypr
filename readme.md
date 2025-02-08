@@ -1,35 +1,51 @@
 # Pathotypr
 
-**Pathotypr** is a powerful command-line tool for genome classification using machine learning. It provides three main functionalities:
+**Pathotypr** is a powerful command-line tool for genome classification using machine learning and SNP markers. It provides three main functionalities:
 
 - 🎓 **Train**: Build ML models from FASTA sequences
 - 🔮 **Predict**: Classify new genomes using trained models
-- 🧬 **Classify**: Process genomic markers for classification
+- 🧬 **Classify**: Process genomic markers (SNPs) against a reference for lineage/drug resistance classification
+
+## Installation
+
+```bash
+# Install via Conda
+conda create -n pathotypr
+conda activate pathotypr
+conda install -c bioconda pathotypr
+
+# Or using Mamba (faster)
+mamba create -n pathotypr
+mamba activate pathotypr
+mamba install -c bioconda pathotypr
+
+# Or build from source
+git clone https://github.com/yourusername/pathotypr.git
+cd pathotypr
+cargo build --release
+```
 
 ## Quick Start
 
 ```bash
-# Install
-git clone https://github.com/yourusername/pathotypr.git
-cd pathotypr
-cargo build --release
-
 # Train a model
 pathotypr train --fasta input.fasta --output my_model --kmer_size 21
 
 # Predict classifications
 pathotypr predict --fasta input.fasta --model_base my_model --output predictions.txt
 
-# Classify using markers
+# Classify using SNP markers
 pathotypr classify --tsv_pos markers.tsv --ref_fasta ref.fasta --fasta_genomes genomes.fasta --output results.txt
 ```
 
 ## Features
 
 - 🚀 Fast parallel processing using Rayon
-- 📊 Random Forest classification
+- 📊 Random Forest classification for ML-based prediction
 - 🧪 K-mer based sequence analysis
 - 💾 Compressed model storage
+- 🔍 Reference-based SNP marker detection
+- 🧬 Flexible marker positions for closed/mapped genomes
 - 📈 Progress tracking and logging
 
 ## Documentation
@@ -47,7 +63,10 @@ pathotypr predict --fasta input.fasta --model_base my_model --output predictions
 ```
 
 ### Classify Mode
-Process genomes using marker data:
+Process genomes using SNP markers against a reference sequence. Supports both lineage-defining SNPs and drug resistance markers. Works with:
+- Mapped genomes (SNP positions relative to reference)
+- Closed genomes (SNP positions may vary)
+
 ```bash
 # Using FASTA input
 pathotypr classify --tsv_pos markers.tsv --ref_fasta ref.fasta --fasta_genomes genomes.fasta --output results.txt
