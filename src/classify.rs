@@ -300,55 +300,11 @@ fn process_genomes(
 }
 
 /// Main function for the classify subcommand.
-pub fn run(args: Args) -> Result<(), Box<dyn Error>> {
-    env_logger::init();
-    if let Some(n) = args.num_cpu {
-        rayon::ThreadPoolBuilder::new()
-            .num_threads(n)
-            .build_global()
-            .unwrap();
-    }
-    check_input_files(&args)?;
-
-    // use the user-provided kmer_size
-    let k = args.kmer_size;
-
-    // read reference
-    let ref_seq = get_ref(&args.ref_fasta)?;
-
-    // read marker data
-    let (reference_positions, markers_lineage) = get_positions(&args.tsv_pos)?;
-
-    // generate marker k-mers
-    let markers_kmers = generate_markerkmer(&reference_positions, &ref_seq, &markers_lineage, k);
-
-    // 1. Process and get all lines
-    let results = process_genomes(&args, &markers_kmers, k)?;
-
-    // 2. Write the original results to the main output file
-    let mut outfile = BufWriter::new(File::create(&args.ofile)?);
-    writeln!(
-        outfile,
-        "genome\tk-mer\tk-merPOS\tSNPgenome\tSNPreference\tlineage"
-    )?;
-    for line in &results {
-        write!(outfile, "{}", line)?;
-    }
-
-    // 3. Also produce a second summary file with lineage counts
-    //    The second file name: <output>_summary.tsv
-    let summary_file = format!("{}_summary.tsv", args.ofile);
-    let mut summary_out = BufWriter::new(File::create(&summary_file)?);
-    writeln!(summary_out, "genome\tlineage:count\tmajor_lineage")?;
-
-    // We'll count how many times each lineage was detected per genome
-    let mut lineage_count_map: HashMap<String, HashMap<String, usize>> = HashMap::new();
-
-    // parse the lines from `results`
-    // each line is: genome, k-mer, k-merPOS, SNPgenome, SNPreference, lineage
-    for line in &results {
-        let trimmed = line.trim_end();
-        let fields: Vec<&str> = trimmed.split('\t').collect();
+fn generate_summary(results: &[String]) -> HashMap<String, HashMap<String, usize>> {
+    let mut lineage_count_map = HashMap::new();
+    
+    for line in results {
+        let fields: Vec<&str> = line.trim_end().split('\t').collect();
         if fields.len() < 6 {
             continue;
         }
@@ -362,50 +318,74 @@ pub fn run(args: Args) -> Result<(), Box<dyn Error>> {
             .and_modify(|c| *c += 1)
             .or_insert(1);
     }
+    
+    lineage_count_map
+}
 
-    // For each genome, gather lineages, build the summary line
-    for (genome, lineage_map) in lineage_count_map {
-        // Convert to vector for sorting
-        let mut lineage_counts: Vec<(String, usize)> = lineage_map.into_iter().collect();
-        // Sort descending by count
-        lineage_counts.sort_by(|a, b| b.1.cmp(&a.1));
+fn write_summary(summary_out: &mut BufWriter<File>, genome: String, lineage_counts: Vec<(String, usize)>) -> Result<(), Box<dyn Error>> {
+    let lineage_count_str = lineage_counts
+        .iter()
+        .map(|(lin, cnt)| format!("{}:{}", lin, cnt))
+        .collect::<Vec<_>>()
+        .join(",");
 
-        // Build the lineage:count strings
-        let lineage_count_str = lineage_counts
+    let majority_lineage = if lineage_counts.is_empty() {
+        String::new()
+    } else if lineage_counts.len() == 1 {
+        lineage_counts[0].0.clone()
+    } else if lineage_counts[0].1 > lineage_counts[1].1 {
+        lineage_counts[0].0.clone()
+    } else {
+        lineage_counts
             .iter()
-            .map(|(lin, cnt)| format!("{}:{}", lin, cnt))
+            .map(|(lin, _)| lin.clone())
             .collect::<Vec<_>>()
-            .join(",");
+            .join(",")
+    };
 
-        // Determine majority lineage: if the top is strictly greater than the second
-        let majority_lineage = if lineage_counts.is_empty() {
-            // no lineages found
-            "".to_string()
-        } else if lineage_counts.len() == 1 {
-            // single lineage
-            lineage_counts[0].0.clone()
-        } else {
-            // multiple lineages
-            let top_count = lineage_counts[0].1;
-            let second_count = lineage_counts[1].1;
-            if top_count > second_count {
-                // single majority
-                lineage_counts[0].0.clone()
-            } else {
-                // no single majority -> put them all
-                lineage_counts
-                    .iter()
-                    .map(|(lin, _)| lin.clone())
-                    .collect::<Vec<_>>()
-                    .join(",")
-            }
-        };
+    writeln!(
+        summary_out,
+        "{}\t{}\t{}",
+        genome, lineage_count_str, majority_lineage
+    )?;
+    Ok(())
+}
 
-        writeln!(
-            summary_out,
-            "{}\t{}\t{}",
-            genome, lineage_count_str, majority_lineage
-        )?;
+pub fn run(args: Args) -> Result<(), Box<dyn Error>> {
+    env_logger::init();
+    if let Some(n) = args.num_cpu {
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(n)
+            .build_global()
+            .unwrap();
+    }
+    check_input_files(&args)?;
+
+    let k = args.kmer_size;
+    let ref_seq = get_ref(&args.ref_fasta)?;
+    let (reference_positions, markers_lineage) = get_positions(&args.tsv_pos)?;
+    let markers_kmers = generate_markerkmer(&reference_positions, &ref_seq, &markers_lineage, k);
+    let results = process_genomes(&args, &markers_kmers, k)?;
+
+    let mut outfile = BufWriter::new(File::create(&args.ofile)?);
+    writeln!(
+        outfile,
+        "genome\tk-mer\tk-merPOS\tSNPgenome\tSNPreference\tlineage"
+    )?;
+    for line in &results {
+        write!(outfile, "{}", line)?;
+    }
+
+    let summary_file = format!("{}_summary.tsv", args.ofile);
+    let mut summary_out = BufWriter::new(File::create(&summary_file)?);
+    writeln!(summary_out, "genome\tlineage:count\tmajor_lineage")?;
+
+    let lineage_count_map = generate_summary(&results);
+    
+    for (genome, lineage_map) in lineage_count_map {
+        let mut lineage_counts: Vec<(String, usize)> = lineage_map.into_iter().collect();
+        lineage_counts.sort_by(|a, b| b.1.cmp(&a.1));
+        write_summary(&mut summary_out, genome, lineage_counts)?;
     }
 
     Ok(())
