@@ -17,8 +17,64 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use smartcore::tree::decision_tree_classifier::SplitCriterion;
 
-/// Command line arguments.
-/// Either --tsv or --fasta must be provided for the input.
+/// Domain type representing a genome sequence.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct GenomeSequence(String);
+
+impl GenomeSequence {
+    /// Creates a new GenomeSequence after validating that it is not empty.
+    pub fn new<S: Into<String>>(s: S) -> Result<Self, String> {
+        let s = s.into();
+        if s.trim().is_empty() {
+            Err("Genome sequence cannot be empty".into())
+        } else {
+            Ok(Self(s))
+        }
+    }
+
+    /// Returns the inner string slice.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::ops::Deref for GenomeSequence {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+/// Domain type representing a lineage.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct Lineage(String);
+
+impl Lineage {
+    /// Creates a new Lineage after validating that it is not empty.
+    pub fn new<S: Into<String>>(s: S) -> Result<Self, String> {
+        let s = s.into();
+        if s.trim().is_empty() {
+            Err("Lineage cannot be empty".into())
+        } else {
+            Ok(Self(s))
+        }
+    }
+
+    /// Returns the inner string slice.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::ops::Deref for Lineage {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+/// Command-line arguments.
+/// Either --tsv or --fasta must be provided.
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -26,7 +82,7 @@ struct Args {
     #[arg(long, conflicts_with = "fasta", required_unless_present = "fasta")]
     tsv: Option<String>,
 
-    /// Input FASTA file (multifasta file; header is used as label)
+    /// Input FASTA file (multifasta file; header is used as the lineage)
     #[arg(long, conflicts_with = "tsv", required_unless_present = "tsv")]
     fasta: Option<String>,
 
@@ -50,17 +106,18 @@ impl CountVectorizer {
         }
     }
 
-    /// Fit the vectorizer on an array of texts.
-    pub fn fit(&mut self, texts: &[String]) {
+    /// Fits the vectorizer on a collection of texts.
+    /// T can be any type that can be converted to a &str.
+    pub fn fit<T: AsRef<str>>(&mut self, texts: &[T]) {
         for text in texts {
-            for token in text.split_whitespace() {
+            for token in text.as_ref().split_whitespace() {
                 if !self.vocabulary.contains_key(token) {
                     let index = self.vocabulary.len();
                     self.vocabulary.insert(token.to_string(), index);
                 }
             }
         }
-        // Ensure that the feature names are in order of insertion.
+        // Ensure feature names are in order of insertion.
         let mut vocab_vec: Vec<(String, usize)> = self
             .vocabulary
             .iter()
@@ -70,14 +127,15 @@ impl CountVectorizer {
         self.feature_names = vocab_vec.into_iter().map(|(token, _)| token).collect();
     }
 
-    /// Transform an array of texts into a 2D vector (one row per text).
-    pub fn transform(&self, texts: &[String]) -> Vec<Vec<f64>> {
+    /// Transforms a collection of texts into a 2D vector (one row per text).
+    /// Requires that the items are Sync for parallel processing.
+    pub fn transform<T: AsRef<str> + Sync>(&self, texts: &[T]) -> Vec<Vec<f64>> {
         texts
             .par_iter()
             .map(|text| {
                 let n_features = self.vocabulary.len();
                 let mut counts = vec![0.0; n_features];
-                for token in text.split_whitespace() {
+                for token in text.as_ref().split_whitespace() {
                     if let Some(&idx) = self.vocabulary.get(token) {
                         counts[idx] += 1.0;
                     }
@@ -86,15 +144,13 @@ impl CountVectorizer {
             })
             .collect()
     }
-
-
 }
 
-/// Label encoder for mapping categorical labels (strings) to numeric values.
+/// Label encoder that maps labels (strings) to numeric values.
 #[derive(Serialize, Deserialize, Debug)]
 struct LabelEncoder {
     label_to_int: HashMap<String, usize>,
-    int_to_label: Vec<String>, // index -> label
+    int_to_label: Vec<String>,
 }
 
 impl LabelEncoder {
@@ -105,25 +161,30 @@ impl LabelEncoder {
         }
     }
 
-    pub fn fit(&mut self, labels: &[String]) {
+    /// Fits the encoder on a collection of labels.
+    pub fn fit<T: AsRef<str>>(&mut self, labels: &[T]) {
         for label in labels {
-            if !self.label_to_int.contains_key(label) {
+            let label_str = label.as_ref();
+            if !self.label_to_int.contains_key(label_str) {
                 let index = self.int_to_label.len();
-                self.label_to_int.insert(label.clone(), index);
-                self.int_to_label.push(label.clone());
+                self.label_to_int.insert(label_str.to_string(), index);
+                self.int_to_label.push(label_str.to_string());
             }
         }
     }
 
-    pub fn transform(&self, labels: &[String]) -> Vec<usize> {
+    /// Transforms a collection of labels into numeric values.
+    pub fn transform<T: AsRef<str>>(&self, labels: &[T]) -> Vec<usize> {
         labels
             .iter()
-            .map(|label| *self.label_to_int.get(label).unwrap())
+            .map(|label| *self.label_to_int.get(label.as_ref()).unwrap())
             .collect()
     }
 }
 
+#[allow(dead_code)]
 /// Splits a sequence into k-mers.
+/// (This function is currently not used; you can remove it if desired.)
 fn split_kmers(sequence: &str, k: usize) -> Vec<String> {
     let seq_len = sequence.len();
     if seq_len < k {
@@ -134,51 +195,45 @@ fn split_kmers(sequence: &str, k: usize) -> Vec<String> {
         .collect()
 }
 
-/// Reads a multifasta file and returns a tuple: (vector of sequences, vector of labels).
-fn read_fasta(path: &str) -> Result<(Vec<String>, Vec<String>), Box<dyn Error>> {
+/// Reads a FASTA file and returns a tuple: (vector of GenomeSequence, vector of Lineage).
+/// The parameter _k is ignored here.
+fn read_fasta(path: &str, _k: usize) -> Result<(Vec<GenomeSequence>, Vec<Lineage>), Box<dyn Error>> {
     let file = File::open(path)?;
     let reader = BufReader::new(file);
     let mut sequences = Vec::new();
-    let mut labels = Vec::new();
+    let mut lineages = Vec::new();
     let mut current_seq = String::new();
-    let mut current_label = String::new();
+    let mut current_lineage = String::new();
 
     for line in reader.lines() {
         let line = line?;
         if line.starts_with('>') {
-            // Save previous record if it exists.
-            if !current_label.is_empty() {
-                sequences.push(current_seq.clone());
-                labels.push(current_label.clone());
+            if !current_lineage.is_empty() {
+                sequences.push(GenomeSequence::new(current_seq.clone())?);
+                lineages.push(Lineage::new(current_lineage.clone())?);
             }
-            current_label = line.trim_start_matches('>').to_string();
+            current_lineage = line.trim_start_matches('>').to_string();
             current_seq.clear();
         } else {
             current_seq.push_str(line.trim());
         }
     }
-    // Save the last record.
-    if !current_label.is_empty() {
-        sequences.push(current_seq);
-        labels.push(current_label);
+    if !current_lineage.is_empty() {
+        sequences.push(GenomeSequence::new(current_seq)?);
+        lineages.push(Lineage::new(current_lineage)?);
     }
-    Ok((sequences, labels))
+    Ok((sequences, lineages))
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
-    // Parse command line arguments.
-    let args = Args::parse();
-
-    let k = 21;
-    let mut texts: Vec<String> = Vec::new();
-    let mut labels: Vec<String> = Vec::new();
-
-    // Process input based on whether --tsv or --fasta was provided.
-    if let Some(tsv_file) = args.tsv {
+/// Loads input data from either a TSV or FASTA file, returning vectors of domain types.
+fn load_input_data(args: &Args, k: usize) -> Result<(Vec<GenomeSequence>, Vec<Lineage>), Box<dyn Error>> {
+    if let Some(tsv_file) = &args.tsv {
         println!("INFO: Reading input TSV file: {}", tsv_file);
+        let mut texts = Vec::new();
+        let mut lineages = Vec::new();
         let mut rdr = csv::ReaderBuilder::new()
             .delimiter(b'\t')
-            .from_path(&tsv_file)?;
+            .from_path(tsv_file)?;
         let headers = rdr.headers()?.clone();
         let seq_idx = headers
             .iter()
@@ -193,42 +248,44 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         for result in rdr.records() {
             let record: StringRecord = result?;
-            let genome_sequence = record
+            let genome_sequence_str = record
                 .get(seq_idx)
                 .ok_or("Missing genome_sequence field")?;
-            let lineage = record
+            let lineage_str = record
                 .get(lineage_idx)
                 .ok_or("Missing lineage field")?;
-            let kmers = split_kmers(genome_sequence, k);
-            let joined = kmers.join(" ");
-            texts.push(joined);
-            labels.push(lineage.to_string());
+            let genome = GenomeSequence::new(genome_sequence_str.to_string())?;
+            let lineage = Lineage::new(lineage_str.to_string())?;
+            texts.push(genome);
+            lineages.push(lineage);
             pb.inc(1);
         }
         pb.finish_with_message("Finished processing TSV file.");
         println!("INFO: Finished processing the input TSV file: {}", tsv_file);
-    } else if let Some(fasta_file) = args.fasta {
+        Ok((texts, lineages))
+    } else if let Some(fasta_file) = &args.fasta {
         println!("INFO: Reading input FASTA file: {}", fasta_file);
-        let (seqs, fasta_labels) = read_fasta(&fasta_file)?;
-        texts = seqs
-            .into_par_iter()
-            .map(|seq| {
-                let kmers = split_kmers(&seq, k);
-                kmers.join(" ")
-            })
-            .collect();
-        labels = fasta_labels;
-        println!("INFO: Finished processing the input FASTA file: {}", fasta_file);
+        read_fasta(fasta_file, k)
     } else {
-        return Err("Either --tsv or --fasta must be provided as input.".into());
+        Err("Either --tsv or --fasta must be provided as input.".into())
     }
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // Parse command-line arguments.
+    let args = Args::parse();
+    let k = 21;
+
+    // Load input data as domain types.
+    let (genome_vec, lineage_vec) = load_input_data(&args, k)?;
+    // Convert domain types to plain strings for processing.
+    let texts: Vec<String> = genome_vec.iter().map(|g| g.as_str().to_string()).collect();
+    let labels: Vec<String> = lineage_vec.iter().map(|l| l.as_str().to_string()).collect();
 
     // Fit the vectorizer on all texts.
     let mut vectorizer = CountVectorizer::new();
     vectorizer.fit(&texts);
-    // Instead of returning a DenseMatrix directly, we return a 2D vector.
     let x_data = vectorizer.transform(&texts);
-    // Build a DenseMatrix from the 2D vector (if needed for training).
     let _x = DenseMatrix::from_2d_vec(&x_data).expect("Failed to create matrix");
 
     // Encode the labels.
@@ -236,7 +293,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     label_encoder.fit(&labels);
     let y = label_encoder.transform(&labels);
 
-    // Use the number of samples and features.
     let n_samples = x_data.len();
     let n_features = vectorizer.vocabulary.len();
 
@@ -248,17 +304,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     let test_indices = &indices[..test_size];
     let train_indices = &indices[test_size..];
 
-    // Partition the 2D data and labels.
     let train_data: Vec<Vec<f64>> = train_indices.iter().map(|&i| x_data[i].clone()).collect();
     let test_data: Vec<Vec<f64>> = test_indices.iter().map(|&i| x_data[i].clone()).collect();
     let y_test: Vec<usize> = test_indices.iter().map(|&i| y[i]).collect();
 
-    let x_train = DenseMatrix::from_2d_vec(&train_data).expect("Failed to create training matrix");
+    let x_train =
+        DenseMatrix::from_2d_vec(&train_data).expect("Failed to create training matrix");
     let x_test = DenseMatrix::from_2d_vec(&test_data).expect("Failed to create test matrix");
 
     println!("INFO: Starting to train the model: {}", args.output);
 
-    // Build the RandomForest parameters.
     let rf_params = RandomForestClassifierParameters {
         max_depth: None,
         min_samples_leaf: 1,
@@ -266,7 +321,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         n_trees: 100,
         m: Some((n_features as f64).sqrt().floor() as usize),
         seed: 42,
-        criterion: SplitCriterion::Gini, // Using the default criterion.
+        criterion: SplitCriterion::Gini, // Use the default Gini criterion.
         keep_samples: true,
     };
 
