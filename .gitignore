@@ -2,3 +2,4 @@
 /target
 *.lock
 /.vscode
+.DS_Store
