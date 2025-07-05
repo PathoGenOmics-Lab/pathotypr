@@ -1,392 +1,287 @@
+//! This module handles the `classify` subcommand.
+//!
+//! It performs lineage typing by identifying known genetic markers (k-mers)
+//! within genome sequences. The process involves:
+//! 1. Reading a list of positions and their corresponding alternate alleles and lineages.
+//! 2. Generating "marker" k-mers from a reference sequence by substituting the
+//!    alternate allele at each specified position.
+//! 3. Scanning input genomes (from a list of FASTA files or a single multifasta)
+//!    for the presence of these marker k-mers in parallel.
+//! 4. Reporting all found markers for each genome.
+//! 5. Generating a summary file that lists the most likely lineage(s) for each genome
+//!    based on marker counts.
+
+use anyhow::{anyhow, Result};
+use bio::io::fasta;
 use clap::Parser;
 use csv::ReaderBuilder;
 use indicatif::{ProgressBar, ProgressStyle};
 use log::{error, info};
 use rayon::prelude::*;
-use std::collections::HashMap;
-use std::error::Error;
-use std::fs::File;
-use std::io::{Write, BufWriter};
-use std::path::Path;
-use bio::io::fasta;
+use std::{
+    collections::HashMap,
+    fs::File,
+    io::{BufWriter, Write},
+    path::Path,
+};
 
-/// Command-line arguments for the classify subcommand.
 #[derive(Parser, Debug)]
 pub struct Args {
-    /// TSV file with marker positions
-    #[arg(short = 'p', long = "tsv_pos")]
-    pub tsv_pos: String,
+    /// Path to a TSV file defining markers.
+    /// Format: position(1-based)\talt_base\tlineage
+    #[arg(short = 'm', long)]
+    pub markers: String,
 
-    /// Reference genome in FASTA format
-    #[arg(short = 'r', long = "ref_fasta")]
-    pub ref_fasta: String,
+    /// Path to the reference FASTA file.
+    #[arg(short = 'r', long)]
+    pub reference: String,
 
-    /// TSV file with genome names and paths to FASTA files (required unless --fasta_genomes is provided)
-    #[arg(short = 'g', long = "tsv_genomes", required_unless_present = "fasta_genomes")]
-    pub tsv_genomes: Option<String>,
+    /// Path to a TSV file listing genomes to analyze. Format: name\tpath/to/fasta.
+    /// Use this or --genome-fasta.
+    #[arg(long, group = "input_method")]
+    pub genome_list: Option<String>,
 
-    /// FASTA file with one or multiple genomes (required unless --tsv_genomes is provided)
-    #[arg(short = 'f', long = "fasta_genomes", required_unless_present = "tsv_genomes")]
-    pub fasta_genomes: Option<String>,
+    /// Path to a multifasta file containing all genomes to analyze.
+    /// Use this or --genome-list.
+    #[arg(long, group = "input_method")]
+    pub genome_fasta: Option<String>,
 
-    /// Base name for the output file (the main per-marker file and a second summary TSV)
-    #[arg(short = 'o', long = "output")]
-    pub ofile: String,
+    /// Path for the main output file (detailed marker report).
+    #[arg(short = 'o', long)]
+    pub output: String,
 
-    /// k-mer size (default is 21)
-    #[arg(long, default_value_t = 21)]
+    /// The size of the k-mers to search for.
+    #[arg(short = 'k', long, default_value_t = 21)]
     pub kmer_size: usize,
 
-    /// Number of CPUs to use (optional)
-    #[arg(short = 'c', long = "num_cpu")]
-    pub num_cpu: Option<usize>,
+    /// Number of CPU threads to use for parallel processing.
+    #[arg(short = 't', long)]
+    pub threads: Option<usize>,
 }
 
-/// Generates all k-mers of length `k` from the given sequence.
-fn generate_kmers(sequence: &str, k: usize) -> HashMap<String, usize> {
-    let mut kmers = HashMap::new();
-    let seq_len = sequence.len();
-    if seq_len < k {
-        return kmers;
+/// Generates all k-mers from a sequence and stores them in a HashMap for quick lookup.
+fn generate_kmers(seq: &str, k: usize) -> HashMap<String, usize> {
+    let mut m = HashMap::new();
+    if seq.len() < k {
+        return m;
     }
-    for i in 0..=(seq_len - k) {
-        let kmer = &sequence[i..i + k];
-        kmers.insert(kmer.to_string(), i);
+    for i in 0..=seq.len() - k {
+        m.insert(seq[i..i + k].to_string(), i);
     }
-    kmers
+    m
 }
 
-/// Finds markers in the genome sequence by comparing k-mers.
-/// For each marker found, returns a tuple of (genome k-mer starting position, reference position, lineage).
-fn find_markers(
-    genome_sequence: &str,
-    markers_kmers: &HashMap<String, (usize, String)>,
+/// Finds which of the provided markers are present in a given genome sequence.
+pub fn find_markers(
+    genome_seq: &str,
+    markers: &HashMap<String, (usize, String)>,
     k: usize,
 ) -> HashMap<String, (usize, usize, String)> {
-    let genome_kmers = generate_kmers(genome_sequence, k);
-    let mut matched_markers = HashMap::new();
-    for (marker_kmer, (ref_position, lineage)) in markers_kmers.iter() {
-        if let Some(&genome_position) = genome_kmers.get(marker_kmer) {
-            matched_markers.insert(marker_kmer.clone(), (genome_position, *ref_position, lineage.clone()));
+    let genome_kmers = generate_kmers(genome_seq, k);
+    let mut found_markers = HashMap::new();
+    for (marker_kmer, (ref_pos, lineage)) in markers {
+        if let Some(&genome_pos) = genome_kmers.get(marker_kmer) {
+            found_markers.insert(marker_kmer.clone(), (genome_pos, *ref_pos, lineage.clone()));
         }
     }
-    matched_markers
+    found_markers
 }
 
-/// Reads the marker positions TSV file and returns two maps.
-fn get_positions(tsv_file: &str) -> Result<(HashMap<usize, String>, HashMap<usize, String>), Box<dyn Error>> {
-    let mut rdr = ReaderBuilder::new().delimiter(b'\t').from_path(tsv_file)?;
-    let mut reference_positions = HashMap::new();
-    let mut markers_lineage = HashMap::new();
-    for result in rdr.records() {
-        let record = result?;
-        if record.len() < 3 {
+/// Reads a TSV file of marker positions.
+pub fn get_positions(tsv: &str) -> Result<(HashMap<usize, String>, HashMap<usize, String>)> {
+    let mut rdr = ReaderBuilder::new().delimiter(b'\t').from_path(tsv)?;
+    let mut ref_pos = HashMap::new();
+    let mut lin_map = HashMap::new();
+    for rec in rdr.records() {
+        let rec = rec?;
+        if rec.len() < 3 {
             continue;
         }
-        let pos: usize = record[0].parse()?;
-        let alt_base = record[1].to_string();
-        let lineage = record[2].to_string();
-        reference_positions.insert(pos, alt_base);
-        markers_lineage.insert(pos, lineage);
+        let pos: usize = rec[0].parse()?;
+        ref_pos.insert(pos, rec[1].to_string());
+        lin_map.insert(pos, rec[2].to_string());
     }
-    Ok((reference_positions, markers_lineage))
+    Ok((ref_pos, lin_map))
 }
 
-/// Reads the first record from the reference FASTA file.
-fn get_ref(fasta_file: &str) -> Result<String, Box<dyn Error>> {
-    let reader = fasta::Reader::from_file(fasta_file)?;
-    let mut records = reader.records();
-    if let Some(result) = records.next() {
-        let record = result?;
-        let seq = String::from_utf8(record.seq().to_vec())?;
-        Ok(seq.to_uppercase())
-    } else {
-        Err("No record found in the reference FASTA file.".into())
-    }
-}
-
-/// Generates a marker k-mer for each marker by extracting a window around the marker position in the reference,
-/// replacing the middle base with the alternative base.
-fn generate_markerkmer(
-    reference_positions: &HashMap<usize, String>,
+/// Generates the full set of marker k-mers from a reference sequence.
+pub fn generate_marker_kmers(
+    ref_pos: &HashMap<usize, String>,
     ref_seq: &str,
-    markers_lineage: &HashMap<usize, String>,
+    lineage: &HashMap<usize, String>,
     k: usize,
 ) -> HashMap<String, (usize, String)> {
-    let mut markers_kmers = HashMap::new();
-    let seq_len = ref_seq.len();
-    let half = k / 2;
-    for (&pos, alt_base) in reference_positions.iter() {
-        if pos > half && pos < seq_len - half {
-            let start = pos - half - 1;
-            let end = pos + half;
-            if end <= seq_len {
-                let kmer = ref_seq[start..end].to_string();
-                let mut kmer_chars: Vec<char> = kmer.chars().collect();
-                if half < kmer_chars.len() {
-                    kmer_chars[half] = alt_base.chars().next().unwrap();
-                }
-                let new_kmer: String = kmer_chars.into_iter().collect();
-                if let Some(lineage) = markers_lineage.get(&pos) {
-                    markers_kmers.insert(new_kmer, (pos, lineage.clone()));
-                }
-            }
-        }
-    }
-    markers_kmers
-}
-
-/// Reads the genomes TSV file and returns a map from genome name to its FASTA path.
-fn get_genomepaths(tsv_file: &str) -> Result<HashMap<String, String>, Box<dyn Error>> {
-    let mut rdr = ReaderBuilder::new().delimiter(b'\t').from_path(tsv_file)?;
-    let mut genome_paths = HashMap::new();
-    for result in rdr.records() {
-        let record = result?;
-        if record.len() < 2 {
+    let mut marker_map = HashMap::new();
+    let half_k = k / 2;
+    for (&pos, alt_base) in ref_pos {
+        if pos <= half_k || pos + half_k >= ref_seq.len() {
             continue;
         }
-        let genome_name = record[0].to_string();
-        let fasta_path = record[1].to_string();
-        if !Path::new(&fasta_path).exists() {
-            eprintln!("The file {} does not exist", fasta_path);
+        let start = pos - half_k - 1;
+        let end = pos + half_k;
+        let mut kmer_bytes = ref_seq[start..end].as_bytes().to_vec();
+        kmer_bytes[half_k] = alt_base.as_bytes()[0];
+        let kmer_str = String::from_utf8(kmer_bytes).unwrap();
+
+        if let Some(lin) = lineage.get(&pos) {
+            marker_map.insert(kmer_str, (pos, lin.clone()));
+        }
+    }
+    marker_map
+}
+
+/// Reads the first sequence from a FASTA file.
+fn get_ref(fa: &str) -> Result<String> {
+    let rdr = fasta::Reader::from_file(fa)?;
+    let mut recs = rdr.records();
+    if let Some(r) = recs.next() {
+        let r = r?;
+        return Ok(String::from_utf8(r.seq().to_vec())?.to_uppercase());
+    }
+    Err(anyhow!("Reference FASTA is empty or invalid."))
+}
+
+/// Reads a TSV file mapping genome names to their FASTA file paths.
+fn get_genome_paths(tsv: &str) -> Result<HashMap<String, String>> {
+    let mut rdr = ReaderBuilder::new().delimiter(b'\t').from_path(tsv)?;
+    let mut m = HashMap::new();
+    for rec in rdr.records() {
+        let rec = rec?;
+        if rec.len() < 2 { continue; }
+        let name = rec[0].to_string();
+        let path = rec[1].to_string();
+        if !Path::new(&path).exists() {
+            error!("Missing FASTA for genome {}: {}", name, path);
             continue;
         }
-        genome_paths.insert(genome_name, fasta_path);
+        m.insert(name, path);
     }
-    Ok(genome_paths)
+    Ok(m)
 }
 
-/// Reads a FASTA file (single or multi-FASTA) and returns a map from record ID to its sequence.
-fn get_genomes_from_fasta(fasta_file: &str) -> Result<HashMap<String, String>, Box<dyn Error>> {
-    let reader = fasta::Reader::from_file(fasta_file)?;
-    let mut genomes = HashMap::new();
-    for result in reader.records() {
-        let record = result?;
-        let seq = String::from_utf8(record.seq().to_vec())?;
-        genomes.insert(record.id().to_string(), seq.to_uppercase());
+/// Reads all sequences from a multifasta file into a map.
+fn get_genomes_from_fasta(path: &str) -> Result<HashMap<String, String>> {
+    let rdr = fasta::Reader::from_file(path)?;
+    let mut m = HashMap::new();
+    for rec in rdr.records() {
+        let rec = rec?;
+        let id = rec.id().to_string();
+        let seq = String::from_utf8(rec.seq().to_vec())?.to_uppercase();
+        m.insert(id, seq);
     }
-    Ok(genomes)
+    Ok(m)
 }
 
-/// Analyzes a single genome from a FASTA file, returning lines with marker details.
-fn analyze_genome(
-    genome_name: &str,
-    fasta_path: &str,
-    markers_kmers: &HashMap<String, (usize, String)>,
-    k: usize,
-) -> Vec<String> {
-    let mut result = Vec::new();
-    if !Path::new(fasta_path).exists() {
-        error!("The file {} does not exist", fasta_path);
-        return result;
-    }
-    info!("Analyzing genome {} ({})", genome_name, fasta_path);
-    let genome_seq = match get_ref(fasta_path) {
-        Ok(seq) => seq,
-        Err(e) => {
-            error!("Error reading FASTA file {}: {}", fasta_path, e);
-            return result;
-        }
+/// Analyzes a single genome from a file path.
+fn analyze_path(name: &str, path: &str, markers: &HashMap<String, (usize, String)>, k: usize) -> Vec<String> {
+    let seq = match get_ref(path) {
+        Ok(s) => s,
+        Err(e) => { error!("Could not read {}: {}", path, e); return Vec::new(); }
     };
-    let matched_markers = find_markers(&genome_seq, markers_kmers, k);
-    if matched_markers.is_empty() {
-        result.push(format!("{}\t\t\t\t\t\n", genome_name));
+    analyze_seq(name, &seq, markers, k)
+}
+
+/// Analyzes a single genome sequence for markers and formats the output lines.
+fn analyze_seq(name: &str, seq: &str, markers: &HashMap<String, (usize, String)>, k: usize) -> Vec<String> {
+    let mut v = Vec::new();
+    let found_markers = find_markers(seq, markers, k);
+    if found_markers.is_empty() {
+        v.push(format!("{}\t\t\t\t\t\n", name));
     } else {
-        for (kmer, (position, ref_position, lineage)) in matched_markers {
-            let snp_position = position + k / 2;
-            result.push(format!(
-                "{}\t{}\t{}\t{}\t{}\t{}\n",
-                genome_name, kmer, position, snp_position, ref_position, lineage
-            ));
+        for (kmer, (genome_pos, ref_pos, lineage)) in found_markers {
+            let snp_pos_in_genome = genome_pos + k / 2;
+            v.push(format!("{}\t{}\t{}\t{}\t{}\t{}\n", name, kmer, genome_pos, snp_pos_in_genome, ref_pos, lineage));
         }
     }
-    result
+    v
 }
 
-/// Analyzes a single genome from a provided sequence (in memory), returning lines with marker details.
-fn analyze_genome_seq(
-    genome_name: &str,
-    genome_seq: &str,
-    markers_kmers: &HashMap<String, (usize, String)>,
-    k: usize,
-) -> Vec<String> {
-    let mut result = Vec::new();
-    info!("Analyzing genome {} (provided sequence)", genome_name);
-    let matched_markers = find_markers(genome_seq, markers_kmers, k);
-    if matched_markers.is_empty() {
-        result.push(format!("{}\t\t\t\t\t\n", genome_name));
-    } else {
-        for (kmer, (position, ref_position, lineage)) in matched_markers {
-            let snp_position = position + k / 2;
-            result.push(format!(
-                "{}\t{}\t{}\t{}\t{}\t{}\n",
-                genome_name, kmer, position, snp_position, ref_position, lineage
-            ));
-        }
-    }
-    result
-}
-
-/// Checks that all required input files exist.
-fn check_input_files(args: &Args) -> Result<(), Box<dyn Error>> {
-    let all_files = vec![
-        (args.tsv_pos.as_str(), "TSV positions file"),
-        (args.ref_fasta.as_str(), "Reference FASTA file"),
-        (args.tsv_genomes.as_deref().unwrap_or(""), "TSV genomes file"),
-        (args.fasta_genomes.as_deref().unwrap_or(""), "FASTA genomes file"),
-    ];
-    for (path, description) in all_files.into_iter().filter(|(p, _)| !p.is_empty()) {
-        if !Path::new(path).exists() {
-            error!("The {} {} does not exist", description, path);
-            return Err(format!("File {} does not exist", path).into());
-        }
-    }
-    Ok(())
-}
-
-/// Processes genomes and returns lines with marker matches for each genome.
-fn process_genomes(
-    args: &Args,
-    markers_kmers: &HashMap<String, (usize, String)>,
-    k: usize
-) -> Result<Vec<String>, Box<dyn Error>> {
-    let mut results = Vec::new();
-
-    // If we have a TSV of genome names -> paths
-    if let Some(tsv_genomes) = &args.tsv_genomes {
-        let genome_paths = get_genomepaths(tsv_genomes)?;
-        let pb = ProgressBar::new(genome_paths.len() as u64);
-        pb.set_style(
-            ProgressStyle::default_bar()
-                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
-                .unwrap()
-                .progress_chars("=>-"),
-        );
-        let res: Vec<String> = genome_paths
-            .par_iter()
-            .map(|(genome_name, fasta_path)| {
-                let lines = analyze_genome(genome_name, fasta_path, markers_kmers, k);
-                pb.inc(1);
-                lines
-            })
-            .flatten()
-            .collect();
-        pb.finish_with_message("Done!");
-        results.extend(res);
-    }
-    // Otherwise, we have a multi-FASTA with possibly multiple genomes
-    else if let Some(fasta_genomes) = &args.fasta_genomes {
-        let genomes = get_genomes_from_fasta(fasta_genomes)?;
-        let pb = ProgressBar::new(genomes.len() as u64);
-        pb.set_style(
-            ProgressStyle::default_bar()
-                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
-                .unwrap()
-                .progress_chars("=>-"),
-        );
-        let res: Vec<String> = genomes
-            .par_iter()
-            .map(|(genome_name, genome_seq)| {
-                let lines = analyze_genome_seq(genome_name, genome_seq, markers_kmers, k);
-                pb.inc(1);
-                lines
-            })
-            .flatten()
-            .collect();
-        pb.finish_with_message("Done!");
-        results.extend(res);
-    }
-    Ok(results)
-}
-
-/// Main function for the classify subcommand.
-fn generate_summary(results: &[String]) -> HashMap<String, HashMap<String, usize>> {
-    let mut lineage_count_map = HashMap::new();
-    
-    for line in results {
+/// Summarizes marker counts per lineage for each genome.
+fn lineage_summary(lines: &[String]) -> HashMap<String, HashMap<String, usize>> {
+    let mut summary_map = HashMap::new();
+    for line in lines {
         let fields: Vec<&str> = line.trim_end().split('\t').collect();
-        if fields.len() < 6 {
-            continue;
-        }
+        if fields.len() < 6 { continue; }
         let genome_name = fields[0].to_string();
         let lineage = fields[5].to_string();
-
-        lineage_count_map
-            .entry(genome_name)
-            .or_insert_with(HashMap::new)
-            .entry(lineage)
-            .and_modify(|c| *c += 1)
-            .or_insert(1);
+        summary_map.entry(genome_name).or_insert_with(HashMap::new).entry(lineage).and_modify(|count| *count += 1).or_insert(1);
     }
-    
-    lineage_count_map
+    summary_map
 }
 
-fn write_summary(summary_out: &mut BufWriter<File>, genome: String, lineage_counts: Vec<(String, usize)>) -> Result<(), Box<dyn Error>> {
-    let lineage_count_str = lineage_counts
-        .iter()
-        .map(|(lin, cnt)| format!("{}:{}", lin, cnt))
-        .collect::<Vec<_>>()
-        .join(",");
-
-    let majority_lineage = if lineage_counts.is_empty() {
-        String::new()
-    } else if lineage_counts.len() == 1 {
-        lineage_counts[0].0.clone()
-    } else if lineage_counts[0].1 > lineage_counts[1].1 {
+/// Writes a single summary line for a genome.
+fn write_summary_line(w: &mut BufWriter<File>, genome: &str, mut lineage_counts: Vec<(String, usize)>) -> Result<()> {
+    lineage_counts.sort_by(|a, b| b.1.cmp(&a.1));
+    let list = lineage_counts.iter().map(|(l, c)| format!("{}:{}", l, c)).collect::<Vec<_>>().join(",");
+    let major_lineage = if lineage_counts.is_empty() {
+        "".to_string()
+    } else if lineage_counts.len() == 1 || lineage_counts[0].1 > lineage_counts[1].1 {
         lineage_counts[0].0.clone()
     } else {
-        lineage_counts
-            .iter()
-            .map(|(lin, _)| lin.clone())
-            .collect::<Vec<_>>()
-            .join(",")
+        let top_count = lineage_counts[0].1;
+        lineage_counts.iter().filter(|(_, count)| *count == top_count).map(|(l, _)| l.clone()).collect::<Vec<_>>().join(",")
     };
-
-    writeln!(
-        summary_out,
-        "{}\t{}\t{}",
-        genome, lineage_count_str, majority_lineage
-    )?;
+    writeln!(w, "{}\t{}\t{}", genome, list, major_lineage)?;
     Ok(())
 }
 
-pub fn run(args: Args) -> Result<(), Box<dyn Error>> {
-    env_logger::init();
-    if let Some(n) = args.num_cpu {
-        rayon::ThreadPoolBuilder::new()
-            .num_threads(n)
-            .build_global()
-            .unwrap();
+pub fn run(args: Args) -> Result<()> {
+    if let Some(n) = args.threads { rayon::ThreadPoolBuilder::new().num_threads(n).build_global()?; }
+    if args.genome_list.is_none() && args.genome_fasta.is_none() {
+        return Err(anyhow!("You must provide an input source: either --genome-list or --genome-fasta."));
     }
-    check_input_files(&args)?;
 
+    info!("▶ Preparing marker k-mers...");
     let k = args.kmer_size;
-    let ref_seq = get_ref(&args.ref_fasta)?;
-    let (reference_positions, markers_lineage) = get_positions(&args.tsv_pos)?;
-    let markers_kmers = generate_markerkmer(&reference_positions, &ref_seq, &markers_lineage, k);
-    let results = process_genomes(&args, &markers_kmers, k)?;
+    let ref_seq = get_ref(&args.reference)?;
+    let (pos_map, lin_map) = get_positions(&args.markers)?;
+    let marker_kmer_map = generate_marker_kmers(&pos_map, &ref_seq, &lin_map, k);
+    info!("  Loaded {} unique marker k-mers.", marker_kmer_map.len());
 
-    let mut outfile = BufWriter::new(File::create(&args.ofile)?);
-    writeln!(
-        outfile,
-        "genome\tk-mer\tk-merPOS\tSNPgenome\tSNPreference\tlineage"
-    )?;
-    for line in &results {
-        write!(outfile, "{}", line)?;
+    info!("▶ Analyzing genomes...");
+    let mut lines = Vec::<String>::new();
+    let pb_style = ProgressStyle::default_bar()
+        .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})")?
+        .progress_chars("#>-");
+
+    if let Some(tsv) = &args.genome_list {
+        let paths = get_genome_paths(tsv)?;
+        let pb = ProgressBar::new(paths.len() as u64).with_style(pb_style);
+        let results: Vec<String> = paths.par_iter().map(|(name, path)| {
+            let res = analyze_path(name, path, &marker_kmer_map, k);
+            pb.inc(1);
+            res
+        }).flatten().collect();
+        pb.finish_with_message("Genome analysis complete");
+        lines.extend(results);
+    } else if let Some(mfasta) = &args.genome_fasta {
+        let genomes = get_genomes_from_fasta(mfasta)?;
+        let pb = ProgressBar::new(genomes.len() as u64).with_style(pb_style);
+        let results: Vec<String> = genomes.par_iter().map(|(name, seq)| {
+            let res = analyze_seq(name, seq, &marker_kmer_map, k);
+            pb.inc(1);
+            res
+        }).flatten().collect();
+        pb.finish_with_message("Genome analysis complete");
+        lines.extend(results);
     }
 
-    let summary_file = format!("{}_summary.tsv", args.ofile);
-    let mut summary_out = BufWriter::new(File::create(&summary_file)?);
-    writeln!(summary_out, "genome\tlineage:count\tmajor_lineage")?;
+    info!("▶ Writing output files...");
+    let mut writer = BufWriter::new(File::create(&args.output)?);
+    writeln!(writer, "genome\tk-mer\tk-mer_pos_genome\tsnp_pos_genome\tsnp_pos_reference\tlineage")?;
+    for line in &lines {
+        write!(writer, "{}", line)?;
+    }
+    info!("  Detailed marker report written to {}", &args.output);
 
-    let lineage_count_map = generate_summary(&results);
+    let summary_path = format!("{}_summary.tsv", args.output);
+    let mut summary_writer = BufWriter::new(File::create(&summary_path)?);
+    writeln!(summary_writer, "genome\tlineage_counts\tmajor_lineage")?;
+    for (genome, map) in lineage_summary(&lines) {
+        write_summary_line(&mut summary_writer, &genome, map.into_iter().collect())?;
+    }
+    info!("  Lineage summary written to {}", &summary_path);
     
-    for (genome, lineage_map) in lineage_count_map {
-        let mut lineage_counts: Vec<(String, usize)> = lineage_map.into_iter().collect();
-        lineage_counts.sort_by(|a, b| b.1.cmp(&a.1));
-        write_summary(&mut summary_out, genome, lineage_counts)?;
-    }
-
+    info!("✅ Process completed.");
     Ok(())
 }
