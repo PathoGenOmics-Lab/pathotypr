@@ -143,6 +143,7 @@ Both commands use the same flexible TSV format for defining variants:
 
 #### 🧬 `classify`
  Genotype known variants (SNPs, MNVs, Indels) in assembled genomes (FASTA) against a reference.
+
 **Arguments**:
 | Option | Flag | Description | Default |
 | :--- | :--- | :--- | :--- |
@@ -165,6 +166,7 @@ pathotypr classify \
 ```
 
 #### ⚡ `split-fastq`
+Perform ultra-fast, alignment-free genotyping of SNPs, MNVs, and both small and large structural variants (Indels/SVs) directly from raw FASTQ reads.
 
 **Arguments**:
 | Option | Flag | Description | Default |
