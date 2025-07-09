@@ -149,10 +149,11 @@ Both commands use the same flexible TSV format for defining variants:
 | :--- | :--- | :--- | :--- |
 | --markers | -m | Path to the marker definition file (TSV format). | Required |
 | --reference | -r | Path to the reference genome FASTA file. | Required |
-| --output | -o | Path for the detailed output report. | Required |
-| --genome-fasta| | Path to a multifasta file containing all genomes to analyze. | One input required |
-| --genome-list | | Path to a TSV file listing genomes (name\tpath/to/fasta). | One input required |
-| --kmer-size | -k | The size of the diagnostic k-mers to use. | 31 |
+| --output-prefix| -o | Prefix for the output files. | Required |
+| --input | -i | Path to a multifasta file containing genomes to analyze. | One input required |
+| --input-list | -l | Path to a TSV file listing genomes (name\tfasta_path[\tgff_path]). | One input required |
+| --gff | | Optional GFF file for annotation when using --input. | Optional |
+| --kmer-size | -k | The size of the diagnostic k-mers to use. | 21 |
 | --threads | -t | Number of CPU threads to use. | All available |
 
 **Usage**:
