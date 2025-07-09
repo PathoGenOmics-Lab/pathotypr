@@ -164,6 +164,32 @@ pathotypr classify \
   --genome-fasta <GENOMES_FASTA> \
   [OPTIONS]
 ```
+#### Functional Annotation with GFF
+The classify command can translate SNPs into amino acid changes if provided with a GFF3 annotation file.
+
+How to provide GFF files:
+- For a single FASTA input (--input): Use the --gff flag to specify a single GFF file that corresponds to the sequences in the FASTA file.
+- For multiple genomes via a list (--input-list): Add a third, optional column to your TSV file containing the path to the corresponding GFF file for each genome.
+
+Example input-list.tsv:
+```bash
+SampleA   path/to/sampleA.fasta   path/to/sampleA.gff3
+SampleB   path/to/sampleB.fasta   path/to/sampleB.gff3
+SampleC   path/to/sampleC.fasta   # No GFF for this sample
+```
+Output Columns:
+When annotation is performed, the output file will contain three additional columns:
+
+- Gene: The ID of the gene where the SNP is located.
+- AA_Pos: The position of the amino acid within the gene.
+- AA_Change: The resulting amino acid (using 3-letter code).
+
+Example Output:
+```bash
+genome              k-mer                  k-merPOS  SNPgenome  SNPreference  lineage  Gene     AA_Pos  AA_Change
+G0000_contig_1  GGCGGCGCCGCCTGGGTGGAG  1854184   1854194    1859559       L4       Rv1649   276     Gly
+G0000_contig_1  GACCCCGAGGCCCGGGCCGGC  4296504   4296514    4313128       L4       gyrA     95      Ser
+```
 
 #### ⚡ `split-fastq`
 Perform ultra-fast, alignment-free genotyping of SNPs, MNVs, and both small and large structural variants (Indels/SVs) directly from raw FASTQ reads.
