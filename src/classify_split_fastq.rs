@@ -5,10 +5,10 @@
 //! sample names and generates separate reports for each, plus a final summary.
 //! It uses a dynamic k-mer engine to detect SNPs, MNVs, and Indels.
 
+use crate::errors::{AppError, AppResult};
 use crate::split_kmer;
-use anyhow::{anyhow, Result};
 use clap::Parser;
-use log::{info, warn};
+use log::{debug, info, trace, warn};
 use rayon::ThreadPoolBuilder;
 use std::collections::HashMap;
 use std::fs;
@@ -73,7 +73,7 @@ fn derive_sample_name(path_str: &str) -> String {
 }
 
 /// Reads a TSV file to get a map of sample names to their FASTQ file paths.
-fn read_sample_list(path: &str) -> Result<HashMap<String, Vec<String>>> {
+fn read_sample_list(path: &str) -> AppResult<HashMap<String, Vec<String>>> {
     let mut samples = HashMap::new();
     let reader = fs::read_to_string(path)?;
     for line in reader.lines() {
@@ -89,33 +89,40 @@ fn read_sample_list(path: &str) -> Result<HashMap<String, Vec<String>>> {
         let fastq_paths = fields[1..].iter().map(|s| s.to_string()).collect();
         samples.insert(sample_name, fastq_paths);
     }
+    debug!("Read {} samples from list {}", samples.len(), path);
     Ok(samples)
 }
 
-pub fn run(args: SplitFastqArgs) -> Result<()> {
+pub fn run(args: SplitFastqArgs) -> AppResult<()> {
     if args.input.is_empty() && args.input_list.is_none() {
-        return Err(anyhow!(
-            "You must provide an input source: either --input or --input-list."
+        return Err(AppError::Generic(
+            "You must provide an input source: either --input or --input-list.".to_string(),
         ));
     }
 
-    ThreadPoolBuilder::new()
-        .num_threads(args.threads.unwrap_or(0))
-        .build_global()?;
+    if let Some(n) = args.threads {
+        debug!("Setting number of threads to: {}", n);
+        ThreadPoolBuilder::new()
+            .num_threads(n)
+            .build_global()
+            .map_err(|e| AppError::Generic(format!("Failed to build thread pool: {}", e)))?;
+    }
 
     info!("▶ Building dynamic marker database...");
-    let markers = split_kmer::build_markers(&args.reference, &args.markers)?;
+    let markers = split_kmer::build_markers(&args.reference, &args.markers)
+        .map_err(|e| AppError::Generic(format!("Failed to build markers: {}", e)))?;
     info!("  Successfully generated {} dynamic markers.", markers.len());
+    trace!("First marker generated: {:?}", markers.first());
 
     let mut samples_to_process: HashMap<String, Vec<String>> = HashMap::new();
     if let Some(list_path) = &args.input_list {
         samples_to_process = read_sample_list(list_path)?;
     } else if args.paired {
         if args.input.len() % 2 != 0 {
-            return Err(anyhow!(
+            return Err(AppError::Generic(format!(
                 "--paired requires an even number of input files. Found {}.",
                 args.input.len()
-            ));
+            )));
         }
         for chunk in args.input.chunks(2) {
             let r1_path = &chunk[0];
@@ -140,12 +147,15 @@ pub fn run(args: SplitFastqArgs) -> Result<()> {
     }
 
     info!("Found {} sample(s) to process.", samples_to_process.len());
+    debug!("Samples to process: {:?}", samples_to_process.keys());
     let mut all_summary_lines = Vec::new();
 
     for (sample_name, fastq_paths) in &samples_to_process {
         info!("▶ Processing sample: {}", sample_name);
-        let counts = split_kmer::scan_fastq(fastq_paths, &markers)?;
+        let counts = split_kmer::scan_fastq(fastq_paths, &markers)
+            .map_err(|e| AppError::Generic(format!("Failed to scan FASTQ for {}: {}", sample_name, e)))?;
         info!("  Finished scan for {}. Analyzing results...", sample_name);
+        trace!("Raw counts for sample {}: {:?}", sample_name, counts);
 
         let detailed_output_path =
             format!("{}_{}_mutations.tsv", args.output_prefix, sample_name);
@@ -155,9 +165,11 @@ pub fn run(args: SplitFastqArgs) -> Result<()> {
         writeln!(detailed_writer, "{}", header)?;
 
         let mut lineage_counts: HashMap<String, usize> = HashMap::new();
+        let mut called_variants = 0;
         for (marker_id, &[ref_count, alt_count]) in counts.iter().enumerate() {
             let coverage = ref_count + alt_count;
             if coverage < args.min_depth {
+                trace!("Skipping marker {} due to low depth ({})", marker_id, coverage);
                 continue;
             }
             let alt_fraction = if coverage > 0 {
@@ -166,9 +178,11 @@ pub fn run(args: SplitFastqArgs) -> Result<()> {
                 0.0
             };
             if alt_fraction < args.min_alt_percent as f32 {
+                trace!("Skipping marker {} due to low alt-allele frequency ({:.2}%)", marker_id, alt_fraction);
                 continue;
             }
             
+            called_variants += 1;
             let marker = &markers[marker_id];
             
             let mut output_line = format!(
@@ -192,6 +206,7 @@ pub fn run(args: SplitFastqArgs) -> Result<()> {
                 .entry(marker.lineage.clone())
                 .or_default() += 1;
         }
+        debug!("Called {} variants for sample {}", called_variants, sample_name);
         info!(
             "  Detailed report for {} written to {}",
             sample_name, detailed_output_path

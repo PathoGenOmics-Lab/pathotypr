@@ -6,14 +6,20 @@
 //! corresponding module.
 
 use clap::{Parser, Subcommand};
+use log::LevelFilter;
 use std::sync::Once;
 
 // Internal module declarations.
 mod classify;
 mod classify_split_fastq;
+mod common;
+mod errors;
 mod predict;
 mod split_kmer;
 mod train;
+
+// Use the AppResult type from the errors module.
+use errors::AppResult;
 
 /* ----------------- Command-Line Interface Definition ----------------- */
 
@@ -22,11 +28,15 @@ mod train;
     name = "pathotypr",
     version = "0.1.0",
     author = "Paula Ruiz Rodriguez",
-    about = "A tool to classify genomes using machine learning and marker-based approaches."
+    about = "A versatile toolkit for genome classification and variant genotyping."
 )]
 struct Cli {
     #[command(subcommand)]
     cmd: Commands,
+
+    /// Set the verbosity level. Use -v for debug, -vv for trace.
+    #[arg(short, long, action = clap::ArgAction::Count, global = true)]
+    verbose: u8,
 }
 
 #[derive(Subcommand)]
@@ -43,32 +53,31 @@ enum Commands {
 
 /* ----------------- Logger Initialization ----------------- */
 
-// A static guard to ensure the logger is initialized only once.
 static INIT: Once = Once::new();
 
-/// Initializes the global logger using `env_logger`.
-///
-/// This function is wrapped in a `Once` block to prevent multiple initializations,
-/// which would cause a panic. The default log level is "info" but can be
-/// overridden by the `RUST_LOG` environment variable.
-fn init_logger() {
+/// Initializes the global logger based on the verbosity flag.
+fn init_logger(verbosity: u8) {
     INIT.call_once(|| {
-        let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
-            .try_init();
+        let level = match verbosity {
+            0 => LevelFilter::Info,
+            1 => LevelFilter::Debug,
+            _ => LevelFilter::Trace,
+        };
+        env_logger::Builder::new().filter_level(level).init();
     });
 }
 
 /* ----------------- Main Function ----------------- */
 
-fn main() -> anyhow::Result<()> {
-    // Ensure the logger is ready.
-    init_logger();
+fn main() -> AppResult<()> {
+    let cli = Cli::parse();
+    init_logger(cli.verbose);
 
-    // Parse the command-line arguments and execute the corresponding subcommand.
-    match Cli::parse().cmd {
-        Commands::Train(a) => train::run(a).map_err(|e| anyhow::anyhow!("{}", e))?,
-        Commands::Predict(a) => predict::run(a).map_err(|e| anyhow::anyhow!("{}", e))?,
-        Commands::Classify(a) => classify::run(a).map_err(|e| anyhow::anyhow!("{}", e))?,
+    // Execute the corresponding subcommand.
+    match cli.cmd {
+        Commands::Train(a) => train::run(a)?,
+        Commands::Predict(a) => predict::run(a)?,
+        Commands::Classify(a) => classify::run(a)?,
         Commands::SplitFastq(a) => classify_split_fastq::run(a)?,
     }
     Ok(())

@@ -1,14 +1,16 @@
+//! This module handles the `classify` subcommand.
+
+use crate::errors::{AppError, AppResult};
 use bio::io::fasta;
 use bio::io::gff::{GffType, Reader};
-use bio_types::strand::Strand as BioStrand; // Renamed to avoid conflict
+use bio_types::strand::Strand as BioStrand;
 use clap::Parser;
 use csv::ReaderBuilder;
 use indicatif::{ProgressBar, ProgressStyle};
-use log::{error, info, warn}; // Import 'warn'
+use log::{debug, error, info, trace, warn};
 use rayon::prelude::*;
 use rust_lapper::{Interval, Lapper};
 use std::collections::HashMap;
-use std::error::Error;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
@@ -31,7 +33,7 @@ pub struct Args {
     /// One or more FASTA files to analyze.
     #[arg(short = 'i', long = "input", required_unless_present = "tsv_genomes")]
     pub fasta_genomes: Option<String>,
-    
+
     /// Optional GFF file for annotation when using --input.
     #[arg(long = "gff", requires = "fasta_genomes")]
     pub gff_file: Option<String>,
@@ -49,7 +51,6 @@ pub struct Args {
     pub num_cpu: Option<usize>,
 }
 
-// Local Strand enum that derives Eq, required by rust-lapper
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Strand {
     Forward,
@@ -57,14 +58,12 @@ enum Strand {
     Unknown,
 }
 
-/// Structure to hold relevant gene information.
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Gene {
     id: String,
     strand: Strand,
 }
 
-/// Standard genetic code map (3-letter).
 fn genetic_code_3_letter() -> HashMap<&'static str, &'static str> {
     [
         ("GCA", "Ala"), ("GCC", "Ala"), ("GCG", "Ala"), ("GCT", "Ala"),
@@ -92,7 +91,6 @@ fn genetic_code_3_letter() -> HashMap<&'static str, &'static str> {
     .iter().cloned().collect()
 }
 
-/// Generates all k-mers of length `k` from the given sequence.
 fn generate_kmers(sequence: &str, k: usize) -> HashMap<String, usize> {
     let mut kmers = HashMap::new();
     let seq_len = sequence.len();
@@ -106,30 +104,31 @@ fn generate_kmers(sequence: &str, k: usize) -> HashMap<String, usize> {
     kmers
 }
 
-/// Finds markers in the genome sequence by comparing k-mers.
-/// For each marker found, returns a tuple of (genome k-mer starting position, reference position, lineage).
 fn find_markers(
     genome_sequence: &str,
     markers_kmers: &HashMap<String, (usize, String)>,
     k: usize,
 ) -> HashMap<String, (usize, usize, String)> {
+    debug!("Generating k-mers from genome for marker finding.");
     let genome_kmers = generate_kmers(genome_sequence, k);
     let mut matched_markers = HashMap::new();
     for (marker_kmer, (ref_position, lineage)) in markers_kmers.iter() {
+        trace!("Searching for marker k-mer: {}", marker_kmer);
         if let Some(&genome_position) = genome_kmers.get(marker_kmer) {
+            trace!("Found marker {} at genome position {}", marker_kmer, genome_position);
             matched_markers.insert(
                 marker_kmer.clone(),
                 (genome_position, *ref_position, lineage.clone()),
             );
         }
     }
+    debug!("Found {} matched markers in genome.", matched_markers.len());
     matched_markers
 }
 
-/// Reads the marker positions TSV file and returns two maps.
 fn get_positions(
     tsv_file: &str,
-) -> Result<(HashMap<usize, String>, HashMap<usize, String>), Box<dyn Error>> {
+) -> AppResult<(HashMap<usize, String>, HashMap<usize, String>)> {
     let mut rdr = ReaderBuilder::new().delimiter(b'\t').from_path(tsv_file)?;
     let mut reference_positions = HashMap::new();
     let mut markers_lineage = HashMap::new();
@@ -138,7 +137,7 @@ fn get_positions(
         if record.len() < 3 {
             continue;
         }
-        let pos: usize = record[0].parse()?;
+        let pos: usize = record[0].parse().map_err(|e| AppError::Parsing(format!("Invalid position in TSV: {}", e)))?;
         let alt_base = record[1].to_string();
         let lineage = record[2].to_string();
         reference_positions.insert(pos, alt_base);
@@ -147,21 +146,22 @@ fn get_positions(
     Ok((reference_positions, markers_lineage))
 }
 
-/// Reads the first record from the reference FASTA file.
-fn get_ref(fasta_file: &str) -> Result<String, Box<dyn Error>> {
-    let reader = fasta::Reader::from_file(fasta_file)?;
+fn get_ref(fasta_file: &str) -> AppResult<String> {
+    // FIX: Manually map the error from anyhow::Error to our AppError
+    let reader = fasta::Reader::from_file(fasta_file)
+        .map_err(|e| AppError::Generic(format!("Failed to open FASTA file {}: {}", fasta_file, e)))?;
     let mut records = reader.records();
     if let Some(result) = records.next() {
-        let record = result?;
-        let seq = String::from_utf8(record.seq().to_vec())?;
+        let record = result.map_err(|e| AppError::Generic(format!("Failed to read record from {}: {}", fasta_file, e)))?;
+        let seq = String::from_utf8(record.seq().to_vec()).map_err(|e| AppError::Parsing(format!("Invalid UTF-8 in FASTA: {}", e)))?;
         Ok(seq.to_uppercase())
     } else {
-        Err("No record found in the reference FASTA file.".into())
+        Err(AppError::NotEnoughData(
+            "No record found in the reference FASTA file.".to_string(),
+        ))
     }
 }
 
-/// Generates a marker k-mer for each marker by extracting a window around the marker position in the reference,
-/// replacing the middle base with the alternative base.
 fn generate_markerkmer(
     reference_positions: &HashMap<usize, String>,
     ref_seq: &str,
@@ -182,6 +182,7 @@ fn generate_markerkmer(
                     kmer_chars[half] = alt_base.chars().next().unwrap();
                 }
                 let new_kmer: String = kmer_chars.into_iter().collect();
+                trace!("Generated new marker k-mer '{}' for position {}", new_kmer, pos);
                 if let Some(lineage) = markers_lineage.get(&pos) {
                     markers_kmers.insert(new_kmer, (pos, lineage.clone()));
                 }
@@ -191,8 +192,9 @@ fn generate_markerkmer(
     markers_kmers
 }
 
-/// Reads the genomes TSV file and returns a map from genome name to its FASTA and optional GFF path.
-fn get_genomepaths(tsv_file: &str) -> Result<HashMap<String, (String, Option<String>)>, Box<dyn Error>> {
+fn get_genomepaths(
+    tsv_file: &str,
+) -> AppResult<HashMap<String, (String, Option<String>)>> {
     let mut rdr = ReaderBuilder::new().delimiter(b'\t').from_path(tsv_file)?;
     let mut genome_paths = HashMap::new();
     for result in rdr.records() {
@@ -221,41 +223,40 @@ fn get_genomepaths(tsv_file: &str) -> Result<HashMap<String, (String, Option<Str
     Ok(genome_paths)
 }
 
-/// Reads a FASTA file (single or multi-FASTA) and returns a map from record ID to its sequence.
-fn get_genomes_from_fasta(fasta_file: &str) -> Result<HashMap<String, String>, Box<dyn Error>> {
-    let reader = fasta::Reader::from_file(fasta_file)?;
+fn get_genomes_from_fasta(fasta_file: &str) -> AppResult<HashMap<String, String>> {
+    // FIX: Manually map the error from anyhow::Error to our AppError
+    let reader = fasta::Reader::from_file(fasta_file)
+        .map_err(|e| AppError::Generic(format!("Failed to open FASTA file {}: {}", fasta_file, e)))?;
     let mut genomes = HashMap::new();
     for result in reader.records() {
-        let record = result?;
-        let seq = String::from_utf8(record.seq().to_vec())?;
+        let record = result.map_err(|e| AppError::Generic(format!("Failed to read record from {}: {}", fasta_file, e)))?;
+        let seq = String::from_utf8(record.seq().to_vec()).map_err(|e| AppError::Parsing(format!("Invalid UTF-8 in FASTA: {}", e)))?;
         genomes.insert(record.id().to_string(), seq.to_uppercase());
     }
     Ok(genomes)
 }
 
-/// Analyzes a single genome from a FASTA file, returning lines with marker details.
 fn analyze_genome(
     genome_name: &str,
     fasta_path: &str,
     gff_path: &Option<String>,
     markers_kmers: &HashMap<String, (usize, String)>,
     k: usize,
-) -> Vec<String> {
+) -> AppResult<Vec<String>> {
     let mut result = Vec::new();
     if !Path::new(fasta_path).exists() {
         error!("The file {} does not exist", fasta_path);
-        return result;
+        return Ok(result);
     }
     info!("Analyzing genome {} ({})", genome_name, fasta_path);
     let genome_seq = match get_ref(fasta_path) {
         Ok(seq) => seq,
         Err(e) => {
             error!("Error reading FASTA file {}: {}", fasta_path, e);
-            return result;
+            return Ok(result);
         }
     };
 
-    // Parse GFF and build interval tree if available
     let annotations = if let Some(gff) = gff_path {
         match parse_gff_and_build_tree(gff) {
             Ok(tree) => Some(tree),
@@ -270,38 +271,39 @@ fn analyze_genome(
 
     let matched_markers = find_markers(&genome_seq, markers_kmers, k);
     if matched_markers.is_empty() {
-        result.push(format!("{}\t\t\t\t\t\t\t\t\n", genome_name)); // Add extra tabs for new columns
+        result.push(format!("{}\t\t\t\t\t\t\t\t\n", genome_name));
     } else {
         for (kmer, (position, ref_position, lineage)) in matched_markers {
             let snp_position = position + k / 2;
-            let (mut gene_id, mut aa_pos, mut aa_change) = (None, None, None);
-
-            if let Some(tree) = &annotations {
+            let (gene_id, aa_pos, aa_change) = if let Some(tree) = &annotations {
                 // Find gene overlapping with the SNP
-                for gene_interval in tree.find(snp_position, snp_position + 1) {
+                if let Some(gene_interval) = tree.find(snp_position, snp_position + 1).next() {
                     let alt_base = &genome_seq[snp_position..snp_position + 1];
-                    let (gid, pos, change) =
-                        translate_snp_info(gene_interval, snp_position, alt_base, &genome_seq);
-                    gene_id = gid;
-                    aa_pos = pos;
-                    aa_change = change;
-                    break; // Take the first annotation found
+                    translate_snp_info(gene_interval, snp_position, alt_base, &genome_seq)
+                } else {
+                    (None, None, None)
                 }
-            }
+            } else {
+                (None, None, None)
+            };
 
             result.push(format!(
                 "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
-                genome_name, kmer, position, snp_position, ref_position, lineage,
+                genome_name,
+                kmer,
+                position,
+                snp_position,
+                ref_position,
+                lineage,
                 gene_id.as_deref().unwrap_or(""),
                 aa_pos.as_deref().unwrap_or(""),
                 aa_change.as_deref().unwrap_or("")
             ));
         }
     }
-    result
+    Ok(result)
 }
 
-/// Analyzes a single genome from a provided sequence (in memory), returning lines with marker details.
 fn analyze_genome_seq(
     genome_name: &str,
     genome_seq: &str,
@@ -317,23 +319,25 @@ fn analyze_genome_seq(
     } else {
         for (kmer, (position, ref_position, lineage)) in matched_markers {
             let snp_position = position + k / 2;
-            let (mut gene_id, mut aa_pos, mut aa_change) = (None, None, None);
-
-            if let Some(tree) = annotations {
-                for gene_interval in tree.find(snp_position, snp_position + 1) {
+            let (gene_id, aa_pos, aa_change) = if let Some(tree) = annotations {
+                if let Some(gene_interval) = tree.find(snp_position, snp_position + 1).next() {
                     let alt_base = &genome_seq[snp_position..snp_position + 1];
-                    let (gid, pos, change) =
-                        translate_snp_info(gene_interval, snp_position, alt_base, genome_seq);
-                    gene_id = gid;
-                    aa_pos = pos;
-                    aa_change = change;
-                    break;
+                    translate_snp_info(gene_interval, snp_position, alt_base, genome_seq)
+                } else {
+                    (None, None, None)
                 }
-            }
-            
+            } else {
+                (None, None, None)
+            };
+
             result.push(format!(
                 "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
-                genome_name, kmer, position, snp_position, ref_position, lineage,
+                genome_name,
+                kmer,
+                position,
+                snp_position,
+                ref_position,
+                lineage,
                 gene_id.as_deref().unwrap_or(""),
                 aa_pos.as_deref().unwrap_or(""),
                 aa_change.as_deref().unwrap_or("")
@@ -343,14 +347,13 @@ fn analyze_genome_seq(
     result
 }
 
-/// Parses a GFF file and builds an Interval Tree with gene features ('CDS').
-fn parse_gff_and_build_tree(gff_file: &str) -> Result<Lapper<usize, Gene>, Box<dyn Error>> {
+fn parse_gff_and_build_tree(gff_file: &str) -> AppResult<Lapper<usize, Gene>> {
+    debug!("Parsing GFF file: {}", gff_file);
     let mut reader = Reader::new(File::open(gff_file)?, GffType::GFF3);
     let mut intervals = Vec::new();
     for result in reader.records() {
         match result {
             Ok(record) => {
-                // We focus on coding sequences (CDS)
                 if record.feature_type() == "CDS" {
                     let id = record
                         .attributes()
@@ -367,23 +370,24 @@ fn parse_gff_and_build_tree(gff_file: &str) -> Result<Lapper<usize, Gene>, Box<d
                         },
                     };
                     intervals.push(Interval {
-                        start: *record.start() as usize - 1, // GFF is 1-based, lapper is 0-based
+                        start: *record.start() as usize - 1,
                         stop: *record.end() as usize,
                         val: gene,
                     });
                 }
             }
             Err(e) => {
-                // If a line is malformed, print a warning and skip it.
                 warn!("Skipping malformed GFF record: {}", e);
             }
         }
     }
+    // FIX: Get the length *before* moving the value
+    let num_intervals = intervals.len();
     let lapper = Lapper::new(intervals);
+    debug!("Successfully parsed {} CDS features from GFF.", num_intervals);
     Ok(lapper)
 }
 
-/// Translates SNP information into an amino acid change. Returns (GeneID, AAPosition, AAChange).
 fn translate_snp_info(
     gene_interval: &Interval<usize, Gene>,
     snp_pos: usize,
@@ -403,7 +407,7 @@ fn translate_snp_info(
                 return (None, None, None);
             }
 
-            let mut ref_codon: Vec<char> = sequence[codon_start..codon_start + 3].chars().collect();
+            let ref_codon: Vec<char> = sequence[codon_start..codon_start + 3].chars().collect();
             let mut alt_codon = ref_codon.clone();
             alt_codon[frame_start] = alt_base.chars().next().unwrap_or('N');
 
@@ -414,7 +418,6 @@ fn translate_snp_info(
             )
         }
         Strand::Reverse => {
-            // For the reverse strand, we first get the reverse complement
             let sequence_rc = sequence
                 .chars()
                 .rev()
@@ -423,7 +426,6 @@ fn translate_snp_info(
                 })
                 .collect::<String>();
 
-            // Coordinates on the RC strand are inverted
             let snp_pos_rc = sequence.len() - snp_pos - 1;
             let start_rc = sequence.len() - gene_interval.stop;
 
@@ -435,7 +437,7 @@ fn translate_snp_info(
                 return (None, None, None);
             }
 
-            let mut ref_codon: Vec<char> = sequence_rc[codon_start..codon_start + 3].chars().collect();
+            let ref_codon: Vec<char> = sequence_rc[codon_start..codon_start + 3].chars().collect();
             let mut alt_codon = ref_codon.clone();
             let alt_base_rc = match alt_base.chars().next().unwrap_or('N') {
                 'A' => 'T', 'T' => 'A', 'C' => 'G', 'G' => 'C', _ => 'N',
@@ -448,7 +450,7 @@ fn translate_snp_info(
                 aa_pos,
             )
         }
-        _ => return (None, None, None), // Strand::Unknown
+        _ => return (None, None, None),
     };
 
     let alt_aa_3l = code.get(alt_codon_seq.as_str()).unwrap_or(&"???");
@@ -460,8 +462,7 @@ fn translate_snp_info(
     (gene_id, aa_pos_str, aa_change_str)
 }
 
-/// Checks that all required input files exist.
-fn check_input_files(args: &Args) -> Result<(), Box<dyn Error>> {
+fn check_input_files(args: &Args) -> AppResult<()> {
     let all_files = vec![
         (args.tsv_pos.as_str(), "TSV positions file"),
         (args.ref_fasta.as_str(), "Reference FASTA file"),
@@ -476,35 +477,39 @@ fn check_input_files(args: &Args) -> Result<(), Box<dyn Error>> {
     ];
     for (path, description) in all_files.into_iter().filter(|(p, _)| !p.is_empty()) {
         if !Path::new(path).exists() {
-            error!("The {} {} does not exist", description, path);
-            return Err(format!("File {} does not exist", path).into());
+            return Err(AppError::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("The {} {} does not exist", description, path),
+            )));
         }
     }
     Ok(())
 }
 
-/// Processes genomes and returns lines with marker matches for each genome.
 fn process_genomes(
     args: &Args,
     markers_kmers: &HashMap<String, (usize, String)>,
     k: usize,
-) -> Result<Vec<String>, Box<dyn Error>> {
+) -> AppResult<Vec<String>> {
     let mut results = Vec::new();
 
-    // If we have a TSV of genome names -> paths
     if let Some(tsv_genomes) = &args.tsv_genomes {
         let genome_paths = get_genomepaths(tsv_genomes)?;
+        debug!("Processing {} genomes from input list.", genome_paths.len());
         let pb = ProgressBar::new(genome_paths.len() as u64);
         pb.set_style(
             ProgressStyle::default_bar()
-                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
-                .unwrap()
+                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")?
                 .progress_chars("=>-"),
         );
         let res: Vec<String> = genome_paths
             .par_iter()
             .map(|(genome_name, (fasta_path, gff_path))| {
-                let lines = analyze_genome(genome_name, fasta_path, gff_path, markers_kmers, k);
+                let lines = analyze_genome(genome_name, fasta_path, gff_path, markers_kmers, k)
+                    .unwrap_or_else(|e| {
+                        error!("Failed to analyze genome {}: {}", genome_name, e);
+                        Vec::new()
+                    });
                 pb.inc(1);
                 lines
             })
@@ -512,33 +517,27 @@ fn process_genomes(
             .collect();
         pb.finish_with_message("Done!");
         results.extend(res);
-    }
-    // Otherwise, we have a multi-FASTA with possibly multiple genomes
-    else if let Some(fasta_genomes) = &args.fasta_genomes {
+    } else if let Some(fasta_genomes) = &args.fasta_genomes {
+        debug!("Processing genomes from single FASTA input: {}", fasta_genomes);
         let annotations = if let Some(gff_path) = &args.gff_file {
-            match parse_gff_and_build_tree(gff_path) {
-                Ok(tree) => Some(tree),
-                Err(e) => {
-                    error!("Error processing GFF file {}: {}", gff_path, e);
-                    None
-                }
-            }
+            Some(parse_gff_and_build_tree(gff_path)?)
         } else {
             None
         };
 
         let genomes = get_genomes_from_fasta(fasta_genomes)?;
+        debug!("Found {} sequences in the input FASTA.", genomes.len());
         let pb = ProgressBar::new(genomes.len() as u64);
         pb.set_style(
             ProgressStyle::default_bar()
-                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
-                .unwrap()
+                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")?
                 .progress_chars("=>-"),
         );
         let res: Vec<String> = genomes
             .par_iter()
             .map(|(genome_name, genome_seq)| {
-                let lines = analyze_genome_seq(genome_name, genome_seq, markers_kmers, &annotations, k);
+                let lines =
+                    analyze_genome_seq(genome_name, genome_seq, markers_kmers, &annotations, k);
                 pb.inc(1);
                 lines
             })
@@ -550,7 +549,6 @@ fn process_genomes(
     Ok(results)
 }
 
-/// Generates a summary of lineage counts per genome.
 fn generate_summary(results: &[String]) -> HashMap<String, HashMap<String, usize>> {
     let mut lineage_count_map = HashMap::new();
 
@@ -573,12 +571,11 @@ fn generate_summary(results: &[String]) -> HashMap<String, HashMap<String, usize
     lineage_count_map
 }
 
-/// Writes a single summary line for a genome.
 fn write_summary(
     summary_out: &mut BufWriter<File>,
     genome: String,
     lineage_counts: Vec<(String, usize)>,
-) -> Result<(), Box<dyn Error>> {
+) -> AppResult<()> {
     let lineage_count_str = lineage_counts
         .iter()
         .map(|(lin, cnt)| format!("{}:{}", lin, cnt))
@@ -607,23 +604,33 @@ fn write_summary(
     Ok(())
 }
 
-/// Main function for the classify subcommand.
-pub fn run(args: Args) -> Result<(), Box<dyn Error>> {
-    // env_logger::init(); // This should be called in main.rs
+pub fn run(args: Args) -> AppResult<()> {
     if let Some(n) = args.num_cpu {
+        debug!("Setting number of threads to: {}", n);
         rayon::ThreadPoolBuilder::new()
             .num_threads(n)
             .build_global()
-            .unwrap();
+            .map_err(|e| AppError::Generic(format!("Failed to build thread pool: {}", e)))?;
     }
     check_input_files(&args)?;
 
     let k = args.kmer_size;
+    debug!("k-mer size set to: {}", k);
+
+    info!("Reading reference and marker positions...");
     let ref_seq = get_ref(&args.ref_fasta)?;
+    debug!("Reference sequence loaded, length: {}", ref_seq.len());
     let (reference_positions, markers_lineage) = get_positions(&args.tsv_pos)?;
+    debug!("Found {} marker positions.", reference_positions.len());
+
+    info!("Generating marker k-mers...");
     let markers_kmers = generate_markerkmer(&reference_positions, &ref_seq, &markers_lineage, k);
+    debug!("Generated {} unique marker k-mers.", markers_kmers.len());
+
+    info!("Processing genomes...");
     let results = process_genomes(&args, &markers_kmers, k)?;
 
+    info!("Writing detailed output to: {}", &args.ofile);
     let mut outfile = BufWriter::new(File::create(&args.ofile)?);
     writeln!(
         outfile,
@@ -634,6 +641,7 @@ pub fn run(args: Args) -> Result<(), Box<dyn Error>> {
     }
 
     let summary_file = format!("{}_summary.tsv", args.ofile);
+    info!("Writing summary output to: {}", &summary_file);
     let mut summary_out = BufWriter::new(File::create(&summary_file)?);
     writeln!(summary_out, "genome\tlineage:count\tmajor_lineage")?;
 
@@ -644,6 +652,6 @@ pub fn run(args: Args) -> Result<(), Box<dyn Error>> {
         lineage_counts.sort_by(|a, b| b.1.cmp(&a.1));
         write_summary(&mut summary_out, genome, lineage_counts)?;
     }
-
+    info!("Classification complete.");
     Ok(())
 }
