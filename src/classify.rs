@@ -1,14 +1,3 @@
-//! This module handles the `classify` subcommand.
-//!
-//! It performs lineage typing by identifying known genetic markers within assembled
-//! genome sequences. The process involves:
-//! 1. Reading a list of variants (SNPs, MNVs, Indels) and their corresponding lineages.
-//! 2. Dynamically generating a unique diagnostic k-mer for each variant's alternate allele.
-//! 3. Scanning input genomes (from a list of FASTA files or a single multifasta)
-//!    for the presence of these diagnostic marker k-mers in parallel.
-//! 4. Reporting all found markers for each genome and its annotations.
-//! 5. Generating a summary file that lists the most likely lineage(s) for each genome.
-
 use bio::io::fasta;
 use bio::io::gff::{GffType, Reader};
 use bio_types::strand::Strand as BioStrand; // Renamed to avoid conflict
@@ -656,8 +645,5 @@ pub fn run(args: Args) -> Result<(), Box<dyn Error>> {
         write_summary(&mut summary_out, genome, lineage_counts)?;
     }
 
-    Ok(())
-}
-    info!("✅ Process completed.");
     Ok(())
 }
