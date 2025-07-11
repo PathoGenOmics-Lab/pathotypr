@@ -8,6 +8,12 @@
 use clap::{Parser, Subcommand};
 use log::LevelFilter;
 use std::sync::Once;
+// --- NEW IMPORTS ---
+// Import chrono to get the local time
+use chrono::Local;
+// Import the Write trait to format the log message
+use std::io::Write;
+
 
 // Internal module declarations.
 mod classify;
@@ -63,7 +69,22 @@ fn init_logger(verbosity: u8) {
             1 => LevelFilter::Debug,
             _ => LevelFilter::Trace,
         };
-        env_logger::Builder::new().filter_level(level).init();
+        
+        // --- MODIFIED LOGGER INITIALIZATION ---
+        // We now use a custom format to include the local timestamp.
+        env_logger::Builder::new()
+            .filter_level(level)
+            .format(|buf, record| {
+                writeln!(
+                    buf,
+                    "[{}] [{}] - {}",
+                    // Get the current local time and format it
+                    Local::now().format("%Y-%m-%d %H:%M:%S"),
+                    record.level(),
+                    record.args()
+                )
+            })
+            .init();
     });
 }
 

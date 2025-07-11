@@ -8,7 +8,8 @@
 
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use smartcore::ensemble::random_forest_classifier::RandomForestClassifier;
+// We only need the Decision Tree, not the whole Random Forest
+use smartcore::tree::decision_tree_classifier::DecisionTreeClassifier;
 use smartcore::linalg::basic::matrix::DenseMatrix;
 use std::collections::HashMap;
 
@@ -18,6 +19,8 @@ use std::collections::HashMap;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ModelConfig {
     pub kmer_size: usize,
+    // Add the number of trees to the config
+    pub n_trees: u16,
 }
 
 /// A unified bundle containing everything needed for prediction.
@@ -26,7 +29,8 @@ pub struct ModelBundle {
     pub config: ModelConfig,
     pub vectorizer: CountVectorizer,
     pub label_encoder: LabelEncoder,
-    pub model: RandomForestClassifier<f64, usize, DenseMatrix<f64>, Vec<usize>>,
+    // CHANGE: We now store a vector of individual decision trees
+    pub trees: Vec<DecisionTreeClassifier<f64, usize, DenseMatrix<f64>, Vec<usize>>>,
 }
 
 // --- Feature Processing Components ---
