@@ -4,6 +4,15 @@
 
 <div align="center">
 
+[![pathotypr](https://img.shields.io/badge/pathotypr-rust-%23ff8000?style=flat-square)](https://github.com/PathoGenOmics-Lab/pathotypr)
+[![License: GPL v3](https://img.shields.io/badge/license-GPL%20v3-%23af64d1?style=flat-square)](https://github.com/PathoGenOmics-Lab/pathotypr/blob/main/LICENSE) 
+[![Anaconda-Server Badge](https://img.shields.io/conda/dn/bioconda/get_mnv.svg?style=flat-square)](https://anaconda.org/bioconda/pathotypr)
+[![Anaconda-Version Badge](https://anaconda.org/bioconda/get_mnv/badges/version.svg)](https://anaconda.org/bioconda/pathotypr)
+[![DOI](https://img.shields.io/badge/doi-10.5281%2Fzenodo.13907423-%23ff0077?style=flat-square)](https://doi.org/10.5281/zenodo.13907423)
+[![PGO](https://img.shields.io/badge/PathoGenOmics-lab-red?style=flat-square)](https://github.com/PathoGenOmics-Lab)
+
+
+
 </div>
 
 __Paula Ruiz-Rodriguez<sup>1</sup>__
