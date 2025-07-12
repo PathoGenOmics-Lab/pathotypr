@@ -34,7 +34,7 @@ use errors::AppResult;
 #[derive(Parser)]
 #[command(
     name = "pathotypr",
-    version = "0.2.0",
+    version = "0.1.0",
     author = "Paula Ruiz Rodriguez",
     about = "A versatile toolkit for genome classification and variant genotyping."
 )]
