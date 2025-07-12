@@ -3,14 +3,13 @@
 </p>
 
 <div align="center">
-  
 
 </div>
 
-__Paula Ruiz-Rodriguez<sup>1</sup>__ 
+__Paula Ruiz-Rodriguez<sup>1</sup>__
 __and Mireia Coscolla<sup>1</sup>__
 <br>
-<sub> 1. Institute for Integrative Systems Biology, I<sup>2</sup>SysBio, University of Valencia-CSIC, Valencia, Spain </sub>  
+<sub> 1. Institute for Integrative Systems Biology, I<sup>2</sup>SysBio, University of Valencia-CSIC, Valencia, Spain </sub>
 
 # pathotypr
 
@@ -24,12 +23,14 @@ __and Mireia Coscolla<sup>1</sup>__
 
 - ⚡ **split-fastq**: Perform ultra-fast, alignment-free genotyping of SNPs, MNVs, and both small and large structural variants (Indels/SVs) directly from raw FASTQ reads.
 
+- 🔎 **match**: Quickly find the best-matching reference genome for your raw sequencing reads from a collection of references in a multi-FASTA file.
+
 ## Key Features
 - **Dynamic Variant Detection**: The `classify` and `split-fastq` modules can detect SNPs, MNVs, and Indels (including large SVs) using a flexible marker format.
 
-- **High-Speed & Alignment-Free**: The `split-fastq` engine genotypes variants directly from raw reads, bypassing the need for computationally expensive alignment.
+- **High-Speed & Alignment-Free**: The `split-fastq` and `match` engines operate directly on raw reads, bypassing the need for computationally expensive alignment.
 
-- **Flexible Input**: Process samples individually, in batches from the command line, or using a convenient sample list file.
+- **Flexible Input**: Process samples individually, in batches from the command line, or using a convenient sample list file (TSV format).
 
 - **Efficient & Parallel**: Optimized for performance using Rayon to leverage all available CPU cores by default.
 
@@ -51,7 +52,7 @@ mamba activate pathotypr
 mamba install -c bioconda pathotypr
 
 # Or build from source
-git clone https://github.com/PathoGenOmics-Lab/pathotypr.git
+git clone [https://github.com/PathoGenOmics-Lab/pathotypr.git](https://github.com/PathoGenOmics-Lab/pathotypr.git)
 cd pathotypr
 cargo build --release
 ```
@@ -70,6 +71,8 @@ pathotypr classify --markers variants.tsv --reference ref.fasta --input my_genom
 # 4. Genotype variants directly from raw reads
 pathotypr split-fastq --markers variants.tsv --reference ref.fasta -i sample_R1.fq.gz -i sample_R2.fq.gz --paired --output-prefix sample_genotyping
 
+# 5. Find the best matching reference for a set of reads
+pathotypr match --input sample_R1.fq.gz sample_R2.fq.gz --references all_references.fasta --output best_match_report.tsv
 ```
 
 ## Documentation
@@ -83,12 +86,10 @@ Builds and trains a Random Forest model from a multifasta file where headers are
 | :--- | :--- | :--- | :--- |
 | --input | -i | Path to the input multifasta file. Headers must be in Lineage_sequenceID format. | Required |
 | --output | -o | Path for the unified output model file (e.g., my_model.pathotypr.gz). | Required |
-| --kmer-size | -k | The size of the k-mers to generate from sequences. | 6 |
+| --kmer-size | -k | The size of the k-mers to generate from sequences. | 21 |
 | --test-split | -s | Proportion of the data to use for the test set. | 0.2 (20%) |
 | --threads | -t | Number of CPU threads to use. | All available |
 | --verbose | -v | Set the verbosity level. Use -v for debug, -vv for trace. | Off |
-
-_The tool will warn you if it detects a strong class imbalance in your training data._
 
 **Usage**:
 ```bash
@@ -119,6 +120,29 @@ pathotypr predict \
   [OPTIONS]
 ```
 
+### 🔎 `match`
+Finds the best matching reference genome for a set of FASTQ reads by comparing them against a collection of references in a multi-FASTA file. It calculates a weighted k-mer containment score to determine similarity.
+
+**Arguments**:
+| Option | Flag | Description | Default |
+| :--- | :--- | :--- | :--- |
+| --input | -i | One or more FASTQ files to analyze. | One input required |
+| --input-list | -l | Path to a TSV file listing FASTQ files (name\tpath1[\tpath2...]). | One input required |
+| --references | -r | Path to a single multi-FASTA file containing all reference genomes. | Required |
+| --output | -o | Path for the output TSV report. Prints to console if not provided. | Optional |
+| --kmer-size | -k | The size of the k-mers to use for comparison. | 31 |
+| --threads | -t | Number of CPU threads to use. | All available |
+| --verbose | -v | Set the verbosity level. Use -v for debug, -vv for trace. | Off |
+
+**Usage**:
+```bash
+pathotypr match \
+  --input <READS_1.FQ> <READS_2.FQ> \
+  --references <MULTI_FASTA_REFS> \
+  --output <BEST_MATCH_REPORT.tsv> \
+  [OPTIONS]
+```
+
 ### 🧬 `classify` & ⚡ `split-fastq`
 These two modules share a powerful, dynamic variant detection engine but operate on different inputs.
 
@@ -137,7 +161,7 @@ Both commands use the same flexible TSV format for defining variants:
 
 **Example** `markers.tsv`:
 ```text
-#pos    ref   alt   marker              annotation
+#pos     ref   alt   marker              annotation
 761109  G     T     rpoB_p.Asp435Tyr    DrugResistance
 761109  GAC   TAT   rpoB_p.Asp435Tyr    DrugResistance
 2155162 C     CAT   katG_p.Ser315Thr    Compensatory
@@ -165,18 +189,18 @@ Both commands use the same flexible TSV format for defining variants:
 pathotypr classify \
   --markers <MARKERS_TSV> \
   --reference <REF_FASTA> \
-  --output <OUTPUT_TSV> \
-  --genome-fasta <GENOMES_FASTA> \
+  --output-prefix <PREFIX> \
+  --input <GENOME_FASTA> \
   [OPTIONS]
 ```
 #### Functional Annotation with GFF
 The classify command can translate SNPs into amino acid changes if provided with a GFF3 annotation file.
 
 How to provide GFF files:
-- For a single FASTA input (--input): Use the --gff flag to specify a single GFF file that corresponds to the sequences in the FASTA file.
-- For multiple genomes via a list (--input-list): Add a third, optional column to your TSV file containing the path to the corresponding GFF file for each genome.
+- For a single FASTA input (`--input`): Use the `--gff` flag to specify a single GFF file that corresponds to the sequences in the FASTA file.
+- For multiple genomes via a list (`--input-list`): Add a third, optional column to your TSV file containing the path to the corresponding GFF file for each genome.
 
-Example input-list.tsv:
+Example `input-list.tsv`:
 ```bash
 SampleA   path/to/sampleA.fasta   path/to/sampleA.gff3
 SampleB   path/to/sampleB.fasta   path/to/sampleB.gff3
@@ -185,15 +209,15 @@ SampleC   path/to/sampleC.fasta   # No GFF for this sample
 Output Columns:
 When annotation is performed, the output file will contain three additional columns:
 
-- Gene: The ID of the gene where the SNP is located.
-- AA_Pos: The position of the amino acid within the gene.
-- AA_Change: The resulting amino acid (using 3-letter code).
+- `Gene`: The ID of the gene where the SNP is located.
+- `AA_Pos`: The position of the amino acid within the gene.
+- `AA_Change`: The resulting amino acid (using 3-letter code).
 
 Example Output:
 ```bash
-genome              k-mer                  k-merPOS  SNPgenome  SNPreference  lineage  Gene     AA_Pos  AA_Change
-G0000_contig_1  GGCGGCGCCGCCTGGGTGGAG  1854184   1854194    1859559       L4       Rv1649   276     Gly
-G0000_contig_1  GACCCCGAGGCCCGGGCCGGC  4296504   4296514    4313128       L4       gyrA     95      Ser
+genome           k-mer                   k-merPOS  SNPgenome  SNPreference  lineage  Gene    AA_Pos  AA_Change
+G0000_contig_1   GGCGGCGCCGCCTGGGTGGAG   1854184   1854194    1859559       L4       Rv1649  276     Gly
+G0000_contig_1   GACCCCGAGGCCCGGGCCGGC   4296504   4296514    4313128       L4       gyrA    95      Ser
 ```
 
 #### ⚡ `split-fastq`
@@ -230,9 +254,10 @@ pathotypr/
 ├── src/
 │   ├── main.rs                 # CLI handling and dispatch
 │   ├── errors.rs               # Custom error types
-│   ├── common.rs               # Shared code (model bundle, kmerize)
+│   ├── common.rs               # Shared code (model bundle, etc.)
 │   ├── train.rs                # `train` subcommand logic
 │   ├── predict.rs              # `predict` subcommand logic
+│   ├── match.rs                # `match` subcommand logic
 │   ├── classify.rs             # `classify` subcommand logic
 │   ├── classify_split_fastq.rs # `split-fastq` subcommand logic
 │   └── split_kmer.rs           # Core dynamic k-mer engine
@@ -242,11 +267,11 @@ pathotypr/
 
 ## Key Dependencies
 
-- 🎯 clap: CLI parsing
-- 🤖 smartcore: Machine learning
-- ⚡ rayon: Parallel processing
-- 🧬 bio: Bioinformatics tools
-- 📊 serde: Serialization
+- 🎯 `clap`: CLI parsing
+- 🤖 `smartcore`: Machine learning
+- ⚡ `rayon`: Parallel processing
+- 🧬 `needletail`: High-speed FASTA/Q parsing
+- 🗃️ `serde`: Serialization
 
 ## Contributing
 
@@ -286,7 +311,7 @@ pathotypr is developed with ❤️ by:
       <a href="" title="Data">🔣</a>
       <a href="" title="Desing">🎨</a>
       <a href="" title="Tool">🔧</a>
-    </td> 
+    </td>
     <td align="center">
       <a href="https://github.com/mireiacoscolla">
         <img src="https://avatars.githubusercontent.com/u/29301737?v=4&s=100" width="100px;" alt=""/>
@@ -299,7 +324,7 @@ pathotypr is developed with ❤️ by:
       <a href="" title="Mentoring">🧑‍🏫</a>
       <a href="" title="Research">🔬</a>
       <a href="" title="User Testing">📓</a>
-    </td> 
+    </td>
   </tr>
 </table>
 
@@ -309,4 +334,4 @@ This project follows the [all-contributors](https://github.com/all-contributors/
 <!-- prettier-ignore-end -->
 
 <!-- ALL-CONTRIBUTORS-LIST:END -->
---- 
+---
