@@ -1,142 +1,131 @@
 //! src/common.rs
 //!
-//! Module for shared data structures and utility functions across the application.
-//!
-//! This module centralizes components like the model bundle, vectorizer,
-//! and label encoder to avoid code duplication between the `train` and `predict`
-//! modules.
+//! This module provides shared, high-performance data structures and utility
+//! functions for the `pathotypr` application. It has been optimized to reduce
+//! memory allocations and improve processing speed, especially for the `train`
+//! and `predict` subcommands.
 
+// --- Crates for performance and serialization ---
 use rayon::prelude::*;
+use rustc_hash::FxHashMap; // A much faster hasher for integer keys
 use serde::{Deserialize, Serialize};
-// We only need the Decision Tree, not the whole Random Forest
-use smartcore::tree::decision_tree_classifier::DecisionTreeClassifier;
+use needletail::Sequence; // Import the Sequence trait to use its methods
+
+// --- SmartCore components for machine learning ---
+// MODIFIED: All types now use f32 for memory efficiency.
 use smartcore::linalg::basic::matrix::DenseMatrix;
-use std::collections::HashMap;
+use smartcore::tree::decision_tree_classifier::DecisionTreeClassifier;
 
 // --- Model Bundle Structs ---
 
-/// Configuration for the model, such as the k-mer size.
+/// Defines the configuration of a trained model.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ModelConfig {
+    pub pathotypr_version: String,
     pub kmer_size: usize,
-    // Add the number of trees to the config
     pub n_trees: u16,
 }
 
-/// A unified bundle containing everything needed for prediction.
+/// A unified, compressed bundle containing everything needed for prediction.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ModelBundle {
     pub config: ModelConfig,
     pub vectorizer: CountVectorizer,
     pub label_encoder: LabelEncoder,
-    // CHANGE: We now store a vector of individual decision trees
-    pub trees: Vec<DecisionTreeClassifier<f64, usize, DenseMatrix<f64>, Vec<usize>>>,
+    // MODIFIED: The DecisionTreeClassifier now uses f32.
+    pub trees: Vec<DecisionTreeClassifier<f32, usize, DenseMatrix<f32>, Vec<usize>>>,
 }
 
 // --- Feature Processing Components ---
 
-/// Transforms text into k-mer count vectors.
+/// Transforms sequences into k-mer count vectors using `u64` representation.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CountVectorizer {
-    pub vocabulary: HashMap<String, usize>,
-    pub feature_names: Vec<String>,
+    pub vocabulary: FxHashMap<u64, usize>,
+    pub num_features: usize,
 }
 
 impl CountVectorizer {
+    /// Creates a new, empty `CountVectorizer`.
     pub fn new() -> Self {
         Self {
-            vocabulary: HashMap::new(),
-            feature_names: Vec::new(),
+            vocabulary: FxHashMap::default(),
+            num_features: 0,
         }
     }
 
-    /// Builds the vocabulary from a collection of texts.
-    pub fn fit<T: AsRef<str>>(&mut self, texts: &[T]) {
-        let mut freq: HashMap<String, usize> = HashMap::new();
-        for text in texts {
-            for token in text.as_ref().split_whitespace() {
-                *freq.entry(token.to_string()).or_insert(0) += 1;
-            }
+    /// Builds the vocabulary from a pre-computed map of k-mer counts.
+    pub fn fit(&mut self, kmer_counts: &FxHashMap<u64, u32>) {
+        let mut vocab_idx = 0;
+        for &kmer_hash in kmer_counts.keys() {
+            self.vocabulary.insert(kmer_hash, vocab_idx);
+            vocab_idx += 1;
         }
-        let mut freq_vec: Vec<(String, usize)> = freq.into_iter().collect();
-        freq_vec.sort_by(|a, b| b.1.cmp(&a.1));
-        self.vocabulary = freq_vec
-            .iter()
-            .enumerate()
-            .map(|(i, (token, _))| (token.clone(), i))
-            .collect();
-        self.feature_names = freq_vec.into_iter().map(|(token, _)| token).collect();
+        self.num_features = self.vocabulary.len();
     }
 
-    /// Transforms a collection of texts into a feature matrix.
-    pub fn transform<T: AsRef<str> + Sync>(&self, texts: &[T]) -> Vec<Vec<f64>> {
-        texts
+    /// MODIFIED: Transforms sequences into a sparse data format using f32.
+    /// Instead of a giant Vec<Vec<f64>>, this returns a Vec of sparse vectors.
+    /// Each sparse vector is a Vec of (feature_index, count).
+    pub fn transform_sparse(&self, sequences: &[String], k: usize) -> Vec<Vec<(usize, f32)>> {
+        sequences
             .par_iter()
-            .map(|text| {
-                let mut counts = vec![0.0; self.vocabulary.len()];
-                for token in text.as_ref().split_whitespace() {
-                    if let Some(&idx) = self.vocabulary.get(token) {
-                        counts[idx] += 1.0;
+            .map(|seq| {
+                // Use a temporary HashMap to count k-mers for this sequence only.
+                // This is memory-efficient as it's local to the sequence.
+                let mut sequence_kmer_counts: FxHashMap<usize, f32> = FxHashMap::default();
+                for (_, bitkmer_tuple, _) in seq.as_bytes().bit_kmers(k as u8, true) {
+                    let kmer_hash = bitkmer_tuple.0;
+                    if let Some(&idx) = self.vocabulary.get(&kmer_hash) {
+                        *sequence_kmer_counts.entry(idx).or_insert(0.0) += 1.0;
                     }
                 }
-                counts
+                // Convert the map to a vector of (index, value) tuples.
+                // Sorting is good practice for some sparse matrix formats.
+                let mut features: Vec<(usize, f32)> = sequence_kmer_counts.into_iter().collect();
+                features.sort_unstable_by_key(|&(idx, _)| idx);
+                features
             })
             .collect()
     }
 }
 
-/// Encodes class labels (strings) into integers.
+/// Encodes string labels into integer representations and vice-versa.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LabelEncoder {
-    pub label_to_int: HashMap<String, usize>,
+    pub label_to_int: FxHashMap<String, usize>,
     pub int_to_label: Vec<String>,
 }
 
 impl LabelEncoder {
+    /// Creates a new, empty `LabelEncoder`.
     pub fn new() -> Self {
         Self {
-            label_to_int: HashMap::new(),
+            label_to_int: FxHashMap::default(),
             int_to_label: Vec::new(),
         }
     }
 
-    /// Learns the label mapping from a collection of labels.
-    pub fn fit<T: AsRef<str>>(&mut self, labels: &[T]) {
+    /// Learns the mapping from a slice of string labels.
+    pub fn fit<T: AsRef<str> + std::hash::Hash + std::cmp::Eq>(&mut self, labels: &[T]) {
         for label in labels {
-            let label_str = label.as_ref();
-            if !self.label_to_int.contains_key(label_str) {
+            let label_str = label.as_ref().to_string();
+            self.label_to_int.entry(label_str.clone()).or_insert_with(|| {
                 let index = self.int_to_label.len();
-                self.label_to_int.insert(label_str.to_string(), index);
-                self.int_to_label.push(label_str.to_string());
-            }
+                self.int_to_label.push(label_str);
+                index
+            });
         }
     }
 
-    /// Transforms a collection of labels into their integer representations.
+    /// Transforms a slice of string labels into their integer representations.
     pub fn transform<T: AsRef<str>>(&self, labels: &[T]) -> Vec<usize> {
         labels
             .iter()
-            .map(|label| *self.label_to_int.get(label.as_ref()).unwrap())
+            .map(|label| {
+                *self.label_to_int.get(label.as_ref())
+                    .expect("Label not found in encoder. `fit` must be called first with all possible labels.")
+            })
             .collect()
     }
-}
-
-// --- Utility Functions ---
-
-/// Generates a space-separated string of k-mers from a DNA sequence.
-///
-/// # Arguments
-/// * `sequence` - The input DNA sequence.
-/// * `k` - The k-mer size.
-///
-/// # Returns
-/// A `String` of k-mers. Returns an empty string if the sequence is shorter than `k`.
-pub fn kmerize(sequence: &str, k: usize) -> String {
-    if sequence.len() < k {
-        return String::new();
-    }
-    (0..=sequence.len() - k)
-        .map(|i| &sequence[i..i + k])
-        .collect::<Vec<&str>>()
-        .join(" ")
 }
