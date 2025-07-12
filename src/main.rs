@@ -20,6 +20,8 @@ mod classify;
 mod classify_split_fastq;
 mod common;
 mod errors;
+// MODIFIED: Add the new 'match' module. Use r# to avoid keyword conflict.
+mod r#match;
 mod predict;
 mod split_kmer;
 mod train;
@@ -32,7 +34,7 @@ use errors::AppResult;
 #[derive(Parser)]
 #[command(
     name = "pathotypr",
-    version = "0.1.0",
+    version = "0.2.0",
     author = "Paula Ruiz Rodriguez",
     about = "A versatile toolkit for genome classification and variant genotyping."
 )]
@@ -55,6 +57,9 @@ enum Commands {
     Classify(classify::Args),
     /// Perform split-k-mer typing directly from FASTQ files.
     SplitFastq(classify_split_fastq::SplitFastqArgs),
+    // MODIFIED: Add the 'match' subcommand.
+    /// Find the best matching reference for a set of FASTQ reads.
+    Match(r#match::Args),
 }
 
 /* ----------------- Logger Initialization ----------------- */
@@ -100,6 +105,8 @@ fn main() -> AppResult<()> {
         Commands::Predict(a) => predict::run(a)?,
         Commands::Classify(a) => classify::run(a)?,
         Commands::SplitFastq(a) => classify_split_fastq::run(a)?,
+        // MODIFIED: Add the handler for the 'match' subcommand.
+        Commands::Match(a) => r#match::run(a)?,
     }
     Ok(())
 }
