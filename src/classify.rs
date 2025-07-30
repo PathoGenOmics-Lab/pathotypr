@@ -1,4 +1,5 @@
 //! This module handles the `classify` subcommand.
+//! MODIFIED: Includes strictly corrected logic for nested lineage classification.
 
 use crate::errors::{AppError, AppResult};
 use bio::io::fasta;
@@ -10,7 +11,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use log::{debug, error, info, trace, warn};
 use rayon::prelude::*;
 use rust_lapper::{Interval, Lapper};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
@@ -49,6 +50,11 @@ pub struct Args {
     /// Number of threads for parallel processing.
     #[arg(short = 't', long = "threads")]
     pub num_cpu: Option<usize>,
+
+    /// [NEW] Enable nested lineage classification logic.
+    /// This requires markers to be defined with multiple columns for each level.
+    #[arg(long)]
+    pub nested_classification: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -126,6 +132,7 @@ fn find_markers(
     matched_markers
 }
 
+// MODIFIED: This function now reads multiple lineage columns.
 fn get_positions(
     tsv_file: &str,
 ) -> AppResult<(HashMap<usize, String>, HashMap<usize, String>)> {
@@ -134,20 +141,26 @@ fn get_positions(
     let mut markers_lineage = HashMap::new();
     for result in rdr.records() {
         let record = result?;
-        if record.len() < 3 {
+        if record.len() < 4 { // pos, ref, alt, level1
             continue;
         }
         let pos: usize = record[0].parse().map_err(|e| AppError::Parsing(format!("Invalid position in TSV: {}", e)))?;
-        let alt_base = record[1].to_string();
-        let lineage = record[2].to_string();
+        let alt_base = record[2].to_string(); // ALT is the 3rd column
+        
+        // Read all lineage columns and join them with a semicolon.
+        let lineage_path = record.iter()
+            .skip(3) // Start from the first lineage column
+            .take_while(|&s| !s.trim().is_empty()) // Take until an empty cell is found
+            .collect::<Vec<&str>>()
+            .join(";");
+
         reference_positions.insert(pos, alt_base);
-        markers_lineage.insert(pos, lineage);
+        markers_lineage.insert(pos, lineage_path);
     }
     Ok((reference_positions, markers_lineage))
 }
 
 fn get_ref(fasta_file: &str) -> AppResult<String> {
-    // FIX: Manually map the error from anyhow::Error to our AppError
     let reader = fasta::Reader::from_file(fasta_file)
         .map_err(|e| AppError::Generic(format!("Failed to open FASTA file {}: {}", fasta_file, e)))?;
     let mut records = reader.records();
@@ -224,7 +237,6 @@ fn get_genomepaths(
 }
 
 fn get_genomes_from_fasta(fasta_file: &str) -> AppResult<HashMap<String, String>> {
-    // FIX: Manually map the error from anyhow::Error to our AppError
     let reader = fasta::Reader::from_file(fasta_file)
         .map_err(|e| AppError::Generic(format!("Failed to open FASTA file {}: {}", fasta_file, e)))?;
     let mut genomes = HashMap::new();
@@ -276,7 +288,6 @@ fn analyze_genome(
         for (kmer, (position, ref_position, lineage)) in matched_markers {
             let snp_position = position + k / 2;
             let (gene_id, aa_pos, aa_change) = if let Some(tree) = &annotations {
-                // Find gene overlapping with the SNP
                 if let Some(gene_interval) = tree.find(snp_position, snp_position + 1).next() {
                     let alt_base = &genome_seq[snp_position..snp_position + 1];
                     translate_snp_info(gene_interval, snp_position, alt_base, &genome_seq)
@@ -381,7 +392,6 @@ fn parse_gff_and_build_tree(gff_file: &str) -> AppResult<Lapper<usize, Gene>> {
             }
         }
     }
-    // FIX: Get the length *before* moving the value
     let num_intervals = intervals.len();
     let lapper = Lapper::new(intervals);
     debug!("Successfully parsed {} CDS features from GFF.", num_intervals);
@@ -549,8 +559,9 @@ fn process_genomes(
     Ok(results)
 }
 
+/// [CORRECTED LOGIC] This function now counts all levels of the hierarchy for each marker.
 fn generate_summary(results: &[String]) -> HashMap<String, HashMap<String, usize>> {
-    let mut lineage_count_map = HashMap::new();
+    let mut lineage_count_map: HashMap<String, HashMap<String, usize>> = HashMap::new();
 
     for line in results {
         let fields: Vec<&str> = line.trim_end().split('\t').collect();
@@ -558,42 +569,130 @@ fn generate_summary(results: &[String]) -> HashMap<String, HashMap<String, usize
             continue;
         }
         let genome_name = fields[0].to_string();
-        let lineage = fields[5].to_string();
+        let lineage_path = fields[5].to_string();
 
-        lineage_count_map
-            .entry(genome_name)
-            .or_insert_with(HashMap::new)
-            .entry(lineage)
-            .and_modify(|c| *c += 1)
-            .or_insert(1);
+        // Add count for each level in this marker's hierarchy
+        let mut current_path_part = String::new();
+        for (i, component) in lineage_path.split(';').enumerate() {
+            current_path_part = if i == 0 {
+                component.to_string()
+            } else {
+                format!("{};{}", current_path_part, component)
+            };
+            *lineage_count_map
+                .entry(genome_name.clone())
+                .or_default()
+                .entry(current_path_part.clone())
+                .or_default() += 1;
+        }
     }
 
     lineage_count_map
 }
 
+/// [REWRITTEN] Final logic for nested classification.
+/// 1. Finds the deepest valid hierarchical path.
+/// 2. Finds the most abundant lineage overall.
+/// 3. If the most abundant is from a different branch and has more support, it wins.
+/// 4. Otherwise, the deepest path wins.
+fn get_final_lineage_call(lineage_counts: &HashMap<String, usize>) -> String {
+    if lineage_counts.is_empty() {
+        return "Unclassified".to_string();
+    }
+
+    let supported_lineages: HashSet<String> = lineage_counts.keys().cloned().collect();
+    let mut valid_candidates = Vec::new();
+
+    // 1. Identify all lineages with a valid, fully supported path.
+    for candidate in supported_lineages.iter() {
+        let mut is_path_valid = true;
+        if candidate.contains(';') {
+            let components: Vec<&str> = candidate.split(';').collect();
+            for i in 1..components.len() {
+                let parent_path = components[0..i].join(";");
+                if !supported_lineages.contains(&parent_path) {
+                    is_path_valid = false;
+                    break;
+                }
+            }
+        }
+        if is_path_valid {
+            valid_candidates.push(candidate.clone());
+        }
+    }
+
+    // If no valid paths exist, fallback to the most abundant lineage.
+    if valid_candidates.is_empty() {
+        return lineage_counts
+            .iter()
+            .max_by_key(|&(_, count)| count)
+            .map(|(lineage, _)| lineage.clone())
+            .unwrap_or_else(|| "Unclassified".to_string());
+    }
+
+    // 2. From the valid candidates, find the deepest one.
+    // If there's a tie in depth, the higher SNP count for that specific deep lineage wins.
+    let best_deep_lineage = valid_candidates
+        .iter()
+        .max_by(|a, b| {
+            let depth_a = a.split(';').count();
+            let depth_b = b.split(';').count();
+            depth_a.cmp(&depth_b)
+                   .then_with(|| lineage_counts[*a].cmp(&lineage_counts[*b]))
+        })
+        .unwrap(); // Safe because valid_candidates is not empty.
+
+    // 3. Find the most abundant lineage overall.
+    let most_abundant_lineage = lineage_counts
+        .iter()
+        .max_by_key(|&(_, count)| count)
+        .map(|(lineage, _)| lineage)
+        .unwrap(); // Safe because lineage_counts is not empty.
+
+    // 4. The final decision logic.
+    let best_deep_count = lineage_counts[best_deep_lineage];
+    let most_abundant_count = lineage_counts[most_abundant_lineage];
+
+    // Check if the most abundant lineage is from a different branch than the deepest one.
+    // A shared branch means one starts with the other.
+    let shares_branch = best_deep_lineage.starts_with(most_abundant_lineage) ||
+                        most_abundant_lineage.starts_with(best_deep_lineage);
+
+    if !shares_branch && most_abundant_count > best_deep_count {
+        // The most abundant lineage is from a different branch and has more support, so it wins.
+        most_abundant_lineage.clone()
+    } else {
+        // Otherwise, prioritize the deepest valid path.
+        best_deep_lineage.clone()
+    }
+}
+
+
 fn write_summary(
     summary_out: &mut BufWriter<File>,
     genome: String,
-    lineage_counts: Vec<(String, usize)>,
+    lineage_counts: &HashMap<String, usize>,
+    nested_classification: bool,
 ) -> AppResult<()> {
-    let lineage_count_str = lineage_counts
+    
+    let mut sorted_lineages: Vec<(&String, &usize)> = lineage_counts.iter().collect();
+    sorted_lineages.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
+
+    let lineage_count_str = sorted_lineages
         .iter()
         .map(|(lin, cnt)| format!("{}:{}", lin, cnt))
         .collect::<Vec<_>>()
-        .join(",");
+        .join(" ");
 
-    let majority_lineage = if lineage_counts.is_empty() {
-        String::new()
-    } else if lineage_counts.len() == 1 {
-        lineage_counts[0].0.clone()
-    } else if lineage_counts[0].1 > lineage_counts[1].1 {
-        lineage_counts[0].0.clone()
+    let majority_lineage = if nested_classification {
+        get_final_lineage_call(lineage_counts)
     } else {
-        lineage_counts
-            .iter()
-            .map(|(lin, _)| lin.clone())
-            .collect::<Vec<_>>()
-            .join(",")
+        // Original logic
+        if sorted_lineages.is_empty() {
+            "Unclassified".to_string()
+        } else {
+            sorted_lineages[0].0.clone()
+        }
     };
 
     writeln!(
@@ -648,9 +747,7 @@ pub fn run(args: Args) -> AppResult<()> {
     let lineage_count_map = generate_summary(&results);
 
     for (genome, lineage_map) in lineage_count_map {
-        let mut lineage_counts: Vec<(String, usize)> = lineage_map.into_iter().collect();
-        lineage_counts.sort_by(|a, b| b.1.cmp(&a.1));
-        write_summary(&mut summary_out, genome, lineage_counts)?;
+        write_summary(&mut summary_out, genome, &lineage_map, args.nested_classification)?;
     }
     info!("Classification complete.");
     Ok(())
