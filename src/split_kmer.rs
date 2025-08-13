@@ -18,12 +18,13 @@ use std::io::{BufRead, BufReader};
 const MARKER_KMER_LEN: usize = 31;
 
 /// Represents a single marker, capable of describing all variant types.
+/// MODIFIED: The `lineages` field is now a vector of strings to hold the hierarchy.
 #[derive(Debug, Clone)]
 pub struct Marker {
     pub pos: usize,
     pub ref_allele: String,
     pub alt_allele: String,
-    pub lineage: String,
+    pub lineages: Vec<String>, // e.g., ["L2", "L2.2", "L2.2.1"]
     pub alt_kmer: Vec<u8>,
     pub ref_kmer: Vec<u8>,
     pub annotations: Vec<String>,
@@ -183,6 +184,7 @@ pub fn build_markers(ref_fasta: &str, tsv_markers: &str) -> Result<Vec<Marker>> 
         }
         let fields: Vec<&str> = line_str.split('\t').collect();
         if fields.len() < 4 {
+            warn!("Skipping marker line with fewer than 4 columns: {}", line_str);
             continue;
         }
 
@@ -195,12 +197,28 @@ pub fn build_markers(ref_fasta: &str, tsv_markers: &str) -> Result<Vec<Marker>> 
         };
         let ref_allele_str = fields[1].to_string();
         let alt_allele_str = fields[2].to_string();
-        let lineage = fields[3].to_string();
-        let annotations = if fields.len() > 4 {
-            fields[4..].iter().map(|s| s.to_string()).collect()
-        } else {
-            Vec::new()
-        };
+        
+        // MODIFICATION: Read multiple lineage columns
+        let mut lineage_cols: Vec<String> = Vec::new();
+        let mut annotation_cols: Vec<String> = Vec::new();
+        let mut reading_lineages = true;
+
+        for field in fields[3..].iter() {
+            if field.trim().is_empty() {
+                reading_lineages = false; // Stop reading lineages after the first empty cell
+                continue;
+            }
+            if reading_lineages {
+                lineage_cols.push(field.to_string());
+            } else {
+                annotation_cols.push(field.to_string());
+            }
+        }
+
+        if lineage_cols.is_empty() {
+            warn!("Skipping marker at pos {} due to no lineage information.", pos0 + 1);
+            continue;
+        }
 
         let ref_allele = ref_allele_str.as_bytes();
         let alt_allele = alt_allele_str.as_bytes();
@@ -214,24 +232,24 @@ pub fn build_markers(ref_fasta: &str, tsv_markers: &str) -> Result<Vec<Marker>> 
             {
                 markers.push(Marker {
                     pos: pos0,
-                    lineage,
+                    lineages: lineage_cols,
                     ref_allele: ref_allele_str,
                     alt_allele: alt_allele_str,
                     ref_kmer,
                     alt_kmer,
-                    annotations,
+                    annotations: annotation_cols,
                 });
             }
         } else {
             // --- Logic for Large Variants (SVs) ---
             let base_marker = Marker {
                 pos: pos0,
-                lineage,
-                ref_allele: ref_allele_str.clone(), // FIX: Clone the string before moving
-                alt_allele: alt_allele_str.clone(), // FIX: Clone the string before moving
+                lineages: lineage_cols,
+                ref_allele: ref_allele_str.clone(),
+                alt_allele: alt_allele_str.clone(),
                 ref_kmer: Vec::new(), // Placeholder
                 alt_kmer: Vec::new(), // Placeholder
-                annotations,
+                annotations: annotation_cols,
             };
             let sv_markers =
                 build_large_variant_kmers(pos0, ref_allele, alt_allele, &ref_seq, &base_marker);
