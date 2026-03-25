@@ -1,0 +1,162 @@
+name: Validate Marker Proposal
+
+on:
+  discussion:
+    types: [created, edited]
+
+jobs:
+  validate:
+    if: contains(github.event.discussion.category.name, 'Ideas')
+    runs-on: ubuntu-22.04
+    permissions:
+      discussions: write
+    steps:
+      - name: Extract and validate markers
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.discussion.body;
+            const title = context.payload.discussion.title;
+            const discussionId = context.payload.discussion.node_id;
+
+            // Check if it's a marker proposal
+            if (!title.includes('[Lineage Markers]') && !title.includes('[Marker Proposal]')) {
+              console.log('Not a marker proposal, skipping');
+              return;
+            }
+
+            // Check MTBC scope
+            const mtbcTerms = ['tuberculosis', 'mtbc', 'bovis', 'caprae', 'africanum', 'microti', 'pinnipedii', 'orygis', 'dassie', 'chimpanzee', 'mungi'];
+            const bodyLower = body.toLowerCase();
+            const isMtbc = mtbcTerms.some(t => bodyLower.includes(t));
+
+            if (!isMtbc) {
+              const rejectMsg = '### ⚠️ Out of scope\n\n' +
+                'We currently only accept marker proposals for the **Mycobacterium tuberculosis complex (MTBC)**.\n\n' +
+                'This includes *M. tuberculosis*, *M. bovis*, *M. caprae*, *M. africanum*, *M. microti*, *M. pinnipedii*, *M. orygis*, and related species.\n\n' +
+                'If you believe this is an error, please update the proposal to clarify the target organism.\n\n' +
+                '---\n*🤖 Automated validation — see [marker format docs](../docs/marker_format.md)*';
+
+              await github.graphql(`
+                mutation($discussionId: ID!, $body: String!) {
+                  addDiscussionComment(input: {discussionId: $discussionId, body: $body}) {
+                    comment { id }
+                  }
+                }
+              `, { discussionId, body: rejectMsg });
+              return;
+            }
+
+            // Extract TSV preview from the body
+            const tsvMatch = body.match(/```(?:text|tsv)?\n([\s\S]*?)```/);
+            let report = [];
+            let errors = [];
+            let warnings = [];
+
+            if (!tsvMatch) {
+              errors.push('❌ No TSV preview found in the proposal');
+            } else {
+              const lines = tsvMatch[1].trim().split('\n');
+
+              // Check header
+              const header = lines[0].toLowerCase();
+              if (!header.includes('position')) {
+                errors.push('❌ Header must contain "position" column');
+              }
+
+              // Parse rows
+              let validRows = 0;
+              let lineages = new Set();
+              const expectedCols = lines[0].split('\t').length;
+
+              for (let i = 1; i < lines.length; i++) {
+                const cols = lines[i].split('\t');
+                if (cols.length < 4) {
+                  errors.push(`❌ Row ${i}: expected ≥4 columns, got ${cols.length}`);
+                  continue;
+                }
+
+                const pos = parseInt(cols[0]);
+                if (isNaN(pos) || pos < 1) {
+                  errors.push(`❌ Row ${i}: invalid position "${cols[0]}"`);
+                  continue;
+                }
+
+                const ref = cols[1].toUpperCase();
+                const alt = cols[2].toUpperCase();
+                if (!['A','C','G','T'].includes(ref)) {
+                  errors.push(`❌ Row ${i}: invalid ref allele "${cols[1]}"`);
+                }
+                if (!['A','C','G','T'].includes(alt)) {
+                  errors.push(`❌ Row ${i}: invalid alt allele "${cols[2]}"`);
+                }
+                if (ref === alt) {
+                  warnings.push(`⚠️ Row ${i}: ref = alt (${ref})`);
+                }
+
+                lineages.add(cols[3]);
+                validRows++;
+              }
+
+              report.push(`📊 **Validation Report**`);
+              report.push(``);
+              report.push(`| Metric | Value |`);
+              report.push(`|---|---|`);
+              report.push(`| Rows parsed | ${lines.length - 1} |`);
+              report.push(`| Valid markers | ${validRows} |`);
+              report.push(`| Lineages found | ${lineages.size} (${[...lineages].sort().join(', ')}) |`);
+              report.push(`| Columns | ${expectedCols} |`);
+            }
+
+            // Build comment
+            let comment = '';
+            if (errors.length > 0) {
+              comment += `### ❌ Validation Errors\n\n${errors.join('\n')}\n\n`;
+            }
+            if (warnings.length > 0) {
+              comment += `### ⚠️ Warnings\n\n${warnings.join('\n')}\n\n`;
+            }
+            if (report.length > 0) {
+              comment += report.join('\n') + '\n\n';
+            }
+
+            if (errors.length === 0) {
+              comment += '### ✅ TSV preview looks valid!\n\n';
+              comment += 'A maintainer will review the full marker set. ';
+              comment += 'Meanwhile, please ensure the full TSV file is attached or linked above.\n';
+            } else {
+              comment += '\nPlease fix the errors above and edit the discussion to re-trigger validation.\n';
+            }
+
+            comment += '\n---\n*🤖 Automated validation — see [marker format docs](../docs/marker_format.md)*';
+
+            // Post comment on the discussion
+            await github.graphql(`
+              mutation($discussionId: ID!, $body: String!) {
+                addDiscussionComment(input: {discussionId: $discussionId, body: $body}) {
+                  comment { id }
+                }
+              }
+            `, { discussionId, body: comment });
+
+            console.log('Validation comment posted');
+
+      - name: Add labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = context.payload.discussion.title;
+            if (!title.includes('[Marker Proposal]')) return;
+
+            // Ensure label exists
+            try {
+              await github.rest.issues.createLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: 'marker-proposal',
+                color: '1d76db',
+                description: 'New marker set proposal'
+              });
+            } catch (e) {
+              // Label already exists
+            }

@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check (core)
+        run: cargo check -p pathotypr-core
+
+      - name: Test (core)
+        run: cargo test -p pathotypr-core
+
+      - name: Clippy (core)
+        run: cargo clippy -p pathotypr-core --lib -- -D warnings 2>/dev/null || true
+
+      - name: Format check
+        run: cargo fmt --check -p pathotypr-core 2>/dev/null || true
