@@ -14,6 +14,13 @@
 
 </div>
 
+</div>
+
+__Paula Ruiz-Rodriguez<sup>1</sup>__
+__and Mireia Coscolla<sup>1</sup>__
+<br>
+<sub> 1. Institute for Integrative Systems Biology, I<sup>2</sup>SysBio, University of Valencia-CSIC, Valencia, Spain </sub>
+
 ---
 
 ## What is pathotypr?
@@ -280,3 +287,53 @@ If you use pathotypr, please cite:
 ## License
 
 [GNU Affero General Public License v3.0](LICENSE)
+---
+<h2 id="contributors" align="center">
+
+✨ [Contributors]((https://github.com/PathoGenOmics-Lab/AMAP/graphs/contributors))
+</h2>
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+<div align="center">
+pathotypr is developed with ❤️ by:
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/paururo">
+        <img src="https://avatars.githubusercontent.com/u/50167687?v=4&s=100" width="100px;" alt=""/>
+        <br />
+        <sub><b>Paula Ruiz-Rodriguez</b></sub>
+      </a>
+      <br />
+      <a href="" title="Code">💻</a>
+      <a href="" title="Research">🔬</a>
+      <a href="" title="Ideas">🤔</a>
+      <a href="" title="Data">🔣</a>
+      <a href="" title="Desing">🎨</a>
+      <a href="" title="Tool">🔧</a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/mireiacoscolla">
+        <img src="https://avatars.githubusercontent.com/u/29301737?v=4&s=100" width="100px;" alt=""/>
+        <br />
+        <sub><b>Mireia Coscolla</b></sub>
+      </a>
+      <br />
+      <a href="https://www.uv.es/instituto-biologia-integrativa-sistemas-i2sysbio/es/investigacion/proyectos/proyectos-actuales/mol-tb-host-1286169137294/ProjecteInves.html?id=1286289780236" title="Funding/Grant Finders">🔍</a>
+      <a href="" title="Ideas">🤔</a>
+      <a href="" title="Mentoring">🧑‍🏫</a>
+      <a href="" title="Research">🔬</a>
+      <a href="" title="User Testing">📓</a>
+    </td>
+  </tr>
+</table>
+
+This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification ([emoji key](https://allcontributors.org/docs/en/emoji-key)).
+
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+
+<!-- ALL-CONTRIBUTORS-LIST:END -->
+---
