@@ -1,0 +1,106 @@
+[
+  {
+    "n_genomes": 30,
+    "n_classes": 3,
+    "n_per_class": 10,
+    "fasta_size_bytes":    30600,
+    "train_time_s": 0.0317,
+    "predict_time_s": 0.0271,
+    "model_size_bytes":      550,
+    "train_peak_rss_bytes": 12992512,
+    "predict_peak_rss_bytes": 10256384,
+    "threads": 4,
+    "kmer_size": 11,
+    "seq_length": 1000
+  }
+,
+  {
+    "n_genomes": 90,
+    "n_classes": 3,
+    "n_per_class": 30,
+    "fasta_size_bytes":    91860,
+    "train_time_s": 0.0365,
+    "predict_time_s": 0.0262,
+    "model_size_bytes":      576,
+    "train_peak_rss_bytes": 13795328,
+    "predict_peak_rss_bytes": 10289152,
+    "threads": 4,
+    "kmer_size": 11,
+    "seq_length": 1000
+  }
+,
+  {
+    "n_genomes": 300,
+    "n_classes": 3,
+    "n_per_class": 100,
+    "fasta_size_bytes":   306270,
+    "train_time_s": 0.0643,
+    "predict_time_s": 0.027,
+    "model_size_bytes":      558,
+    "train_peak_rss_bytes": 17399808,
+    "predict_peak_rss_bytes": 10698752,
+    "threads": 4,
+    "kmer_size": 11,
+    "seq_length": 1000
+  }
+,
+  {
+    "n_genomes": 500,
+    "n_classes": 5,
+    "n_per_class": 100,
+    "fasta_size_bytes":   510450,
+    "train_time_s": 0.1429,
+    "predict_time_s": 0.0288,
+    "model_size_bytes":     1245,
+    "train_peak_rss_bytes": 22233088,
+    "predict_peak_rss_bytes": 11190272,
+    "threads": 4,
+    "kmer_size": 11,
+    "seq_length": 1000
+  }
+,
+  {
+    "n_genomes": 1000,
+    "n_classes": 5,
+    "n_per_class": 200,
+    "fasta_size_bytes":  1021450,
+    "train_time_s": 0.2927,
+    "predict_time_s": 0.0289,
+    "model_size_bytes":     1222,
+    "train_peak_rss_bytes": 31522816,
+    "predict_peak_rss_bytes": 12746752,
+    "threads": 4,
+    "kmer_size": 11,
+    "seq_length": 1000
+  }
+,
+  {
+    "n_genomes": 2000,
+    "n_classes": 5,
+    "n_per_class": 400,
+    "fasta_size_bytes":  2043450,
+    "train_time_s": 0.6543,
+    "predict_time_s": 0.0337,
+    "model_size_bytes":     1217,
+    "train_peak_rss_bytes": 50020352,
+    "predict_peak_rss_bytes": 12910592,
+    "threads": 4,
+    "kmer_size": 11,
+    "seq_length": 1000
+  }
+,
+  {
+    "n_genomes": 4000,
+    "n_classes": 8,
+    "n_per_class": 500,
+    "fasta_size_bytes":  4087120,
+    "train_time_s": 2.5626,
+    "predict_time_s": 0.0469,
+    "model_size_bytes":     2484,
+    "train_peak_rss_bytes": 267714560,
+    "predict_peak_rss_bytes": 13008896,
+    "threads": 4,
+    "kmer_size": 11,
+    "seq_length": 1000
+  }
+]

@@ -1,0 +1,22 @@
+[
+  {
+    "sample": "ERR551304",
+    "fastq_size_mb": 157.5,
+    "pathotypr_time_s": 1.49,
+    "pathotypr_rss_mb": 28.2,
+    "pathotypr_lineage": "L2;L2.2:9",
+    "fastlin_time_s": 3.23,
+    "fastlin_rss_mb": 3.3,
+    "fastlin_lineage": "2.2.1"
+  },
+  {
+    "sample": "ERR552797",
+    "fastq_size_mb": 263.7,
+    "pathotypr_time_s": 2.3,
+    "pathotypr_rss_mb": 28.2,
+    "pathotypr_lineage": "A4;M_bovis:79",
+    "fastlin_time_s": 4.78,
+    "fastlin_rss_mb": 3.3,
+    "fastlin_lineage": "La1.7"
+  }
+]
