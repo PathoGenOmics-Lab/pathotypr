@@ -1,0 +1,1847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pathotypr</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Mobile sidebar overlay -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="logo">
+        <img src="logo.png" alt="Pathotypr" id="app-logo">
+        <span class="version" id="app-version">v0.2.0</span>
+      </div>
+
+      <nav class="nav-menu">
+        <!-- Home -->
+        <button class="nav-item active" data-panel="home">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+          <span>Home</span>
+        </button>
+
+        <!-- ML Section -->
+        <div class="nav-section">
+          <span class="nav-section-title">MACHINE LEARNING</span>
+        </div>
+        <button class="nav-item" data-panel="train">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M12 20V10"/>
+            <path d="M18 20V4"/>
+            <path d="M6 20v-4"/>
+          </svg>
+          <span>Train Model</span>
+        </button>
+        <button class="nav-item" data-panel="predict">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 16v-4"/>
+            <path d="M12 8h.01"/>
+          </svg>
+          <span>Predict</span>
+        </button>
+
+        <!-- Genotyping Section -->
+        <div class="nav-section">
+          <span class="nav-section-title">GENOTYPING</span>
+        </div>
+        <button class="nav-item" data-panel="classify">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2v-4M9 21H5a2 2 0 0 1-2-2v-4"/>
+          </svg>
+          <span>Classify</span>
+        </button>
+        <button class="nav-item" data-panel="split-fastq">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          <span>Split FASTQ</span>
+        </button>
+
+        <!-- Utils Section -->
+        <div class="nav-section">
+          <span class="nav-section-title">UTILITIES</span>
+        </div>
+        <button class="nav-item" data-panel="match">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="m21 21-4.35-4.35"/>
+          </svg>
+          <span>Match Ref</span>
+        </button>
+      </nav>
+
+      <div class="theme-toggle-container">
+        <div class="theme-toggle" id="theme-toggle" role="switch" aria-checked="false" aria-label="Toggle dark mode" tabindex="0">
+          <!-- Knob with icon -->
+          <div class="theme-knob">
+            <!-- Sun icon (light mode) -->
+            <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+            </svg>
+            <!-- Moon icon (dark mode) -->
+            <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              <circle cx="19" cy="6" r="1" fill="currentColor"/>
+              <circle cx="17" cy="3" r="0.5" fill="currentColor"/>
+            </svg>
+          </div>
+          <!-- Label text -->
+          <span class="theme-label">LIGHT<br>MODE</span>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <p>PathoGenOmics Lab<br>CSIC-Universidad de Valencia</p>
+        <div class="sidebar-links">
+          <a
+            href="https://doi.org/10.5281/zenodo.19210044"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="citation-link"
+            title="Open citation link (placeholder)"
+            aria-label="Open citation link (placeholder)"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5V4.5A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+          </a>
+          <a href="https://github.com/Paururo/pathotypr" target="_blank" rel="noopener noreferrer" class="github-link">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+            </svg>
+            GitHub
+          </a>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Header -->
+      <header class="main-header">
+        <div class="main-header-left">
+          <button class="btn-hamburger" id="btn-hamburger" aria-label="Toggle navigation menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+          <h2 id="panel-title">
+            <svg class="header-icon" id="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+              <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+            <span id="panel-title-text">Home</span>
+          </h2>
+          <p id="panel-description">Welcome to Pathotypr - Select a tool to get started</p>
+          <div class="header-quick-load" id="header-quick-load">
+            <button type="button" class="btn-glass btn-glass-lineage" id="btn-load-lineage-markers" title="Download MTB lineage markers + ancestor reference">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <rect x="6" y="8" width="12" height="8" rx="4" ry="4"/>
+              </svg>
+              Lineage Markers
+            </button>
+            <button type="button" class="btn-glass btn-glass-dr" id="btn-load-dr-markers" title="Download MTB drug resistance markers + reference">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <rect x="8" y="2" width="8" height="20" rx="4"/>
+                <line x1="8" y1="12" x2="16" y2="12"/>
+              </svg>
+              DR Markers
+            </button>
+            <button type="button" class="btn-glass btn-glass-model" id="btn-download-mtbc-model" title="Download pre-trained MTBC model (L1–L10, A1–A4)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              MTBC Model
+            </button>
+          </div>
+        </div>
+        <div class="header-status">
+          <div class="header-tools">
+            <button class="btn-clear-inputs btn-clear-inputs-header" id="btn-clear-inputs" title="Clear all loaded input files in the active tool">
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M8 6v-1a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v1"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+              </svg>
+              <span>Clear Inputs</span>
+            </button>
+            <div class="system-usage" id="system-usage-panel" aria-live="polite" title="Real-time Pathotypr process usage">
+              <span class="system-usage-chip">
+                <span class="system-usage-key">CPU</span>
+                <strong class="system-usage-value" id="system-cpu-value">--%</strong>
+                <span class="system-usage-sep" aria-hidden="true">·</span>
+                <span class="system-usage-key">RAM</span>
+                <strong class="system-usage-value" id="system-ram-value">--</strong>
+              </span>
+            </div>
+          </div>
+          <!-- Stepped Progress Indicator -->
+          <div class="progress-indicator" id="progress-bar">
+            <div class="progress-steps" id="progress-steps">
+              <div class="step" data-step="1">
+                <div class="step-dot"></div>
+                <span class="step-label">Preparing</span>
+              </div>
+              <div class="step" data-step="2">
+                <div class="step-dot"></div>
+                <span class="step-label">Processing</span>
+              </div>
+              <div class="step" data-step="3">
+                <div class="step-dot"></div>
+                <span class="step-label">Finishing</span>
+              </div>
+            </div>
+            <span class="progress-text" id="progress-text">Processing...</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Scrollable Panel Content -->
+      <div class="panel-scroll">
+        <!-- HOME PANEL -->
+        <section class="panel active" id="panel-home">
+          <div class="home-grid">
+            <div class="home-welcome">
+              <div class="home-logo">
+                <img src="logo.png" alt="Pathotypr" class="pathotypr-logo">
+              </div>
+              <h3>Welcome to Pathotypr</h3>
+              <p>A comprehensive toolkit for genome classification and variant genotyping using k-mer based methods.</p>
+              <div class="mtb-load-wrapper">
+                <button class="btn-demo" id="btn-load-demo">
+                  <svg class="btn-demo-bacillus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <rect x="6" y="8" width="12" height="8" rx="4" ry="4"/>
+                  </svg>
+                  Load MTB Data
+                </button>
+                <p class="mtb-load-hint">Load <em>M. tuberculosis</em> markers &amp; reference genome. Pathotypr works with any organism.</p>
+              </div>
+            </div>
+
+            <!-- All Tools in One Row -->
+            <div class="quick-actions">
+              <div class="action-cards action-cards-row">
+                <button class="action-card" data-goto="train">
+                  <span class="action-badge badge-ml">ML</span>
+                  <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/>
+                  </svg>
+                  <span class="action-title">Train Model</span>
+                  <span class="action-desc">Build a classifier from labeled sequences</span>
+                </button>
+                <button class="action-card" data-goto="predict">
+                  <span class="action-badge badge-ml">ML</span>
+                  <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+                  </svg>
+                  <span class="action-title">Predict</span>
+                  <span class="action-desc">Classify sequences using trained model</span>
+                </button>
+                <button class="action-card" data-goto="classify">
+                  <span class="action-badge badge-genotyping">Genotyping</span>
+                  <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2v-4M9 21H5a2 2 0 0 1-2-2v-4"/>
+                  </svg>
+                  <span class="action-title">Classify</span>
+                  <span class="action-desc">Genotype genomes based on SNP markers</span>
+                </button>
+                <button class="action-card" data-goto="split-fastq">
+                  <span class="action-badge badge-genotyping">Genotyping</span>
+                  <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                  </svg>
+                  <span class="action-title">Split FASTQ</span>
+                  <span class="action-desc">Alignment-free genotyping from reads</span>
+                </button>
+                <button class="action-card" data-goto="match">
+                  <span class="action-badge badge-utils">Utilities</span>
+                  <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                  </svg>
+                  <span class="action-title">Match Reference</span>
+                  <span class="action-desc">Find best matching reference for samples</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Pathotypr Workflow Scheme -->
+            <div class="home-scheme">
+              <img src="pathotypr_scheme.png" alt="Pathotypr Workflow Scheme" class="scheme-clickable" id="scheme-img" title="Click to enlarge">
+            </div>
+
+            <div class="home-info">
+              <div class="info-card">
+                <h4>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                  </svg>
+                  Documentation
+                </h4>
+                <p>Need help? Check the tooltips (?) next to each field for detailed explanations.</p>
+              </div>
+              <div class="info-card">
+                <h4>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                  </svg>
+                  File Support
+                </h4>
+                <p>Supports FASTA, FASTQ, TSV, and GFF formats. Drag & drop or click to select files.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TRAIN PANEL -->
+        <section class="panel" id="panel-train">
+          <form class="form" id="form-train">
+            <!-- Left Column - Inputs -->
+            <div class="form-column-left">
+              <div class="card">
+                <div class="card-header">
+                  <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                  </svg>
+                  <h3>Input Data</h3>
+                </div>
+                <div class="card-body">
+                  <div class="form-group">
+                    <label>
+                      Training FASTA <span class="required">*</span>
+                      <span class="help-tooltip tooltip-below">?
+                        <span class="tooltip-content">Multi-FASTA file with labeled sequences. Headers must be in format <strong>Lineage_SequenceID</strong> (e.g., &gt;LineageA_sample1).</span>
+                      </span>
+                    </label>
+                    <div class="dropzone" data-target="train-input" data-extensions=".fasta,.fa,.fna,.fas">
+                      <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                      </svg>
+                      <div class="dropzone-text"><strong>Click to select</strong> or drag file here</div>
+                      <div class="dropzone-hint">.fasta, .fa, .fna</div>
+                      <div class="dropzone-file">
+                        <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        <div class="file-info">
+                          <div class="file-name"></div>
+                          <div class="file-meta"></div>
+                        </div>
+                        <button type="button" class="file-remove">&times;</button>
+                      </div>
+                    </div>
+                    <input type="hidden" id="train-input">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Column - Output & Options (Sticky) -->
+            <div class="form-column-right">
+              <div class="card">
+                <div class="card-header">
+                  <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                    <polyline points="17 21 17 13 7 13 7 21"/>
+                    <polyline points="7 3 7 8 15 8"/>
+                  </svg>
+                  <h3>Output</h3>
+                </div>
+                <div class="card-body">
+                  <div class="form-group">
+                    <label>Model File <span class="required">*</span>
+                      <span class="help-tooltip">?
+                        <span class="tooltip-content">Output file for the trained model. Compressed with Zstandard (.zst).</span>
+                      </span>
+                    </label>
+                    <div class="file-input-wrapper">
+                      <input type="text" id="train-output" class="output-file" placeholder="Click 'Save As' to choose location..." readonly>
+                      <button type="button" class="btn-save" data-target="train-output" data-default="model.pathotypr.zst">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                          <polyline points="17 21 17 13 7 13 7 21"/>
+                        </svg>
+                        Save As
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                  </svg>
+                  <h3>Parameters</h3>
+                </div>
+                <div class="card-body">
+                  <div class="params-grid">
+                    <div class="form-group">
+                      <label>K-mer Size <span class="help-tooltip">?<span class="tooltip-content">Length of k-mers. Default: 21</span></span></label>
+                      <input type="number" id="train-kmer" value="21" min="11" max="31">
+                    </div>
+                    <div class="form-group">
+                      <label>Test Split <span class="help-tooltip">?<span class="tooltip-content">Validation fraction. Default: 0.2</span></span></label>
+                      <input type="text" inputmode="decimal" id="train-split" value="0.2" pattern="[0-9]*[.]?[0-9]+">
+                    </div>
+                    <div class="form-group">
+                      <label>Threads <span class="help-tooltip">?<span class="tooltip-content">CPU worker threads to use during training. Leave empty to use all available cores automatically.</span></span></label>
+                      <input type="number" id="train-threads" placeholder="Auto" min="1">
+                    </div>
+                    <div class="form-group">
+                      <label>CV Folds <span class="help-tooltip">?<span class="tooltip-content">Stratified k-fold cross-validation for accuracy estimation (e.g. 5 or 10). Recommended for small datasets. Leave empty for single train/test split.</span></span></label>
+                      <input type="number" id="train-cv-folds" placeholder="None" min="2" max="50">
+                    </div>
+                    <div class="form-group">
+                      <label>Max Depth <span class="help-tooltip">?<span class="tooltip-content">Maximum tree depth. Lower values reduce overfitting on small datasets. Default: 20.</span></span></label>
+                      <input type="number" id="train-max-depth" value="20" min="1" max="50">
+                    </div>
+                    <div class="form-group">
+                      <label>Min Leaf Samples <span class="help-tooltip">?<span class="tooltip-content">Minimum samples per leaf node. Higher values prevent overfitting by regularizing the trees. Default: 5.</span></span></label>
+                      <input type="number" id="train-min-leaf" value="5" min="1" max="100">
+                    </div>
+                  </div>
+                  <button type="button" class="btn-defaults" data-tool="train">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                      <path d="M3 3v5h5"/>
+                    </svg>
+                    Default
+                  </button>
+                </div>
+              </div>
+            </div>
+          </form>
+          <!-- Training Results Summary Card (populated by JS after training) -->
+          <div id="train-summary-card" class="train-summary-card hidden"></div>
+        </section>
+
+        <!-- PREDICT PANEL -->
+        <section class="panel" id="panel-predict">
+          <form class="form" id="form-predict">
+            <!-- Left Column - Inputs -->
+            <div class="form-column-left">
+              <div class="card">
+                <div class="card-header">
+                  <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                  </svg>
+                  <h3>Input Files</h3>
+                </div>
+                <div class="card-body">
+                  <div class="form-group">
+                    <label>FASTA to Classify <span class="required">*</span>
+                      <span class="help-tooltip">?
+                        <span class="tooltip-content">Multi-FASTA file with sequences to classify.</span>
+                      </span>
+                    </label>
+                    <div class="dropzone" data-target="predict-input" data-extensions=".fasta,.fa,.fna,.fas">
+                      <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                      </svg>
+                      <div class="dropzone-text"><strong>Click to select</strong> or drag file here</div>
+                      <div class="dropzone-hint">.fasta, .fa, .fna</div>
+                      <div class="dropzone-file">
+                        <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        <div class="file-info">
+                          <div class="file-name"></div>
+                          <div class="file-meta"></div>
+                        </div>
+                        <button type="button" class="file-remove">&times;</button>
+                      </div>
+                    </div>
+                    <input type="hidden" id="predict-input">
+                  </div>
+                  <div class="form-group">
+                    <label>Model File <span class="required">*</span>
+                      <span class="help-tooltip">?
+                        <span class="tooltip-content">Trained Pathotypr model file (.zst).</span>
+                      </span>
+                    </label>
+                    <div class="dropzone" data-target="predict-model" data-extensions=".zst,.pathotypr.zst">
+                      <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                        <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                      </svg>
+                      <div class="dropzone-text"><strong>Click to select</strong> or drag file here</div>
+                      <div class="dropzone-hint">.pathotypr.zst</div>
+                      <div class="dropzone-file">
+                        <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        <div class="file-info">
+                          <div class="file-name"></div>
+                          <div class="file-meta"></div>
+                        </div>
+                        <button type="button" class="file-remove">&times;</button>
+                      </div>
+                    </div>
+                    <input type="hidden" id="predict-model">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Column - Output & Options (Sticky) -->
+            <div class="form-column-right">
+              <div class="card">
+                <div class="card-header">
+                  <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                    <polyline points="17 21 17 13 7 13 7 21"/>
+                  </svg>
+                  <h3>Output</h3>
+                </div>
+                <div class="card-body">
+                  <div class="form-group">
+                    <label>Results TSV <span class="required">*</span>
+                      <span class="help-tooltip">?
+                        <span class="tooltip-content">Tab-separated output with classification results.</span>
+                      </span>
+                    </label>
+                    <div class="file-input-wrapper">
+                      <input type="text" id="predict-output" class="output-file" placeholder="Click 'Save As' to choose location..." readonly>
+                      <button type="button" class="btn-save" data-target="predict-output" data-default="predictions.tsv">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                        </svg>
+                        Save As
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                  </svg>
+                  <h3>Options</h3>
+                </div>
+                <div class="card-body">
+                  <div class="params-grid">
+                    <div class="form-group">
+                      <label>Threads <span class="help-tooltip">?<span class="tooltip-content">CPU worker threads to use during prediction. Leave empty to auto-detect.</span></span></label>
+                      <input type="number" id="predict-threads" placeholder="Auto" min="1">
+                    </div>
+                  </div>
+                  <button type="button" class="btn-defaults" data-tool="predict">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                      <path d="M3 3v5h5"/>
+                    </svg>
+                    Default
+                  </button>
+                </div>
+              </div>
+            </div>
+          </form>
+
+          <!-- Results Viewer Panel -->
+          <div class="results-viewer hidden" id="predict-results" data-category="ml">
+            <div class="results-viewer-header">
+              <div class="results-viewer-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                <h3>Results</h3>
+                <span class="results-viewer-path"></span>
+              </div>
+              <div class="results-viewer-actions">
+                <button class="btn-open-folder" title="Open in folder" aria-label="Open in folder">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                  </svg>
+                </button>
+                <button class="btn-fullscreen-results" title="Fullscreen" aria-label="Toggle fullscreen">
+                  <svg class="icon-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                  </svg>
+                  <svg class="icon-collapse hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 14h6v6m10-10h-6V4m0 6l7-7M3 21l7-7"/>
+                  </svg>
+                </button>
+                <button class="btn-close-results" title="Close" aria-label="Close results">&times;</button>
+              </div>
+            </div>
+            <div class="results-viewer-filter">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="m21 21-4.35-4.35"/>
+              </svg>
+              <input type="text" class="results-filter-input" placeholder="Search all columns...">
+              <span class="results-row-count"></span>
+            </div>
+            <div class="results-viewer-table">
+              <table>
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Button to reopen results -->
+          <button class="btn-show-results hidden" id="predict-show-results">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 3h18v18H3z"/><path d="M3 9h18"/><path d="M9 21V9"/>
+            </svg>
+            View Results
+          </button>
+
+          <!-- Visualization Button -->
+          <button class="btn-visualize hidden" id="predict-visualize-btn" data-category="ml">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 20V10"/>
+              <path d="M12 20V4"/>
+              <path d="M6 20v-6"/>
+            </svg>
+            Visualize
+          </button>
+
+          <!-- Visualization Panel -->
+          <div class="visualization-panel hidden" id="predict-visualization" data-category="ml">
+            <div class="visualization-header">
+              <div class="visualization-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>
+                </svg>
+                <h3>Prediction Distribution</h3>
+              </div>
+              <div class="visualization-actions">
+                <button class="btn-fullscreen-viz" title="Fullscreen" aria-label="Toggle fullscreen">
+                  <svg class="icon-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                  </svg>
+                  <svg class="icon-collapse hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 14h6v6m10-10h-6V4m0 6l7-7M3 21l7-7"/>
+                  </svg>
+                </button>
+                <button class="btn-close-viz" title="Close">&times;</button>
+              </div>
+            </div>
+            <div class="visualization-content">
+              <div class="chart-container">
+                <div class="chart-wrapper chart-donut">
+                  <canvas id="predict-donut-chart" aria-label="Prediction results donut chart"></canvas>
+                </div>
+                <div class="chart-wrapper chart-bars">
+                  <canvas id="predict-bar-chart" aria-label="Prediction results bar chart"></canvas>
+                </div>
+              </div>
+              <div class="chart-legend" id="predict-chart-legend"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- CLASSIFY PANEL -->
+        <section class="panel" id="panel-classify">
+          <form class="form" id="form-classify">
+            <!-- Left Column - Inputs -->
+            <div class="form-column-left">
+            <div class="card">
+              <div class="card-header">
+                <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10"/>
+                  <circle cx="12" cy="12" r="6"/>
+                  <circle cx="12" cy="12" r="2"/>
+                </svg>
+                <h3>Reference & Markers</h3>
+              </div>
+              <div class="card-body">
+                <div class="form-group">
+                  <label>Markers TSV <span class="required">*</span>
+                    <span class="help-tooltip">?
+                      <span class="tooltip-content">Tab-separated file with SNP markers. Columns: position, REF, ALT, marker_name.</span>
+                    </span>
+                  </label>
+                  <div class="dropzone" data-target="classify-markers" data-multiple="true" data-extensions=".tsv,.txt,.csv">
+                    <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                      <path d="M14 2v6h6"/>
+                      <line x1="16" y1="13" x2="8" y2="13"/>
+                      <line x1="16" y1="17" x2="8" y2="17"/>
+                    </svg>
+                    <div class="dropzone-text"><strong>Click to select</strong> or drag marker files here</div>
+                    <div class="dropzone-hint">.tsv, .txt — multiple files supported</div>
+                    <div class="dropzone-file">
+                      <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                      <div class="file-info">
+                        <div class="file-name"></div>
+                        <div class="file-meta"></div>
+                      </div>
+                      <button type="button" class="file-remove">&times;</button>
+                    </div>
+                    <div class="file-chips" id="classify-markers-chips"></div>
+                  </div>
+                  <input type="hidden" id="classify-markers">
+                </div>
+                <div class="form-group">
+                  <label>Reference FASTA <span class="required">*</span>
+                    <span class="help-tooltip">?
+                      <span class="tooltip-content">Reference genome in FASTA format.</span>
+                    </span>
+                  </label>
+                  <div class="dropzone" data-target="classify-reference" data-extensions=".fasta,.fa,.fna,.fas">
+                    <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                    <div class="dropzone-text"><strong>Click to select</strong> or drag file here</div>
+                    <div class="dropzone-hint">.fasta, .fa, .fna</div>
+                    <div class="dropzone-file">
+                      <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                      <div class="file-info">
+                        <div class="file-name"></div>
+                        <div class="file-meta"></div>
+                      </div>
+                      <button type="button" class="file-remove">&times;</button>
+                    </div>
+                  </div>
+                  <input type="hidden" id="classify-reference">
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                </svg>
+                <h3>Input Genomes</h3>
+              </div>
+              <div class="card-body">
+                <div class="input-method-selector">
+                  <div class="method-option">
+                    <input type="radio" name="classify-input-method" id="classify-method-files" value="files" checked>
+                    <label for="classify-method-files">
+                      <svg class="method-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                      </svg>
+                      <span class="method-label">FASTA Files</span>
+                    </label>
+                  </div>
+                  <div class="method-option">
+                    <input type="radio" name="classify-input-method" id="classify-method-list" value="list">
+                    <label for="classify-method-list">
+                      <svg class="method-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="8" y1="6" x2="21" y2="6"/>
+                        <line x1="8" y1="12" x2="21" y2="12"/>
+                        <line x1="8" y1="18" x2="21" y2="18"/>
+                        <line x1="3" y1="6" x2="3.01" y2="6"/>
+                        <line x1="3" y1="12" x2="3.01" y2="12"/>
+                        <line x1="3" y1="18" x2="3.01" y2="18"/>
+                      </svg>
+                      <span class="method-label">Sample List</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="form-group" id="classify-input-files-group">
+                  <div class="dropzone" data-target="classify-input" data-multiple="true" data-extensions=".fasta,.fa,.fna,.fas">
+                    <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                    <div class="dropzone-text"><strong>Click to select</strong> or drag files here</div>
+                    <div class="dropzone-hint">One or more FASTA files</div>
+                    <div class="dropzone-file">
+                      <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                      <div class="file-info">
+                        <div class="file-name"></div>
+                        <div class="file-meta"></div>
+                      </div>
+                      <button type="button" class="file-remove">&times;</button>
+                    </div>
+                    <div class="file-chips" id="classify-chips"></div>
+                  </div>
+                  <input type="hidden" id="classify-input">
+                </div>
+                <div class="form-group hidden" id="classify-input-list-group">
+                  <div class="dropzone" data-target="classify-input-list" data-extensions=".tsv,.txt,.csv">
+                    <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                      <line x1="8" y1="6" x2="21" y2="6"/>
+                      <line x1="8" y1="12" x2="21" y2="12"/>
+                      <line x1="8" y1="18" x2="21" y2="18"/>
+                      <line x1="3" y1="6" x2="3.01" y2="6"/>
+                    </svg>
+                    <div class="dropzone-text"><strong>Click to select</strong> or drag file here</div>
+                    <div class="dropzone-hint">Sample list TSV (name + path)</div>
+                    <div class="dropzone-file">
+                      <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                      <div class="file-info">
+                        <div class="file-name"></div>
+                        <div class="file-meta"></div>
+                      </div>
+                      <button type="button" class="file-remove">&times;</button>
+                    </div>
+                  </div>
+                  <input type="hidden" id="classify-input-list">
+                </div>
+                <div class="form-group">
+                  <label>GFF Annotation (optional)
+                    <span class="help-tooltip">?
+                      <span class="tooltip-content">GFF3 annotation files for gene annotations. Files are matched to genomes by filename (e.g. sample1.gff3 pairs with sample1.fasta).</span>
+                    </span>
+                  </label>
+                  <div class="dropzone" data-target="classify-gff" data-extensions=".gff,.gff3" data-multiple="true">
+                    <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                      <path d="M14 2v6h6"/>
+                    </svg>
+                    <div class="dropzone-text"><strong>Click to select</strong> or drag files here</div>
+                    <div class="dropzone-hint">.gff, .gff3 (matched by filename)</div>
+                    <div class="dropzone-file">
+                      <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                      <div class="file-info">
+                        <div class="file-name"></div>
+                        <div class="file-meta"></div>
+                      </div>
+                      <button type="button" class="file-remove">&times;</button>
+                    </div>
+                    <div class="file-chips" id="classify-gff-chips"></div>
+                  </div>
+                  <input type="hidden" id="classify-gff">
+                </div>
+              </div>
+            </div>
+
+            </div>
+
+            <!-- Right Column - Output & Options (Sticky) -->
+            <div class="form-column-right">
+              <div class="card">
+                <div class="card-header">
+                  <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                    <polyline points="17 21 17 13 7 13 7 21"/>
+                    <polyline points="7 3 7 8 15 8"/>
+                  </svg>
+                  <h3>Output</h3>
+                </div>
+                <div class="card-body">
+                  <div class="form-group">
+                    <label>Output Prefix <span class="required">*</span>
+                      <span class="help-tooltip">?
+                        <span class="tooltip-content">Base name for output files.</span>
+                      </span>
+                    </label>
+                    <div class="file-input-wrapper">
+                      <input type="text" id="classify-output" class="output-file" placeholder="Click 'Save As' to choose location..." readonly>
+                      <button type="button" class="btn-save" data-target="classify-output" data-default="classify_results">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                        </svg>
+                        Save As
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                  </svg>
+                  <h3>Options</h3>
+                </div>
+                <div class="card-body">
+                  <div class="params-grid">
+                    <div class="form-group">
+                      <label>K-mer Size <span class="help-tooltip">?<span class="tooltip-content">Length of k-mers used for marker matching during classification. Default: 31.</span></span></label>
+                      <input type="number" id="classify-kmer" value="31" min="11" max="31">
+                    </div>
+                    <div class="form-group">
+                      <label>Threads <span class="help-tooltip">?<span class="tooltip-content">CPU worker threads used for sample classification. Leave empty for automatic selection.</span></span></label>
+                      <input type="number" id="classify-threads" placeholder="Auto" min="1">
+                    </div>
+                    <div class="form-group">
+                      <label>Min Flank Bases <span class="help-tooltip">?<span class="tooltip-content">Minimum flanking bases on each side of the allele in marker k-mers. Filters out large indels/SVs that cause false positives. Set to 0 to disable. Default: 10.</span></span></label>
+                      <input type="number" id="classify-min-flank" value="10" min="0" max="15">
+                    </div>
+                  </div>
+                  <div class="toggle-group">
+                    <div class="toggle-option">
+                      <input type="checkbox" id="classify-nested">
+                      <label class="toggle-label" for="classify-nested">
+                        <span class="toggle-switch"></span>
+                        <span class="toggle-text">Nested Classification <span class="help-tooltip">?<span class="tooltip-content">Enable hierarchical lineage resolution when markers overlap parent/child clades. Recommended when your marker set supports nested calls.</span></span><small>For hierarchical lineages</small></span>
+                      </label>
+                    </div>
+                    <div class="toggle-option">
+                      <input type="checkbox" id="classify-masked-fasta">
+                      <label class="toggle-label" for="classify-masked-fasta">
+                        <span class="toggle-switch"></span>
+                        <span class="toggle-text">Output Masked FASTA <span class="help-tooltip">?<span class="tooltip-content">Generate FASTA files with marker positions replaced by N. Useful for phylogenetic analysis to exclude drug resistance positions that may cause convergent evolution bias.</span></span><small>For phylogenetics</small></span>
+                      </label>
+                    </div>
+                  </div>
+                  <button type="button" class="btn-defaults" data-tool="classify">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                      <path d="M3 3v5h5"/>
+                    </svg>
+                    Default
+                  </button>
+                </div>
+              </div>
+            </div>
+          </form>
+
+          <!-- Results Viewer Panel -->
+          <div class="results-viewer hidden" id="classify-results" data-category="genotyping">
+            <div class="results-viewer-header">
+              <div class="results-viewer-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                <h3>Results</h3>
+                <span class="results-viewer-path"></span>
+              </div>
+              <div class="results-viewer-actions">
+                <button class="btn-open-folder" title="Open in folder" aria-label="Open in folder">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                  </svg>
+                </button>
+                <button class="btn-fullscreen-results" title="Fullscreen" aria-label="Toggle fullscreen">
+                  <svg class="icon-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                  </svg>
+                  <svg class="icon-collapse hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 14h6v6m10-10h-6V4m0 6l7-7M3 21l7-7"/>
+                  </svg>
+                </button>
+                <button class="btn-close-results" title="Close" aria-label="Close results">&times;</button>
+              </div>
+            </div>
+            <div class="results-viewer-filter">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="m21 21-4.35-4.35"/>
+              </svg>
+              <input type="text" class="results-filter-input" placeholder="Search all columns...">
+              <span class="results-row-count"></span>
+            </div>
+            <div class="results-viewer-table">
+              <table>
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Button to reopen results -->
+          <button class="btn-show-results hidden" id="classify-show-results">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 3h18v18H3z"/><path d="M3 9h18"/><path d="M9 21V9"/>
+            </svg>
+            View Results
+          </button>
+
+          <!-- Visualization Button -->
+          <button class="btn-visualize hidden" id="classify-visualize-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 20V10"/>
+              <path d="M12 20V4"/>
+              <path d="M6 20v-6"/>
+            </svg>
+            Visualize
+          </button>
+
+          <!-- Visualization Panel -->
+          <div class="visualization-panel hidden" id="classify-visualization">
+            <div class="visualization-header">
+              <div class="visualization-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>
+                </svg>
+                <h3>Lineage Distribution</h3>
+              </div>
+              <div class="visualization-actions">
+                <button class="btn-fullscreen-viz" title="Fullscreen" aria-label="Toggle fullscreen">
+                  <svg class="icon-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                  </svg>
+                  <svg class="icon-collapse hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 14h6v6m10-10h-6V4m0 6l7-7M3 21l7-7"/>
+                  </svg>
+                </button>
+                <button class="btn-close-viz" title="Close">&times;</button>
+              </div>
+            </div>
+            <div class="visualization-content">
+              <div class="chart-container">
+                <div class="chart-wrapper chart-donut">
+                  <canvas id="classify-donut-chart" aria-label="Classification results donut chart"></canvas>
+                </div>
+                <div class="chart-wrapper chart-bars">
+                  <canvas id="classify-bar-chart" aria-label="Classification results bar chart"></canvas>
+                </div>
+              </div>
+              <div class="chart-legend" id="classify-chart-legend"></div>
+            </div>
+          </div>
+        </section>
+        <!-- SPLIT-FASTQ PANEL -->
+        <section class="panel" id="panel-split-fastq">
+          <form class="form" id="form-split-fastq">
+            <!-- Left Column - Inputs -->
+            <div class="form-column-left">
+            <div class="card">
+              <div class="card-header">
+                <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10"/>
+                  <circle cx="12" cy="12" r="6"/>
+                  <circle cx="12" cy="12" r="2"/>
+                </svg>
+                <h3>Reference & Markers</h3>
+              </div>
+              <div class="card-body">
+                <div class="form-group">
+                  <label>Markers TSV <span class="required">*</span>
+                    <span class="help-tooltip">?
+                      <span class="tooltip-content">SNP markers for genotyping from reads.</span>
+                    </span>
+                  </label>
+                  <div class="dropzone" data-target="splitfq-markers" data-multiple="true" data-extensions=".tsv,.txt,.csv">
+                    <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                      <line x1="16" y1="13" x2="8" y2="13"/>
+                      <line x1="16" y1="17" x2="8" y2="17"/>
+                    </svg>
+                    <div class="dropzone-text"><strong>Click to select</strong> or drag marker files here</div>
+                    <div class="dropzone-hint">.tsv, .txt — multiple files supported</div>
+                    <div class="dropzone-file">
+                      <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                      <div class="file-info">
+                        <div class="file-name"></div>
+                        <div class="file-meta"></div>
+                      </div>
+                      <button type="button" class="file-remove">&times;</button>
+                    </div>
+                    <div class="file-chips" id="splitfq-markers-chips"></div>
+                  </div>
+                  <input type="hidden" id="splitfq-markers">
+                </div>
+                <div class="form-group">
+                  <label>Reference FASTA <span class="required">*</span>
+                    <span class="help-tooltip">?
+                      <span class="tooltip-content">Reference genome for k-mer extraction.</span>
+                    </span>
+                  </label>
+                  <div class="dropzone" data-target="splitfq-reference" data-extensions=".fasta,.fa,.fna,.fas">
+                    <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                    <div class="dropzone-text"><strong>Click to select</strong> or drag file here</div>
+                    <div class="dropzone-hint">.fasta, .fa, .fna</div>
+                    <div class="dropzone-file">
+                      <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                      <div class="file-info">
+                        <div class="file-name"></div>
+                        <div class="file-meta"></div>
+                      </div>
+                      <button type="button" class="file-remove">&times;</button>
+                    </div>
+                  </div>
+                  <input type="hidden" id="splitfq-reference">
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                </svg>
+                <h3>Input Reads</h3>
+              </div>
+              <div class="card-body">
+                <div class="input-method-selector">
+                  <div class="method-option">
+                    <input type="radio" name="splitfq-input-method" id="splitfq-method-files" value="files" checked>
+                    <label for="splitfq-method-files">
+                      <svg class="method-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                      </svg>
+                      <span class="method-label">FASTQ Files</span>
+                    </label>
+                  </div>
+                  <div class="method-option">
+                    <input type="radio" name="splitfq-input-method" id="splitfq-method-list" value="list">
+                    <label for="splitfq-method-list">
+                      <svg class="method-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="8" y1="6" x2="21" y2="6"/>
+                        <line x1="8" y1="12" x2="21" y2="12"/>
+                        <line x1="8" y1="18" x2="21" y2="18"/>
+                      </svg>
+                      <span class="method-label">Sample List</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="form-group" id="splitfq-input-files-group">
+                  <div class="dropzone" data-target="splitfq-input" data-multiple="true" data-extensions=".fastq,.fq,.fastq.gz,.fq.gz">
+                    <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                    <div class="dropzone-text"><strong>Click to select</strong> or drag files here</div>
+                    <div class="dropzone-hint">FASTQ files (multiple allowed)</div>
+                    <div class="dropzone-file">
+                      <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                      <div class="file-info">
+                        <div class="file-name"></div>
+                        <div class="file-meta"></div>
+                      </div>
+                      <button type="button" class="file-remove">&times;</button>
+                    </div>
+                    <div class="file-chips" id="splitfq-chips"></div>
+                  </div>
+                  <input type="hidden" id="splitfq-input">
+                </div>
+                <div class="form-group hidden" id="splitfq-input-list-group">
+                  <div class="dropzone" data-target="splitfq-input-list" data-extensions=".tsv,.txt,.csv">
+                    <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                      <line x1="8" y1="6" x2="21" y2="6"/>
+                      <line x1="8" y1="12" x2="21" y2="12"/>
+                    </svg>
+                    <div class="dropzone-text"><strong>Click to select</strong> or drag file here</div>
+                    <div class="dropzone-hint">Sample list TSV</div>
+                    <div class="dropzone-file">
+                      <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                      <div class="file-info">
+                        <div class="file-name"></div>
+                        <div class="file-meta"></div>
+                      </div>
+                      <button type="button" class="file-remove">&times;</button>
+                    </div>
+                  </div>
+                  <input type="hidden" id="splitfq-input-list">
+                </div>
+              </div>
+            </div>
+
+            </div>
+
+            <!-- Right Column - Output & Options (Sticky) -->
+            <div class="form-column-right">
+              <div class="card">
+                <div class="card-header">
+                  <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                    <polyline points="17 21 17 13 7 13 7 21"/>
+                    <polyline points="7 3 7 8 15 8"/>
+                  </svg>
+                  <h3>Output</h3>
+                </div>
+                <div class="card-body">
+                  <div class="form-group">
+                    <label>Output Prefix <span class="required">*</span>
+                      <span class="help-tooltip">?
+                        <span class="tooltip-content">Base name for output files.</span>
+                      </span>
+                    </label>
+                    <div class="file-input-wrapper">
+                      <input type="text" id="splitfq-output" class="output-file" placeholder="Click 'Save As' to choose location..." readonly>
+                      <button type="button" class="btn-save" data-target="splitfq-output" data-default="split_results">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                        </svg>
+                        Save As
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                  </svg>
+                  <h3>Options</h3>
+                </div>
+                <div class="card-body">
+                  <div class="params-grid">
+                    <div class="form-group">
+                      <label>K-mer Size <span class="help-tooltip">?<span class="tooltip-content">Length of k-mers used for marker matching. Default: 21.</span></span></label>
+                      <input type="number" id="splitfq-kmer" value="21" min="11" max="31">
+                    </div>
+                    <div class="form-group">
+                      <label>Min Depth <span class="help-tooltip">?<span class="tooltip-content">Min reads to call variant. Default: 10</span></span></label>
+                      <input type="number" id="splitfq-min-depth" value="10" min="1">
+                    </div>
+                    <div class="form-group">
+                      <label>Min Alt % <span class="help-tooltip">?<span class="tooltip-content">Min alternate allele %. Default: 95</span></span></label>
+                      <input type="number" id="splitfq-min-alt" value="95" min="1" max="100">
+                    </div>
+                    <div class="form-group">
+                      <label>Threads <span class="help-tooltip">?<span class="tooltip-content">CPU worker threads used during split-FASTQ processing. Leave empty for automatic parallelism.</span></span></label>
+                      <input type="number" id="splitfq-threads" placeholder="Auto" min="1">
+                    </div>
+                  </div>
+                  <div class="toggle-group">
+                    <div class="toggle-option">
+                      <input type="checkbox" id="splitfq-paired">
+                      <label class="toggle-label" for="splitfq-paired">
+                        <span class="toggle-switch"></span>
+                        <span class="toggle-text">Paired-End <span class="help-tooltip">?<span class="tooltip-content">Treat FASTQ inputs as read pairs (R1+R2) for each sample. Disable for single-end libraries.</span></span><small>R1 + R2 files</small></span>
+                      </label>
+                    </div>
+                    <div class="toggle-option">
+                      <input type="checkbox" id="splitfq-nested">
+                      <label class="toggle-label" for="splitfq-nested">
+                        <span class="toggle-switch"></span>
+                        <span class="toggle-text">Nested <span class="help-tooltip">?<span class="tooltip-content">Enable hierarchical lineage calling for split-kmer results when parent and child lineage markers coexist.</span></span><small>Hierarchical lineages</small></span>
+                      </label>
+                    </div>
+                  </div>
+                  <button type="button" class="btn-defaults" data-tool="splitfq">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                      <path d="M3 3v5h5"/>
+                    </svg>
+                    Default
+                  </button>
+                </div>
+              </div>
+            </div>
+          </form>
+
+          <!-- Results Viewer Panel -->
+          <div class="results-viewer hidden" id="splitfq-results" data-category="genotyping">
+            <div class="results-viewer-header">
+              <div class="results-viewer-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                <h3>Results</h3>
+                <span class="results-viewer-path"></span>
+              </div>
+              <div class="results-viewer-actions">
+                <button class="btn-open-folder" title="Open in folder" aria-label="Open in folder">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                  </svg>
+                </button>
+                <button class="btn-fullscreen-results" title="Fullscreen" aria-label="Toggle fullscreen">
+                  <svg class="icon-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                  </svg>
+                  <svg class="icon-collapse hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 14h6v6m10-10h-6V4m0 6l7-7M3 21l7-7"/>
+                  </svg>
+                </button>
+                <button class="btn-close-results" title="Close" aria-label="Close results">&times;</button>
+              </div>
+            </div>
+            <div class="results-viewer-filter">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="m21 21-4.35-4.35"/>
+              </svg>
+              <input type="text" class="results-filter-input" placeholder="Search all columns...">
+              <span class="results-row-count"></span>
+            </div>
+            <div class="results-viewer-table">
+              <table>
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Button to reopen results -->
+          <button class="btn-show-results hidden" id="splitfq-show-results">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 3h18v18H3z"/><path d="M3 9h18"/><path d="M9 21V9"/>
+            </svg>
+            View Results
+          </button>
+
+          <!-- Visualization Button -->
+          <button class="btn-visualize hidden" id="splitfq-visualize-btn" data-category="genotyping">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 20V10"/>
+              <path d="M12 20V4"/>
+              <path d="M6 20v-6"/>
+            </svg>
+            Visualize
+          </button>
+
+          <!-- Visualization Panel -->
+          <div class="visualization-panel hidden" id="splitfq-visualization" data-category="genotyping">
+            <div class="visualization-header">
+              <div class="visualization-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>
+                </svg>
+                <h3>Genotype Distribution</h3>
+              </div>
+              <div class="visualization-actions">
+                <button class="btn-fullscreen-viz" title="Fullscreen" aria-label="Toggle fullscreen">
+                  <svg class="icon-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                  </svg>
+                  <svg class="icon-collapse hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 14h6v6m10-10h-6V4m0 6l7-7M3 21l7-7"/>
+                  </svg>
+                </button>
+                <button class="btn-close-viz" title="Close">&times;</button>
+              </div>
+            </div>
+            <div class="visualization-content">
+              <div class="chart-container">
+                <div class="chart-wrapper chart-donut">
+                  <canvas id="splitfq-donut-chart" aria-label="Split FASTQ results donut chart"></canvas>
+                </div>
+                <div class="chart-wrapper chart-bars">
+                  <canvas id="splitfq-bar-chart" aria-label="Split FASTQ results bar chart"></canvas>
+                </div>
+              </div>
+              <div class="chart-legend" id="splitfq-chart-legend"></div>
+            </div>
+          </div>
+        </section>
+        <!-- MATCH PANEL -->
+        <section class="panel" id="panel-match">
+          <form class="form" id="form-match">
+            <!-- Left Column - Inputs -->
+            <div class="form-column-left">
+            <div class="card">
+              <div class="card-header">
+                <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                </svg>
+                <h3>References</h3>
+              </div>
+              <div class="card-body">
+                <!-- Reference source selector -->
+                <div class="input-method-selector">
+                  <div class="method-option">
+                    <input type="radio" name="match-ref-method" id="match-ref-fasta" value="fasta" checked>
+                    <label for="match-ref-fasta">
+                      <svg class="method-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                      </svg>
+                      <span class="method-label">FASTA File</span>
+                    </label>
+                  </div>
+
+                </div>
+
+                <!-- FASTA input (default) -->
+                <div class="form-group" id="match-fasta-group">
+                  <label>References Multi-FASTA <span class="required">*</span>
+                    <span class="help-tooltip">?
+                      <span class="tooltip-content">Multi-FASTA with candidate reference genomes.</span>
+                    </span>
+                  </label>
+                  <div class="dropzone" data-target="match-references" data-extensions=".fasta,.fa,.fna,.fas">
+                    <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                    </svg>
+                    <div class="dropzone-text"><strong>Click to select</strong> or drag file here</div>
+                    <div class="dropzone-hint">Multi-FASTA with reference genomes</div>
+                    <div class="dropzone-file">
+                      <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                      <div class="file-info">
+                        <div class="file-name"></div>
+                        <div class="file-meta"></div>
+                      </div>
+                      <button type="button" class="file-remove">&times;</button>
+                    </div>
+                  </div>
+                  <input type="hidden" id="match-references">
+
+                </div>
+
+
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                </svg>
+                <h3>Input Reads</h3>
+              </div>
+              <div class="card-body">
+                <div class="input-method-selector">
+                  <div class="method-option">
+                    <input type="radio" name="match-input-method" id="match-method-files" value="files" checked>
+                    <label for="match-method-files">
+                      <svg class="method-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                      </svg>
+                      <span class="method-label">FASTQ Files</span>
+                    </label>
+                  </div>
+                  <div class="method-option">
+                    <input type="radio" name="match-input-method" id="match-method-list" value="list">
+                    <label for="match-method-list">
+                      <svg class="method-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="8" y1="6" x2="21" y2="6"/>
+                        <line x1="8" y1="12" x2="21" y2="12"/>
+                        <line x1="8" y1="18" x2="21" y2="18"/>
+                      </svg>
+                      <span class="method-label">Sample List</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="form-group" id="match-input-files-group">
+                  <div class="dropzone" data-target="match-input" data-multiple="true" data-extensions=".fastq,.fq,.fastq.gz,.fq.gz">
+                    <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                    <div class="dropzone-text"><strong>Click to select</strong> or drag files here</div>
+                    <div class="dropzone-hint">FASTQ files to match</div>
+                    <div class="dropzone-file">
+                      <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                      <div class="file-info">
+                        <div class="file-name"></div>
+                        <div class="file-meta"></div>
+                      </div>
+                      <button type="button" class="file-remove">&times;</button>
+                    </div>
+                    <div class="file-chips" id="match-chips"></div>
+                  </div>
+                  <input type="hidden" id="match-input">
+                </div>
+                <div class="form-group hidden" id="match-input-list-group">
+                  <div class="dropzone" data-target="match-input-list" data-extensions=".tsv,.txt,.csv">
+                    <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                      <line x1="8" y1="6" x2="21" y2="6"/>
+                      <line x1="8" y1="12" x2="21" y2="12"/>
+                    </svg>
+                    <div class="dropzone-text"><strong>Click to select</strong> or drag file here</div>
+                    <div class="dropzone-hint">Sample list TSV</div>
+                    <div class="dropzone-file">
+                      <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                      <div class="file-info">
+                        <div class="file-name"></div>
+                        <div class="file-meta"></div>
+                      </div>
+                      <button type="button" class="file-remove">&times;</button>
+                    </div>
+                  </div>
+                  <input type="hidden" id="match-input-list">
+                </div>
+              </div>
+            </div>
+
+            </div>
+
+            <!-- Right Column - Output & Options (Sticky) -->
+            <div class="form-column-right">
+              <div class="card">
+                <div class="card-header">
+                  <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                    <polyline points="17 21 17 13 7 13 7 21"/>
+                    <polyline points="7 3 7 8 15 8"/>
+                  </svg>
+                  <h3>Output</h3>
+                </div>
+                <div class="card-body">
+                  <div class="form-group">
+                    <label>Output TSV <span class="required">*</span>
+                      <span class="help-tooltip">?
+                        <span class="tooltip-content">Output file for match results.</span>
+                      </span>
+                    </label>
+                    <div class="file-input-wrapper">
+                      <input type="text" id="match-output" class="output-file" placeholder="Click 'Save As' to choose location..." readonly>
+                      <button type="button" class="btn-save" data-target="match-output" data-default="match_results.tsv">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                        </svg>
+                        Save As
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                  </svg>
+                  <h3>Options</h3>
+                </div>
+                <div class="card-body">
+                  <div class="match-options-guide">
+                    <p><strong>Recommended for most runs:</strong> keep <em>Strict percentages</em> enabled for results consistent with previous analyses.</p>
+                    <p>Use advanced speed options only when you want faster runtime and can accept potential score changes.</p>
+                  </div>
+
+                  <div class="params-grid match-basic-grid">
+                    <div class="form-group form-group-full">
+                      <label class="checkbox-label">
+                        <input type="checkbox" id="match-strict-percentages" checked>
+                        Strict percentages (legacy-compatible) <span class="help-tooltip">?<span class="tooltip-content">Keeps the historical Shared_Kmer_Fraction behavior so percentages remain comparable with older reports. This is the safest mode for interpretation.</span></span>
+                      </label>
+                    </div>
+                    <div class="form-group">
+                      <label>K-mer Size <span class="help-tooltip">?<span class="tooltip-content">Length of k-mers used for read-to-reference comparison. Typical range is 21-31.</span></span></label>
+                      <input type="number" id="match-kmer" value="21" min="11" max="51">
+                    </div>
+                    <div class="form-group">
+                      <label>Threads <span class="help-tooltip">?<span class="tooltip-content">Number of CPU threads for matching. Leave empty to use automatic thread selection.</span></span></label>
+                      <input type="number" id="match-threads" placeholder="Auto" min="1">
+                    </div>
+                  </div>
+
+                  <details class="advanced-options-card">
+                    <summary>
+                      Advanced speed options (optional)
+                      <span class="help-tooltip">?<span class="tooltip-content">These options are applied only when Strict percentages is disabled.</span></span>
+                    </summary>
+                    <div class="advanced-options-body">
+                      <div class="params-grid match-advanced-grid">
+                        <div class="form-group">
+                          <label>Max Ref Freq (%) <span class="help-tooltip">?<span class="tooltip-content">Ignore query k-mers found in too many references. Higher filtering reduces noise and can speed up matching. Set 0 to disable.</span></span></label>
+                          <input type="text" inputmode="decimal" id="match-max-ref-freq" value="0" pattern="[0-9]*[.]?[0-9]+">
+                        </div>
+
+                        <div class="form-group">
+                          <label>Early-stop confidence <span class="help-tooltip">?<span class="tooltip-content">Stop exact scoring early once confidence threshold is reached. Set 0 to disable early-stop.</span></span></label>
+                          <input type="text" inputmode="decimal" id="match-early-stop-confidence" value="0" pattern="[0-9]*[.]?[0-9]+">
+                        </div>
+                        <div class="form-group">
+                          <label>Early-stop min k-mers <span class="help-tooltip">?<span class="tooltip-content">Minimum number of scored k-mers before early-stop can trigger.</span></span></label>
+                          <input type="number" id="match-early-stop-min-kmers" value="1000000" min="1">
+                        </div>
+                        <div class="form-group form-group-full">
+                          <label class="checkbox-label">
+                            <input type="checkbox" id="match-auto-tune" checked>
+                            Auto-tune speed params <span class="help-tooltip">?<span class="tooltip-content">Automatically tunes speed parameters based on FASTQ size and number of references.</span></span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </details>
+
+                  <div class="match-options-footnote">
+                    If you need strict reproducibility with old reports, keep <strong>Strict percentages</strong> enabled and leave advanced options untouched.
+                  </div>
+                  <button type="button" class="btn-defaults" data-tool="match">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                      <path d="M3 3v5h5"/>
+                    </svg>
+                    Default
+                  </button>
+                </div>
+              </div>
+            </div>
+          </form>
+
+          <!-- Results Viewer Panel -->
+          <div class="results-viewer hidden" id="match-results" data-category="utils">
+            <div class="results-viewer-header">
+              <div class="results-viewer-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                <h3>Results</h3>
+                <span class="results-viewer-path"></span>
+              </div>
+              <div class="results-viewer-actions">
+                <button class="btn-open-folder" title="Open in folder" aria-label="Open in folder">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                  </svg>
+                </button>
+                <button class="btn-fullscreen-results" title="Fullscreen" aria-label="Toggle fullscreen">
+                  <svg class="icon-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                  </svg>
+                  <svg class="icon-collapse hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 14h6v6m10-10h-6V4m0 6l7-7M3 21l7-7"/>
+                  </svg>
+                </button>
+                <button class="btn-close-results" title="Close" aria-label="Close results">&times;</button>
+              </div>
+            </div>
+            <div class="results-viewer-filter">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="m21 21-4.35-4.35"/>
+              </svg>
+              <input type="text" class="results-filter-input" placeholder="Search all columns...">
+              <span class="results-row-count"></span>
+            </div>
+            <div class="results-viewer-table">
+              <table>
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Button to reopen results -->
+          <button class="btn-show-results hidden" id="match-show-results">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 3h18v18H3z"/><path d="M3 9h18"/><path d="M9 21V9"/>
+            </svg>
+            View Results
+          </button>
+
+          <!-- Visualization Button -->
+          <button class="btn-visualize hidden" id="match-visualize-btn" data-category="utils">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 20V10"/>
+              <path d="M12 20V4"/>
+              <path d="M6 20v-6"/>
+            </svg>
+            Visualize
+          </button>
+
+          <!-- Visualization Panel -->
+          <div class="visualization-panel hidden" id="match-visualization" data-category="utils">
+            <div class="visualization-header">
+              <div class="visualization-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>
+                </svg>
+                <h3>Reference Match Distribution</h3>
+              </div>
+              <div class="visualization-actions">
+                <button class="btn-fullscreen-viz" title="Fullscreen" aria-label="Toggle fullscreen">
+                  <svg class="icon-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                  </svg>
+                  <svg class="icon-collapse hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 14h6v6m10-10h-6V4m0 6l7-7M3 21l7-7"/>
+                  </svg>
+                </button>
+                <button class="btn-close-viz" title="Close">&times;</button>
+              </div>
+            </div>
+            <div class="visualization-content">
+              <div class="chart-container">
+                <div class="chart-wrapper chart-donut">
+                  <canvas id="match-donut-chart" aria-label="Match results donut chart"></canvas>
+                </div>
+                <div class="chart-wrapper chart-bars">
+                  <canvas id="match-bar-chart" aria-label="Match results bar chart"></canvas>
+                </div>
+              </div>
+              <div class="chart-legend" id="match-chart-legend"></div>
+            </div>
+          </div>
+        </section>
+
+      <!-- Sticky Footer with Run Button -->
+      <footer class="sticky-footer" id="sticky-footer">
+        <button class="btn-console-toggle" id="btn-console-toggle">
+          <svg class="toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="4 17 10 11 4 5"/>
+            <line x1="12" y1="19" x2="20" y2="19"/>
+          </svg>
+          <span>Console</span>
+          <span class="console-badge" id="console-badge"></span>
+        </button>
+        <button class="btn-run" id="btn-run">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          <span>Run</span>
+        </button>
+      </footer>
+    </main>
+  </div>
+
+  <!-- Bottom Drawer Console -->
+  <div class="console-drawer" id="console-drawer">
+    <div class="console-drawer-header">
+      <div class="drawer-handle" id="drawer-handle"></div>
+      <div class="console-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="4 17 10 11 4 5"/>
+          <line x1="12" y1="19" x2="20" y2="19"/>
+        </svg>
+        <h3>Console Output</h3>
+      </div>
+      <div class="console-actions">
+        <button class="btn-clear" id="btn-clear-output">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg>
+          Clear
+        </button>
+        <button class="btn-close-drawer" id="btn-close-drawer">&times;</button>
+      </div>
+    </div>
+    <div class="console-content" id="output-content">
+      <p class="placeholder">Output will appear here...</p>
+    </div>
+  </div>
+
+  <!-- Drawer Backdrop -->
+  <div class="drawer-backdrop" id="drawer-backdrop"></div>
+
+  <!-- Results Modal -->
+  <div class="results-modal" id="results-modal">
+    <!-- Crystal Ball Animation Overlay -->
+    <div class="crystal-ball-overlay" id="crystal-ball-overlay">
+      <div class="crystal-ball">
+        <div class="crystal-ball-glow"></div>
+        <div class="crystal-ball-sphere">
+          <div class="crystal-ball-swirl"></div>
+          <div class="crystal-ball-sparkles">
+            <span></span><span></span><span></span>
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+        <div class="crystal-ball-base"></div>
+        <div class="crystal-ball-text">Revealing results...</div>
+      </div>
+    </div>
+
+    <div class="results-modal-content">
+      <div class="results-modal-header">
+        <h2>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+          Results
+        </h2>
+        <button class="btn-close-modal" id="btn-close-modal">&times;</button>
+      </div>
+
+      <!-- File Path Banner -->
+      <div class="results-path-banner">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+        <span id="results-path-display"></span>
+        <span class="results-excel-badge">+ Excel</span>
+      </div>
+
+      <div class="results-modal-body">
+        <div class="results-summary" id="results-summary">
+          <div class="summary-stats" id="summary-stats"></div>
+          <div class="summary-chart">
+            <canvas id="results-chart" aria-label="Results chart"></canvas>
+          </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="results-filter-bar">
+          <div class="filter-input-wrapper">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input type="text" id="results-filter" placeholder="Filter results..." autocomplete="off">
+            <button class="filter-clear-btn" id="filter-clear-btn" title="Clear filter">&times;</button>
+          </div>
+          <span class="filter-count" id="filter-count"></span>
+        </div>
+
+        <div class="results-table-wrapper">
+          <table class="results-table" id="results-table">
+            <thead id="results-thead"></thead>
+            <tbody id="results-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="results-modal-footer">
+        <span class="results-path" id="results-path"></span>
+        <button class="btn-open-file" id="btn-open-file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+          Open in Folder
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop" id="modal-backdrop"></div>
+
+  <!-- Scheme Lightbox -->
+  <div class="scheme-lightbox hidden" id="scheme-lightbox">
+    <div class="scheme-lightbox-backdrop"></div>
+    <img src="pathotypr_scheme.png" alt="Pathotypr Workflow Scheme" class="scheme-lightbox-img">
+    <button class="scheme-lightbox-close">&times;</button>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
