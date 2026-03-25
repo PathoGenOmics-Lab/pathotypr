@@ -1,346 +1,282 @@
 <p align="center">
-  <img src="logo/pathotypr.png" title="pathotypr.png logo" style="width:750px; height: auto;">
+  <img src="logo/pathotypr.png" alt="pathotypr logo" width="750" />
 </p>
 
 <div align="center">
 
-[![pathotypr](https://img.shields.io/badge/pathotypr-rust-%23ff8000?style=flat-square)](https://github.com/PathoGenOmics-Lab/pathotypr)
-[![License: GPL v3](https://img.shields.io/badge/license-GPL%20v3-%23af64d1?style=flat-square)](https://github.com/PathoGenOmics-Lab/pathotypr/blob/main/LICENSE) 
-[![Anaconda-Server Badge](https://img.shields.io/conda/dn/bioconda/get_mnv.svg?style=flat-square)](https://anaconda.org/bioconda/pathotypr)
-[![Anaconda-Version Badge](https://anaconda.org/bioconda/get_mnv/badges/version.svg)](https://anaconda.org/bioconda/pathotypr)
-[![DOI](https://img.shields.io/badge/doi-10.5281%2Fzenodo.13907423-%23ff0077?style=flat-square)](https://doi.org/10.5281/zenodo.13907423)
-[![PGO](https://img.shields.io/badge/PathoGenOmics-lab-red?style=flat-square)](https://github.com/PathoGenOmics-Lab)
+[![License: AGPL v3](https://img.shields.io/badge/license-AGPL%20v3-%23af64d1?style=flat-square)](LICENSE)
+[![DOI](https://img.shields.io/badge/doi-10.5281%2Fzenodo.19210044-%23ff0077?style=flat-square)](https://doi.org/10.5281/zenodo.19210044)
+[![Markers](https://img.shields.io/badge/markers-Zenodo%2019210044-%230072B2?style=flat-square)](https://zenodo.org/records/19210044)
 
+**Lineage classification and marker-driven genotyping — from assemblies or raw reads.**
 
+[Quick Start](#quick-start) · [Commands](#commands) · [GUI](#gui) · [Docs](docs/) · [Citation](#citation)
 
 </div>
 
-__Paula Ruiz-Rodriguez<sup>1</sup>__
-__and Mireia Coscolla<sup>1</sup>__
-<br>
-<sub> 1. Institute for Integrative Systems Biology, I<sup>2</sup>SysBio, University of Valencia-CSIC, Valencia, Spain </sub>
+---
 
-# pathotypr
+## What is pathotypr?
 
-**pathotypr** is a powerful and versatile command-line tool for high-speed genome classification and variant genotyping. It combines machine learning models with an advanced k-mer based engine to provide a comprehensive analysis toolkit.
+pathotypr is a Rust toolkit that classifies microbial genomes into lineages and genotypes them against user-defined marker panels. It works with both assembled genomes (FASTA) and raw sequencing reads (FASTQ), runs on a single laptop, and ships with a native desktop GUI.
 
-- 🎓 **train**: Build, train, and validate Random Forest models from your own FASTA sequences.
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="frontend/pathotypr_scheme-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="frontend/pathotypr_scheme.svg">
+    <img src="frontend/pathotypr_scheme.svg" alt="pathotypr workflow schema" width="1200" />
+  </picture>
+</p>
 
-- 🔮 **predict**: Classify new genomes using a pre-trained pathotypr model.
+**Five commands, one binary:**
 
-- 🧬 **classify**: Genotype known variants (SNPs, MNVs, Indels) in assembled genomes (FASTA) against a reference.
+| Command | What it does | Input |
+|---|---|---|
+| **`train`** | Build a Random Forest classifier from labeled genomes | FASTA |
+| **`predict`** | Assign lineages using a trained model | FASTA + model |
+| **`classify`** | Call known SNP markers in assemblies | FASTA + markers |
+| **`split-fastq`** | Alignment-free genotyping from reads | FASTQ + markers |
+| **`match`** | Find the closest reference genome | FASTQ + references |
 
-- ⚡ **split-fastq**: Perform ultra-fast, alignment-free genotyping of SNPs, MNVs, and both small and large structural variants (Indels/SVs) directly from raw FASTQ reads.
-
-- 🔎 **match**: Quickly find the best-matching reference genome for your raw sequencing reads from a collection of references in a multi-FASTA file.
-
-## Key Features
-- **Dynamic Variant Detection**: The `classify` and `split-fastq` modules can detect SNPs, MNVs, and Indels (including large SVs) using a flexible marker format.
-
-- **High-Speed & Alignment-Free**: The `split-fastq` and `match` engines operate directly on raw reads, bypassing the need for computationally expensive alignment.
-
-- **Flexible Input**: Process samples individually, in batches from the command line, or using a convenient sample list file (TSV format).
-
-- **Efficient & Parallel**: Optimized for performance using Rayon to leverage all available CPU cores by default.
-
-- **Unified Model Format**: The `train` command produces a single, portable file containing the model, configuration, and all necessary components for reproducible predictions.
-
-- **Robust Logging**: Clear, informative, and standardized logging across all modules.
+**Key features:**
+- 🦠 **Organism-agnostic** — bring your own markers for any pathogen
+- ⚡ **Fast** — Rust + SIMD gzip + parallel k-mers (~1–2 s per sample)
+- 🖥️ **Desktop GUI** — native app via Tauri, no server required
+- 📊 **Excel + TSV** output with interactive visualizations in the GUI
 
 ## Installation
 
+### Desktop GUI (pre-built)
+
+Download the latest release for your platform:
+
+| Platform | Download | Notes |
+|---|---|---|
+| 🍎 macOS (Apple Silicon) | [**Pathotypr_1.0.0_aarch64.dmg**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr_1.0.0_aarch64.dmg) | M1 / M2 / M3 / M4 Macs |
+| 🍎 macOS (Intel) | [**Pathotypr_1.0.0_x64.dmg**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr_1.0.0_x64.dmg) | Pre-2020 Macs |
+| 🐧 Linux (.deb) | [**Pathotypr_1.0.0_amd64.deb**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr_1.0.0_amd64.deb) | Debian / Ubuntu |
+| 🐧 Linux (.rpm) | [**Pathotypr-1.0.0-1.x86_64.rpm**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr-1.0.0-1.x86_64.rpm) | Fedora / RHEL |
+| 🐧 Linux (AppImage) | [**Pathotypr_1.0.0_amd64.AppImage**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr_1.0.0_amd64.AppImage) | Any distro, no install needed |
+| 🪟 Windows (installer) | [**Pathotypr_1.0.0_x64-setup.exe**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr_1.0.0_x64-setup.exe) | Windows 10+ |
+| 🪟 Windows (.msi) | [**Pathotypr_1.0.0_x64_en-US.msi**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr_1.0.0_x64_en-US.msi) | Windows 10+ (MSI) |
+
+> [!NOTE]
+> **macOS users**: The app is not signed with an Apple Developer certificate. On first launch, right-click the app → **Open** → click **Open** in the dialog. See [Apple support](https://support.apple.com/en-us/HT202491) for details.
+>
+> **Windows users**: Windows SmartScreen may show a warning for unrecognized apps. Click **More info** → **Run anyway** to proceed.
+
+All releases: [**Releases page**](https://github.com/PathoGenOmics-Lab/pathotypr/releases)
+
+### CLI (Bioconda)
+
 ```bash
-# Install via Conda
-conda create -n pathotypr
+conda create -n pathotypr -c bioconda pathotypr
 conda activate pathotypr
-conda install -c bioconda pathotypr
-
-# Or using Mamba (faster)
-mamba create -n pathotypr
-mamba activate pathotypr
-mamba install -c bioconda pathotypr
-
-# Or build from source
-git clone [https://github.com/PathoGenOmics-Lab/pathotypr.git](https://github.com/PathoGenOmics-Lab/pathotypr.git)
-cd pathotypr
-cargo build --release
+pathotypr --help
 ```
+
+### CLI (from source)
+
+```bash
+git clone https://github.com/PathoGenOmics-Lab/pathotypr.git
+cd pathotypr
+cargo build --release -p pathotypr-core --bin pathotypr
+./target/release/pathotypr --help
+```
+
+### GUI (from source)
+
+See [docs/gui.md](docs/gui.md) for building the Tauri desktop app from source.
+
+## MTBC Marker Files & Pre-trained Model
+
+Ready-to-use marker panels and a pre-trained Random Forest model for *Mycobacterium tuberculosis* complex (MTBC) are available on Zenodo:
+
+| File | Description | Download |
+|---|---|---|
+| `pathotypr_lineage_markers_v1.0.0.tsv` | 3,707 lineage SNPs (L1–L10, A1–A4) | [⬇ Download](https://zenodo.org/records/19210044/files/pathotypr_lineage_markers_v1.0.0.tsv?download=1) |
+| `pathotypr_dr_markers_v1.0.0.tsv` | 102,213 DR mutations (WHO catalogue 2021) | [⬇ Download](https://zenodo.org/records/19210044/files/pathotypr_dr_markers_v1.0.0.tsv?download=1) |
+| `pathotypr_rf_model_v1.0.0.pathotypr` | Pre-trained RF model (k=31, 100 trees) | [⬇ Download](https://zenodo.org/records/19210044/files/pathotypr_rf_model_v1.0.0.pathotypr?download=1) |
+
+> **DOI:** [10.5281/zenodo.19210044](https://zenodo.org/records/19210044)
+
 ## Quick Start
 
 ```bash
-# 1. Train a Random Forest model
-pathotypr train --input training_genomes.fasta --output my_species.model.gz
+# Train a lineage model
+pathotypr train -i labeled_genomes.fasta -o model.pathotypr.zst
 
-# 2. Predict the class of a new genome (with debug logging)
-pathotypr predict --input new_genome.fasta --model my_species.model.gz --output prediction.tsv -v
+# Predict lineages
+pathotypr predict -i query.fasta -m model.pathotypr.zst -o predictions.tsv
 
-# 3. Genotype variants in an assembled genome
-pathotypr classify --markers variants.tsv --reference ref.fasta --input my_genome.fasta --output-prefix classified_variants
+# Classify markers in assemblies
+pathotypr classify -m markers.tsv -r reference.fasta -i sample.fasta -o results
 
-# 4. Genotype variants directly from raw reads
-pathotypr split-fastq --markers variants.tsv --reference ref.fasta -i sample_R1.fq.gz -i sample_R2.fq.gz --paired --output-prefix sample_genotyping
+# Genotype from FASTQ reads
+pathotypr split-fastq -m markers.tsv -r reference.fasta \
+  -i reads_R1.fastq.gz -i reads_R2.fastq.gz --paired -o genotype
 
-# 5. Find the best matching reference for a set of reads
-pathotypr match --input sample_R1.fq.gz sample_R2.fq.gz --references all_references.fasta --output best_match_report.tsv
+# Find best reference match
+pathotypr match -i reads_R1.fastq.gz reads_R2.fastq.gz \
+  -r references.fasta -o match.tsv
 ```
 
-## Documentation
+Add `--excel` to any command to also generate `.xlsx` files.
 
-### 🎓 `train`
+## Commands
 
-Builds and trains a Random Forest model from a multifasta file where headers are in the format `Lineage_sequenceID`. The command produces a single, self-contained model file.
+Each command has its own detailed documentation:
 
-**Arguments**:
-| Option | Flag | Description | Default |
-| :--- | :--- | :--- | :--- |
-| --input | -i | Path to the input multifasta file. Headers must be in Lineage_sequenceID format. | Required |
-| --output | -o | Path for the unified output model file (e.g., my_model.pathotypr.gz). | Required |
-| --kmer-size | -k | The size of the k-mers to generate from sequences. | 21 |
-| --test-split | -s | Proportion of the data to use for the test set. | 0.2 (20%) |
-| --threads | -t | Number of CPU threads to use. | All available |
-| --verbose | -v | Set the verbosity level. Use -v for debug, -vv for trace. | Off |
+| Command | Docs | Summary |
+|---|---|---|
+| `train` | [docs/train.md](docs/train.md) | Random Forest on k-mer feature-hashed vectors |
+| `predict` | [docs/predict.md](docs/predict.md) | Streaming batch prediction with confidence scores |
+| `classify` | [docs/classify.md](docs/classify.md) | Marker k-mer matching + GFF annotation + masked FASTA |
+| `split-fastq` | [docs/split-fastq.md](docs/split-fastq.md) | Alignment-free genotyping with Bloom filter acceleration |
+| `match` | [docs/match.md](docs/match.md) | K-mer containment scoring against reference databases |
 
-**Usage**:
+Run `pathotypr <command> --help` for all options.
+
+### Algorithm Details
+
+For in-depth descriptions of the algorithms, data structures, and design decisions behind each module, see [docs/algorithms/](docs/algorithms/):
+
+| Document | Topic |
+|---|---|
+| [Feature Hashing](docs/algorithms/feature-hashing.md) | The hashing trick: k-mers → fixed-size sparse vectors |
+| [Random Forest](docs/algorithms/random-forest.md) | Sparse CART trees with bootstrap aggregation |
+| [Training Pipeline](docs/algorithms/training.md) | Vectorize → evaluate → train → OOB → export |
+| [Prediction](docs/algorithms/prediction.md) | Streaming batch prediction with majority voting |
+| [Marker Genotyping](docs/algorithms/marker-genotyping.md) | Diagnostic k-mers + Bloom filter for FASTQ scanning |
+| [Reference Matching](docs/algorithms/reference-matching.md) | K-mer containment scoring with streaming batches |
+| [Assembly Classification](docs/algorithms/assembly-classification.md) | Marker calling on FASTA with GFF annotation |
+
+## Input Formats
+
+### Training FASTA
+
+The first token in each header is the class label:
+
+```
+>L4 sample_0001
+ACTG...
+>L2 sample_0002
+ACTG...
+```
+
+### Marker TSV
+
+Tab-separated: `position  REF  ALT  level1  [level2  ...]`
+
+```
+#pos    ref    alt    level1    level2
+761155  C      T      L4        L4.9
+2155168 G      A      L2        L2.2
+```
+
+Lineage columns are read until the first empty cell. Columns after the empty cell are treated as annotations.
+
+> See [docs/input-formats.md](docs/input-formats.md) for full format specifications.
+
+## GUI
+
+The desktop app includes all five workflows with drag-and-drop file selection, interactive result tables, and real-time progress indicators.
+
 ```bash
-pathotypr train \
-  --input <FASTA> \
-  --output <MODEL_FILE> \
-  [OPTIONS]
-```
-### 🔮 `predict`
+# Development
+cargo tauri dev
 
-Classifies new genomes using a model file generated by `train`.
-
-**Arguments**:
-| Option | Flag | Description | Default |
-| :--- | :--- | :--- | :--- |
-| --input | -i | Path to the input FASTA file containing sequences to classify. | Required |
-| --model | -m | Path to the unified model file created by the train command. | Required |
-| --output | -o | Path for the output file where predictions will be written in TSV format. | Required |
-| --threads | -t | Number of CPU threads to use. | All available |
-| --verbose | -v | Set the verbosity level. Use -v for debug, -vv for trace. | Off |
-
-**Usage**:
-```bash
-pathotypr predict \
-  --input <FASTA> \
-  --model <MODEL_FILE> \
-  --output <PREDICTIONS_TSV> \
-  [OPTIONS]
+# Production build
+cargo tauri build
 ```
 
-### 🔎 `match`
-Finds the best matching reference genome for a set of FASTQ reads by comparing them against a collection of references in a multi-FASTA file. It calculates a weighted k-mer containment score to determine similarity.
+> See [docs/gui.md](docs/gui.md) for system dependencies and build instructions.
 
-**Arguments**:
-| Option | Flag | Description | Default |
-| :--- | :--- | :--- | :--- |
-| --input | -i | One or more FASTQ files to analyze. | One input required |
-| --input-list | -l | Path to a TSV file listing FASTQ files (name\tpath1[\tpath2...]). | One input required |
-| --references | -r | Path to a single multi-FASTA file containing all reference genomes. | Required |
-| --output | -o | Path for the output TSV report. Prints to console if not provided. | Optional |
-| --kmer-size | -k | The size of the k-mers to use for comparison. | 31 |
-| --threads | -t | Number of CPU threads to use. | All available |
-| --verbose | -v | Set the verbosity level. Use -v for debug, -vv for trace. | Off |
+## Performance
 
-**Usage**:
-```bash
-pathotypr match \
-  --input <READS_1.FQ> <READS_2.FQ> \
-  --references <MULTI_FASTA_REFS> \
-  --output <BEST_MATCH_REPORT.tsv> \
-  [OPTIONS]
-```
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="benchmarks/figures/dashboard-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="benchmarks/figures/dashboard.png">
+    <img src="benchmarks/figures/dashboard.png" alt="pathotypr performance benchmarks" width="900" />
+  </picture>
+</p>
 
-### 🧬 `classify` & ⚡ `split-fastq`
-These two modules share a powerful, dynamic variant detection engine but operate on different inputs.
+Benchmarked on real *M. tuberculosis* genomes (~4.4 Mb, k=21), Mac mini M4, 4 threads:
 
-- `classify`: Works on assembled genomes (FASTA).
-- `split-fastq`: Works on raw sequencing reads (FASTQ).
+| Module | Time | Peak RAM | Key property |
+|---|---|---|---|
+| **train** (10 genomes) | 0.6 s | 302 MB | Scales with dataset size |
+| **train** (50 genomes) | 55 s | 1.4 GB | |
+| **predict** (5 genomes) | 0.25 s | 198 MB | ~50 ms/genome, constant |
+| **classify** (5 genomes) | 0.10 s | 92 MB | ~20 ms/genome |
+| **split-fastq** (65× PE) | 10.5 s | 26 MB | **Constant memory** |
+| **match** (20 refs) | 78 s | 4.6 GB | Streaming batches |
 
-#### Marker File Format
-Both commands use the same flexible TSV format for defining variants:
-`position <tab> REF <tab> ALT <tab> marker_name <tab> [optional_annotations...]`
+- **SIMD-accelerated** gzip decompression (zlib-ng)
+- **Streaming** I/O — split-fastq holds 26 MB regardless of input size
+- **85,000+ genomes/second** prediction throughput (synthetic benchmarks)
 
-- `position`: 1-based chromosomal position.
-- `REF`: The reference allele sequence.
-- `ALT`: The alternate allele sequence.
-- `marker_name`: The name of the marker/lineage.
-- `[optional_annotations...]`: Any additional columns, which will be appended to the output file.
+> See [docs/benchmarks.md](docs/benchmarks.md) for detailed charts, scaling plots, and pathotypr vs fastlin comparison.
 
-**Example** `markers.tsv`:
-```text
-#pos     ref   alt   marker              annotation
-761109  G     T     rpoB_p.Asp435Tyr    DrugResistance
-761109  GAC   TAT   rpoB_p.Asp435Tyr    DrugResistance
-2155162 C     CAT   katG_p.Ser315Thr    Compensatory
-987654  TGC.. T     LargeDeletion_1     StructuralVariant
-```
+## Comparison
 
-#### 🧬 `classify`
- Genotype known variants (SNPs, MNVs, Indels) in assembled genomes (FASTA) against a reference.
-
-**Arguments**:
-| Option | Flag | Description | Default |
-| :--- | :--- | :--- | :--- |
-| --markers | -m | Path to the marker definition file (TSV format). | Required |
-| --reference | -r | Path to the reference genome FASTA file. | Required |
-| --output-prefix| -o | Prefix for the output files. | Required |
-| --input | -i | Path to a multifasta file containing genomes to analyze. | One input required |
-| --input-list | -l | Path to a TSV file listing genomes (name\tfasta_path[\tgff_path]). | One input required |
-| --gff | | Optional GFF file for annotation when using --input. | Optional |
-| --kmer-size | -k | The size of the diagnostic k-mers to use. | 21 |
-| --threads | -t | Number of CPU threads to use. | All available |
-| --verbose | -v | Set the verbosity level. Use -v for debug, -vv for trace. | Off |
-
-**Usage**:
-```bash
-pathotypr classify \
-  --markers <MARKERS_TSV> \
-  --reference <REF_FASTA> \
-  --output-prefix <PREFIX> \
-  --input <GENOME_FASTA> \
-  [OPTIONS]
-```
-#### Functional Annotation with GFF
-The classify command can translate SNPs into amino acid changes if provided with a GFF3 annotation file.
-
-How to provide GFF files:
-- For a single FASTA input (`--input`): Use the `--gff` flag to specify a single GFF file that corresponds to the sequences in the FASTA file.
-- For multiple genomes via a list (`--input-list`): Add a third, optional column to your TSV file containing the path to the corresponding GFF file for each genome.
-
-Example `input-list.tsv`:
-```bash
-SampleA   path/to/sampleA.fasta   path/to/sampleA.gff3
-SampleB   path/to/sampleB.fasta   path/to/sampleB.gff3
-SampleC   path/to/sampleC.fasta   # No GFF for this sample
-```
-Output Columns:
-When annotation is performed, the output file will contain three additional columns:
-
-- `Gene`: The ID of the gene where the SNP is located.
-- `AA_Pos`: The position of the amino acid within the gene.
-- `AA_Change`: The resulting amino acid (using 3-letter code).
-
-Example Output:
-```bash
-genome           k-mer                   k-merPOS  SNPgenome  SNPreference  lineage  Gene    AA_Pos  AA_Change
-G0000_contig_1   GGCGGCGCCGCCTGGGTGGAG   1854184   1854194    1859559       L4       Rv1649  276     Gly
-G0000_contig_1   GACCCCGAGGCCCGGGCCGGC   4296504   4296514    4313128       L4       gyrA    95      Ser
-```
-
-#### ⚡ `split-fastq`
-Perform ultra-fast, alignment-free genotyping of SNPs, MNVs, and both small and large structural variants (Indels/SVs) directly from raw FASTQ reads.
-
-**Arguments**:
-| Option | Flag | Description | Default |
-| :--- | :--- | :--- | :--- |
-| --markers | -m | Path to the marker definition file (TSV format). | Required |
-| --reference | -r | Path to the reference genome FASTA file. | Required |
-| --output-prefix| -o | Prefix for all output files. | split |
-| --input | -i | One or more FASTQ files to process. | One input required |
-| --input-list | -l | Path to a TSV file listing samples and their FASTQ files. | One input required |
-| --paired | | Flag to treat input files as paired-end, grouped in pairs. | false |
-| --min-depth | | Minimum read depth required to call a variant. | 10 |
-| --min-alt-percent| | Minimum frequency of the alternate allele to call a variant (%). | 95 |
-| --threads | -t | Number of CPU threads to use. | All available |
-| --verbose | -v | Set the verbosity level. Use -v for debug, -vv for trace. | Off |
-
-**Usage**:
-```bash
-pathotypr split-fastq \
-  --markers <MARKERS_TSV> \
-  --reference <REF_FASTA> \
-  --output-prefix <PREFIX> \
-  -i <READS_1.FQ> -i <READS_2.FQ> --paired \
-  [OPTIONS]
-```
+| | pathotypr | fastlin | TB-Profiler | Mykrobe | SNP-IT | KvarQ |
+|---|---|---|---|---|---|---|
+| Alignment-free (FASTQ) | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ |
+| Assemblies (FASTA) | ✅ | ✅ | ❌ | ❌ | VCF only | ❌ |
+| Custom markers | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| ML training | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ |
+| DR prediction | ✅ | ❌ | ✅ | ✅ | ❌ | ✅ |
+| Desktop GUI | ✅ | ❌ | Web | ✅ | ❌ | ✅ |
+| Standalone binary | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Organism-agnostic | ✅ | TB only | TB only | Limited | TB only | TB only |
+| Speed (per sample) | ~1 s | <5 s | 3–10 min | ~3 min | 1–2 min | ~2 min |
 
 ## Project Structure
 
 ```
 pathotypr/
-├── src/
-│   ├── main.rs                 # CLI handling and dispatch
-│   ├── errors.rs               # Custom error types
-│   ├── common.rs               # Shared code (model bundle, etc.)
-│   ├── train.rs                # `train` subcommand logic
-│   ├── predict.rs              # `predict` subcommand logic
-│   ├── match.rs                # `match` subcommand logic
-│   ├── classify.rs             # `classify` subcommand logic
-│   ├── classify_split_fastq.rs # `split-fastq` subcommand logic
-│   └── split_kmer.rs           # Core dynamic k-mer engine
-└── Cargo.toml
-
+├── pathotypr-core/           # Core library + CLI
+│   └── src/
+│       ├── main.rs           # CLI entry point
+│       ├── train.rs          # Random Forest training + OOB + CV
+│       ├── predict.rs        # Streaming batch prediction
+│       ├── classify/         # Assembly-based marker classification
+│       │   ├── mod.rs        #   Orchestration + genome analysis
+│       │   ├── markers.rs    #   Marker parsing + k-mer generation
+│       │   ├── annotation.rs #   GFF parsing + AA translation
+│       │   └── masking.rs    #   FASTA masking at marker sites
+│       ├── classify_split_fastq.rs  # FASTQ genotyping orchestration
+│       ├── split_kmer.rs     # Diagnostic k-mer engine + Bloom filter
+│       ├── match/            # Reference matching
+│       │   ├── mod.rs        #   Scoring + coarse-to-fine matching
+│       │   └── index.rs      #   Compact inverted index + cache
+│       ├── sparse_tree.rs    # Custom CART on sparse vectors
+│       ├── vectorizer.rs     # Feature hashing (hashing trick)
+│       ├── model.rs          # Model bundle + label encoder
+│       ├── lineage.rs        # Hierarchical lineage classification
+│       ├── fasta_io.rs       # FASTA reading (needletail)
+│       ├── paired_end.rs     # Paired-end FASTQ detection
+│       ├── excel.rs          # Streaming Excel export
+│       ├── errors.rs         # Error types + cancellation
+│       └── common.rs         # Thread pool + shared utilities
+├── src-tauri/                # Desktop app backend (Tauri)
+├── frontend/                 # GUI (HTML/CSS/JS)
+├── docs/                     # Detailed documentation
+└── logo/                     # Branding assets
 ```
 
-## Key Dependencies
+## Citation
 
-- 🎯 `clap`: CLI parsing
-- 🤖 `smartcore`: Machine learning
-- ⚡ `rayon`: Parallel processing
-- 🧬 `needletail`: High-speed FASTA/Q parsing
-- 🗃️ `serde`: Serialization
+If you use pathotypr, please cite:
 
-## Contributing
+> Ruiz-Rodriguez P, Coscollá M. Pathotypr: harmonised MTBC lineage assignment and resistance-associated variant detection for genomic surveillance. *bioRxiv* (2026).
+>
+> Software DOI: [10.5281/zenodo.19210044](https://doi.org/10.5281/zenodo.19210044)
+>
+> Marker files DOI: [10.5281/zenodo.19210044](https://zenodo.org/records/19210044)
 
-1. Fork the repository
-2. Create a feature branch
-3. Submit a pull request
+## License
 
-## Acknowledgments
-
-- SmartCore team
-- Rust Bioinformatics community
-- Crate maintainers
-
----
-<h2 id="contributors" align="center">
-
-✨ [Contributors]((https://github.com/PathoGenOmics-Lab/AMAP/graphs/contributors))
-</h2>
-
-<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
-<!-- prettier-ignore-start -->
-<!-- markdownlint-disable -->
-<div align="center">
-pathotypr is developed with ❤️ by:
-<table>
-  <tr>
-    <td align="center">
-      <a href="https://github.com/paururo">
-        <img src="https://avatars.githubusercontent.com/u/50167687?v=4&s=100" width="100px;" alt=""/>
-        <br />
-        <sub><b>Paula Ruiz-Rodriguez</b></sub>
-      </a>
-      <br />
-      <a href="" title="Code">💻</a>
-      <a href="" title="Research">🔬</a>
-      <a href="" title="Ideas">🤔</a>
-      <a href="" title="Data">🔣</a>
-      <a href="" title="Desing">🎨</a>
-      <a href="" title="Tool">🔧</a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/mireiacoscolla">
-        <img src="https://avatars.githubusercontent.com/u/29301737?v=4&s=100" width="100px;" alt=""/>
-        <br />
-        <sub><b>Mireia Coscolla</b></sub>
-      </a>
-      <br />
-      <a href="https://www.uv.es/instituto-biologia-integrativa-sistemas-i2sysbio/es/investigacion/proyectos/proyectos-actuales/mol-tb-host-1286169137294/ProjecteInves.html?id=1286289780236" title="Funding/Grant Finders">🔍</a>
-      <a href="" title="Ideas">🤔</a>
-      <a href="" title="Mentoring">🧑‍🏫</a>
-      <a href="" title="Research">🔬</a>
-      <a href="" title="User Testing">📓</a>
-    </td>
-  </tr>
-</table>
-
-This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification ([emoji key](https://allcontributors.org/docs/en/emoji-key)).
-
-<!-- markdownlint-restore -->
-<!-- prettier-ignore-end -->
-
-<!-- ALL-CONTRIBUTORS-LIST:END -->
----
+[GNU Affero General Public License v3.0](LICENSE)
