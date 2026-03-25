@@ -1,0 +1,3708 @@
+position	ref_base	alt_base	lineage1	lineage2	lineage3	lineage4	lineage5
+595	C	A	A1	Chimp			
+2751	G	A	A1	Chimp			
+3150	C	G	A1	Chimp			
+6989	G	T	A1	Chimp			
+21183	A	G	A1	Chimp			
+46612	G	C	A1	Chimp			
+50451	G	C	A1	Chimp			
+69820	C	G	A1	Chimp			
+81374	T	C	A1	Chimp			
+97365	A	G	A1	Chimp			
+98706	C	T	A1	Chimp			
+98945	A	G	A1	Chimp			
+108111	C	T	A1	Chimp			
+146309	G	T	A1	Chimp			
+146957	A	G	A1	Chimp			
+170358	T	A	A1	Chimp			
+171065	C	T	A1	Chimp			
+186623	C	T	A1	Chimp			
+193355	G	T	A1	Chimp			
+193684	G	A	A1	Chimp			
+194211	C	T	A1	Chimp			
+200655	C	A	A1	Chimp			
+203152	A	G	A1	Chimp			
+233936	C	T	A1	Chimp			
+250499	G	T	A1	Chimp			
+258039	C	T	A1	Chimp			
+270888	G	T	A1	Chimp			
+312505	T	C	A1	Chimp			
+352067	A	G	A1	Chimp			
+365687	C	T	A1	Chimp			
+381810	C	G	A1	Chimp			
+388954	C	T	A1	Chimp			
+440144	G	A	A1	Chimp			
+454959	C	T	A1	Chimp			
+464701	G	T	A1	Chimp			
+470713	A	G	A1	Chimp			
+485086	G	T	A1	Chimp			
+489143	C	A	A1	Chimp			
+494262	G	T	A1	Chimp			
+517679	T	G	A1	Chimp			
+522543	A	G	A1	Chimp			
+540443	C	A	A1	Chimp			
+542782	G	C	A1	Chimp			
+552378	G	A	A1	Chimp			
+556576	C	T	A1	Chimp			
+559157	T	C	A1	Chimp			
+560372	G	A	A1	Chimp			
+574054	A	G	A1	Chimp			
+589591	A	G	A1	Chimp			
+598026	C	G	A1	Chimp			
+635645	C	A	A1	Chimp			
+638092	G	C	A1	Chimp			
+662066	G	A	A1	Chimp			
+665370	G	A	A1	Chimp			
+669508	C	G	A1	Chimp			
+682522	G	T	A1	Chimp			
+694996	G	A	A1	Chimp			
+703419	G	A	A1	Chimp			
+716413	G	T	A1	Chimp			
+716635	G	C	A1	Chimp			
+726595	G	T	A1	Chimp			
+737854	A	G	A1	Chimp			
+766044	A	C	A1	Chimp			
+779682	C	T	A1	Chimp			
+820424	C	T	A1	Chimp			
+842975	G	T	A1	Chimp			
+856926	T	G	A1	Chimp			
+862991	G	T	A1	Chimp			
+865234	G	A	A1	Chimp			
+866192	A	C	A1	Chimp			
+876243	G	T	A1	Chimp			
+886939	T	C	A1	Chimp			
+939548	C	G	A1	Chimp			
+943569	A	G	A1	Chimp			
+943600	T	C	A1	Chimp			
+956845	G	C	A1	Chimp			
+957102	G	C	A1	Chimp			
+962866	G	A	A1	Chimp			
+972549	T	G	A1	Chimp			
+974452	A	C	A1	Chimp			
+981977	G	C	A1	Chimp			
+1022369	C	T	A1	Chimp			
+1022370	C	T	A1	Chimp			
+1032494	A	G	A1	Chimp			
+1036715	C	T	A1	Chimp			
+1075692	C	T	A1	Chimp			
+1083862	G	T	A1	Chimp			
+1132009	G	A	A1	Chimp			
+1141688	C	G	A1	Chimp			
+1157141	A	G	A1	Chimp			
+1158019	C	T	A1	Chimp			
+1171730	C	G	A1	Chimp			
+1182175	A	C	A1	Chimp			
+1192975	G	C	A1	Chimp			
+1202045	G	C	A1	Chimp			
+1265125	C	T	A1	Chimp			
+1271131	A	C	A1	Chimp			
+1291782	G	A	A1	Chimp			
+1315039	C	G	A1	Chimp			
+1318421	T	C	A1	Chimp			
+1323278	A	G	A1	Chimp			
+1326057	C	G	A1	Chimp			
+1326485	C	A	A1	Chimp			
+1330858	G	A	A1	Chimp			
+1332156	C	T	A1	Chimp			
+1337353	G	T	A1	Chimp			
+1338110	A	G	A1	Chimp			
+1355643	T	G	A1	Chimp			
+1362267	A	G	A1	Chimp			
+1377965	G	A	A1	Chimp			
+1436966	G	A	A1	Chimp			
+1478800	C	A	A1	Chimp			
+1498028	C	T	A1	Chimp			
+1500919	A	G	A1	Chimp			
+1504879	G	T	A1	Chimp			
+1513130	T	G	A1	Chimp			
+1522403	G	T	A1	Chimp			
+1522462	G	A	A1	Chimp			
+1525861	G	A	A1	Chimp			
+1529414	C	G	A1	Chimp			
+1534731	G	C	A1	Chimp			
+1550195	G	A	A1	Chimp			
+1582718	G	C	A1	Chimp			
+1600072	G	A	A1	Chimp			
+1604362	C	A	A1	Chimp			
+1608098	C	A	A1	Chimp			
+1611669	A	G	A1	Chimp			
+1624426	C	G	A1	Chimp			
+1625967	C	G	A1	Chimp			
+1641043	C	T	A1	Chimp			
+1648442	A	G	A1	Chimp			
+1659505	A	G	A1	Chimp			
+1679770	T	C	A1	Chimp			
+1704912	G	T	A1	Chimp			
+1738305	C	A	A1	Chimp			
+1746355	G	A	A1	Chimp			
+1760820	T	C	A1	Chimp			
+1817967	G	C	A1	Chimp			
+1834833	A	G	A1	Chimp			
+1868451	C	G	A1	Chimp			
+1882728	C	T	A1	Chimp			
+1886562	G	T	A1	Chimp			
+1889725	C	T	A1	Chimp			
+1891015	A	C	A1	Chimp			
+1892042	G	T	A1	Chimp			
+1906502	C	T	A1	Chimp			
+1916795	T	G	A1	Chimp			
+1926093	C	T	A1	Chimp			
+1936062	C	T	A1	Chimp			
+1940053	C	G	A1	Chimp			
+1944390	C	A	A1	Chimp			
+1945082	C	T	A1	Chimp			
+1951452	C	T	A1	Chimp			
+1959204	A	G	A1	Chimp			
+1968300	G	A	A1	Chimp			
+1970385	G	A	A1	Chimp			
+1972826	A	G	A1	Chimp			
+2016479	C	T	A1	Chimp			
+2031349	T	A	A1	Chimp			
+2078476	G	A	A1	Chimp			
+2085241	T	C	A1	Chimp			
+2086953	A	G	A1	Chimp			
+2087274	T	C	A1	Chimp			
+2087383	C	A	A1	Chimp			
+2093358	G	A	A1	Chimp			
+2103015	G	T	A1	Chimp			
+2105051	G	A	A1	Chimp			
+2115918	A	G	A1	Chimp			
+2117192	G	T	A1	Chimp			
+2124258	T	G	A1	Chimp			
+2125725	A	G	A1	Chimp			
+2145791	G	T	A1	Chimp			
+2148179	T	C	A1	Chimp			
+2156412	G	A	A1	Chimp			
+2160297	A	C	A1	Chimp			
+2172872	A	C	A1	Chimp			
+2174412	G	C	A1	Chimp			
+2175688	G	T	A1	Chimp			
+2221167	C	T	A1	Chimp			
+2222128	T	C	A1	Chimp			
+2247387	T	G	A1	Chimp			
+2252411	T	C	A1	Chimp			
+2252995	G	A	A1	Chimp			
+2253444	T	G	A1	Chimp			
+2269240	G	T	A1	Chimp			
+2273727	G	C	A1	Chimp			
+2279997	G	A	A1	Chimp			
+2281727	C	G	A1	Chimp			
+2284376	G	A	A1	Chimp			
+2288899	G	A	A1	Chimp			
+2317452	T	C	A1	Chimp			
+2388835	G	A	A1	Chimp			
+2395626	G	A	A1	Chimp			
+2428858	T	C	A1	Chimp			
+2433734	C	T	A1	Chimp			
+2440829	C	G	A1	Chimp			
+2498465	G	A	A1	Chimp			
+2532298	G	T	A1	Chimp			
+2538710	A	G	A1	Chimp			
+2547636	T	C	A1	Chimp			
+2552728	C	T	A1	Chimp			
+2556998	A	T	A1	Chimp			
+2562191	G	A	A1	Chimp			
+2580669	G	C	A1	Chimp			
+2593936	A	C	A1	Chimp			
+2602146	G	C	A1	Chimp			
+2615377	C	A	A1	Chimp			
+2624499	G	A	A1	Chimp			
+2627207	C	T	A1	Chimp			
+2654880	C	T	A1	Chimp			
+2690229	G	T	A1	Chimp			
+2799788	T	C	A1	Chimp			
+2826834	T	C	A1	Chimp			
+2831260	A	G	A1	Chimp			
+2833126	A	T	A1	Chimp			
+2872542	C	T	A1	Chimp			
+2882079	A	G	A1	Chimp			
+2899113	C	T	A1	Chimp			
+2911429	C	T	A1	Chimp			
+2951250	G	A	A1	Chimp			
+2954226	G	T	A1	Chimp			
+2957361	G	A	A1	Chimp			
+2959750	G	T	A1	Chimp			
+2962905	C	G	A1	Chimp			
+2963065	G	A	A1	Chimp			
+2981166	G	C	A1	Chimp			
+2984344	T	C	A1	Chimp			
+2985570	G	C	A1	Chimp			
+3003549	G	C	A1	Chimp			
+3014362	T	G	A1	Chimp			
+3021738	T	C	A1	Chimp			
+3027495	T	C	A1	Chimp			
+3036348	G	A	A1	Chimp			
+3043441	C	G	A1	Chimp			
+3053617	A	G	A1	Chimp			
+3090551	C	A	A1	Chimp			
+3105126	G	T	A1	Chimp			
+3128761	G	A	A1	Chimp			
+3139063	G	T	A1	Chimp			
+3142150	A	C	A1	Chimp			
+3153427	A	C	A1	Chimp			
+3154992	T	C	A1	Chimp			
+3158069	C	T	A1	Chimp			
+3237688	A	G	A1	Chimp			
+3238357	C	A	A1	Chimp			
+3312466	G	A	A1	Chimp			
+3312762	G	A	A1	Chimp			
+3316784	G	T	A1	Chimp			
+3368744	T	C	A1	Chimp			
+3388221	A	G	A1	Chimp			
+3390329	C	A	A1	Chimp			
+3398580	A	G	A1	Chimp			
+3420925	G	A	A1	Chimp			
+3425611	T	C	A1	Chimp			
+3439408	G	T	A1	Chimp			
+3442044	G	T	A1	Chimp			
+3447598	G	A	A1	Chimp			
+3451674	T	G	A1	Chimp			
+3463869	A	G	A1	Chimp			
+3492468	C	A	A1	Chimp			
+3513596	T	C	A1	Chimp			
+3530777	C	T	A1	Chimp			
+3574662	T	C	A1	Chimp			
+3577358	C	T	A1	Chimp			
+3596478	C	T	A1	Chimp			
+3602581	G	T	A1	Chimp			
+3606331	A	C	A1	Chimp			
+3610571	T	G	A1	Chimp			
+3642791	G	T	A1	Chimp			
+3661931	G	T	A1	Chimp			
+3670850	C	A	A1	Chimp			
+3705299	G	C	A1	Chimp			
+3835586	C	G	A1	Chimp			
+3850524	C	T	A1	Chimp			
+3853510	T	C	A1	Chimp			
+3868427	G	T	A1	Chimp			
+3872261	C	T	A1	Chimp			
+3960837	G	A	A1	Chimp			
+3967576	T	A	A1	Chimp			
+3990933	C	A	A1	Chimp			
+4003514	C	G	A1	Chimp			
+4022632	C	T	A1	Chimp			
+4039304	C	A	A1	Chimp			
+4048722	C	T	A1	Chimp			
+4053697	C	G	A1	Chimp			
+4069381	C	G	A1	Chimp			
+4081601	G	A	A1	Chimp			
+4088428	T	A	A1	Chimp			
+4099920	G	A	A1	Chimp			
+4102934	A	T	A1	Chimp			
+4104272	C	A	A1	Chimp			
+4113436	G	C	A1	Chimp			
+4124625	C	T	A1	Chimp			
+4129675	G	A	A1	Chimp			
+4153474	C	A	A1	Chimp			
+4180473	C	A	A1	Chimp			
+4180997	A	G	A1	Chimp			
+4234212	C	A	A1	Chimp			
+4258466	G	T	A1	Chimp			
+4286406	G	A	A1	Chimp			
+4293652	T	C	A1	Chimp			
+4293853	G	A	A1	Chimp			
+4305582	G	T	A1	Chimp			
+4306426	C	A	A1	Chimp			
+4343278	G	A	A1	Chimp			
+4345372	G	C	A1	Chimp			
+4350207	C	T	A1	Chimp			
+4364610	C	A	A1	Chimp			
+4366144	G	A	A1	Chimp			
+4366495	G	T	A1	Chimp			
+4380520	G	C	A1	Chimp			
+4382803	G	A	A1	Chimp			
+4385488	G	A	A1	Chimp			
+4399000	T	G	A1	Chimp			
+43001	G	A	A1	dassie	M_suricattae		
+43002	G	A	A1	dassie	M_suricattae		
+52019	G	C	A1	dassie	M_suricattae		
+54950	T	A	A1	dassie	M_suricattae		
+58730	G	C	A1	dassie	M_suricattae		
+64410	C	A	A1	dassie	M_suricattae		
+66329	C	A	A1	dassie			
+99985	A	C	A1	dassie			
+129221	G	C	A1	dassie	M_suricattae		
+134877	A	C	A1	dassie	M_suricattae		
+137359	C	A	A1	dassie	M_suricattae		
+148642	G	T	A1	dassie			
+154608	C	A	A1	dassie			
+175788	T	C	A1	dassie	M_suricattae		
+185695	T	C	A1	dassie			
+205044	T	C	A1	dassie	M_suricattae		
+217208	A	C	A1	dassie	M_suricattae		
+233208	C	A	A1	dassie	M_suricattae		
+277130	T	A	A1	dassie	M_suricattae		
+297814	G	C	A1	dassie	M_suricattae		
+300545	C	T	A1	dassie			
+305032	G	A	A1	dassie	M_suricattae		
+327512	A	G	A1	dassie	M_suricattae		
+353150	C	T	A1	dassie	M_suricattae		
+360516	G	T	A1	dassie	M_suricattae		
+365651	A	G	A1	dassie	M_suricattae		
+378264	G	A	A1	dassie			
+378525	G	T	A1	dassie	M_suricattae		
+397515	G	A	A1	dassie	M_suricattae		
+406927	G	A	A1	dassie	M_suricattae		
+446342	C	A	A1	dassie	M_suricattae		
+455991	G	C	A1	dassie	M_suricattae		
+461644	G	A	A1	dassie	M_suricattae		
+478006	G	C	A1	dassie	M_suricattae		
+482007	T	C	A1	dassie			
+491904	G	C	A1	dassie	M_suricattae		
+495567	G	A	A1	dassie	M_suricattae		
+498747	G	T	A1	dassie	M_suricattae		
+518748	G	C	A1	dassie			
+620480	T	G	A1	dassie	M_suricattae		
+627228	C	T	A1	dassie	M_suricattae		
+644221	C	T	A1	dassie	M_suricattae		
+659170	C	T	A1	dassie			
+669490	C	T	A1	dassie	M_suricattae		
+679293	C	A	A1	dassie	M_suricattae		
+686385	T	G	A1	dassie	M_suricattae		
+702476	G	T	A1	dassie	M_suricattae		
+714239	A	C	A1	dassie	M_suricattae		
+716069	T	G	A1	dassie	M_suricattae		
+730718	G	C	A1	dassie	M_suricattae		
+770650	G	C	A1	dassie	M_suricattae		
+799810	C	G	A1	dassie	M_suricattae		
+803261	A	G	A1	dassie	M_suricattae		
+809196	T	C	A1	dassie	M_suricattae		
+817173	T	G	A1	dassie	M_suricattae		
+843498	G	A	A1	dassie	M_suricattae		
+853542	G	A	A1	dassie	M_suricattae		
+854407	C	T	A1	dassie	M_suricattae		
+875283	C	G	A1	dassie	M_suricattae		
+896103	G	A	A1	dassie			
+911000	A	G	A1	dassie	M_suricattae		
+914950	G	T	A1	dassie			
+934834	T	G	A1	dassie	M_suricattae		
+936536	C	T	A1	dassie	M_suricattae		
+936996	C	A	A1	dassie	M_suricattae		
+985866	G	T	A1	dassie	M_suricattae		
+992942	G	T	A1	dassie	M_suricattae		
+993976	G	C	A1	dassie	M_suricattae		
+1000466	A	C	A1	dassie			
+1017630	C	T	A1	dassie			
+1022505	C	T	A1	dassie	M_suricattae		
+1024976	G	T	A1	dassie	M_suricattae		
+1036246	C	A	A1	dassie			
+1039451	A	G	A1	dassie	M_suricattae		
+1053126	G	A	A1	dassie	M_suricattae		
+1055562	C	A	A1	dassie	M_suricattae		
+1082649	T	C	A1	dassie	M_suricattae		
+1119399	G	A	A1	dassie	M_suricattae		
+1147409	G	T	A1	dassie	M_suricattae		
+1224428	C	A	A1	dassie	M_suricattae		
+1229774	C	T	A1	dassie			
+1266365	C	T	A1	dassie			
+1272753	C	T	A1	dassie			
+1279961	G	C	A1	dassie	M_suricattae		
+1286034	T	C	A1	dassie	M_suricattae		
+1322762	A	T	A1	dassie	M_suricattae		
+1323596	G	A	A1	dassie	M_suricattae		
+1358891	A	G	A1	dassie	M_suricattae		
+1377319	T	C	A1	dassie	M_suricattae		
+1396936	C	T	A1	dassie	M_suricattae		
+1408611	C	A	A1	dassie	M_suricattae		
+1415304	C	G	A1	dassie			
+1429762	C	G	A1	dassie			
+1462698	G	A	A1	dassie	M_suricattae		
+1496239	G	C	A1	dassie	M_suricattae		
+1520220	C	A	A1	dassie	M_suricattae		
+1537433	A	G	A1	dassie	M_suricattae		
+1543780	C	A	A1	dassie	M_suricattae		
+1557585	A	G	A1	dassie	M_suricattae		
+1622373	T	A	A1	dassie	M_suricattae		
+1624102	G	A	A1	dassie	M_suricattae		
+1653283	C	A	A1	dassie	M_suricattae		
+1672248	A	G	A1	dassie	M_suricattae		
+1676486	T	C	A1	dassie	M_suricattae		
+1691357	C	A	A1	dassie	M_suricattae		
+1703298	C	A	A1	dassie	M_suricattae		
+1740169	A	G	A1	dassie	M_suricattae		
+1746490	A	G	A1	dassie	M_suricattae		
+1767611	C	T	A1	dassie	M_suricattae		
+1795341	G	T	A1	dassie	M_suricattae		
+1801116	C	T	A1	dassie			
+1806238	G	T	A1	dassie	M_suricattae		
+1820346	C	G	A1	dassie			
+1841344	T	C	A1	dassie	M_suricattae		
+1871936	C	T	A1	dassie	M_suricattae		
+1879320	G	T	A1	dassie	M_suricattae		
+1889655	C	T	A1	dassie			
+1995635	C	T	A1	dassie			
+2005156	G	A	A1	dassie	M_suricattae		
+2032728	G	C	A1	dassie	M_suricattae		
+2035252	C	A	A1	dassie	M_suricattae		
+2037030	G	T	A1	dassie	M_suricattae		
+2055880	G	A	A1	dassie	M_suricattae		
+2077176	G	T	A1	dassie	M_suricattae		
+2078448	G	A	A1	dassie	M_suricattae		
+2080804	T	C	A1	dassie	M_suricattae		
+2084611	G	T	A1	dassie			
+2091499	G	T	A1	dassie	M_suricattae		
+2098904	C	G	A1	dassie	M_suricattae		
+2104622	A	C	A1	dassie			
+2115393	C	T	A1	dassie	M_suricattae		
+2120838	C	T	A1	dassie	M_suricattae		
+2133127	C	G	A1	dassie	M_suricattae		
+2152205	C	G	A1	dassie	M_suricattae		
+2201768	C	G	A1	dassie	M_suricattae		
+2225695	C	A	A1	dassie	M_suricattae		
+2229713	C	T	A1	dassie	M_suricattae		
+2284815	G	T	A1	dassie	M_suricattae		
+2342628	G	A	A1	dassie	M_suricattae		
+2356589	G	A	A1	dassie			
+2369954	G	T	A1	dassie	M_suricattae		
+2393311	G	C	A1	dassie	M_suricattae		
+2414114	T	G	A1	dassie	M_suricattae		
+2438412	C	A	A1	dassie			
+2444681	C	A	A1	dassie	M_suricattae		
+2487671	A	C	A1	dassie	M_suricattae		
+2505970	C	G	A1	dassie	M_suricattae		
+2522829	C	T	A1	dassie	M_suricattae		
+2529771	A	G	A1	dassie	M_suricattae		
+2538257	C	T	A1	dassie	M_suricattae		
+2546369	C	T	A1	dassie	M_suricattae		
+2578444	T	C	A1	dassie	M_suricattae		
+2578533	A	C	A1	dassie	M_suricattae		
+2580104	A	G	A1	dassie	M_suricattae		
+2616484	T	G	A1	dassie	M_suricattae		
+2650762	G	C	A1	dassie			
+2680952	T	G	A1	dassie	M_suricattae		
+2718399	G	T	A1	dassie	M_suricattae		
+2735726	C	G	A1	dassie	M_suricattae		
+2776869	C	A	A1	dassie	M_suricattae		
+2818935	C	T	A1	dassie	M_suricattae		
+2820567	G	A	A1	dassie	M_suricattae		
+2821427	C	A	A1	dassie	M_suricattae		
+2825981	C	A	A1	dassie	M_suricattae		
+2858364	C	G	A1	dassie	M_suricattae		
+2881790	A	C	A1	dassie	M_suricattae		
+2891013	A	G	A1	dassie	M_suricattae		
+2900015	C	G	A1	dassie	M_suricattae		
+2907030	G	C	A1	dassie	M_suricattae		
+2956930	C	A	A1	dassie			
+3001622	G	T	A1	dassie	M_suricattae		
+3029983	C	A	A1	dassie	M_suricattae		
+3081258	A	C	A1	dassie	M_suricattae		
+3090880	C	A	A1	dassie			
+3098364	G	A	A1	dassie			
+3103073	A	G	A1	dassie	M_suricattae		
+3127201	T	A	A1	dassie	M_suricattae		
+3139790	G	C	A1	dassie			
+3151716	G	T	A1	dassie	M_suricattae		
+3155186	A	G	A1	dassie	M_suricattae		
+3161442	A	G	A1	dassie	M_suricattae		
+3164699	T	A	A1	dassie	M_suricattae		
+3175008	C	A	A1	dassie			
+3190076	A	T	A1	dassie	M_suricattae		
+3226369	G	A	A1	dassie	M_suricattae		
+3242497	C	A	A1	dassie	M_suricattae		
+3259270	G	A	A1	dassie	M_suricattae		
+3276607	C	G	A1	dassie	M_suricattae		
+3294211	C	T	A1	dassie	M_suricattae		
+3320711	G	C	A1	dassie	M_suricattae		
+3323244	C	T	A1	dassie	M_suricattae		
+3330142	G	A	A1	dassie	M_suricattae		
+3349193	A	G	A1	dassie	M_suricattae		
+3369693	G	T	A1	dassie	M_suricattae		
+3388789	C	G	A1	dassie	M_suricattae		
+3397627	T	C	A1	dassie	M_suricattae		
+3409348	C	T	A1	dassie	M_suricattae		
+3427004	A	G	A1	dassie	M_suricattae		
+3429382	G	C	A1	dassie			
+3435485	A	G	A1	dassie	M_suricattae		
+3450022	G	T	A1	dassie	M_suricattae		
+3451303	C	A	A1	dassie	M_suricattae		
+3475667	G	A	A1	dassie			
+3576792	C	A	A1	dassie			
+3596474	T	G	A1	dassie			
+3597480	C	T	A1	dassie			
+3604040	T	C	A1	dassie	M_suricattae		
+3622478	C	T	A1	dassie	M_suricattae		
+3654725	A	C	A1	dassie	M_suricattae		
+3657677	T	A	A1	dassie	M_suricattae		
+3660848	T	G	A1	dassie			
+3669870	C	A	A1	dassie	M_suricattae		
+3674673	G	C	A1	dassie	M_suricattae		
+3682652	C	A	A1	dassie	M_suricattae		
+3704256	A	C	A1	dassie	M_suricattae		
+3714314	C	G	A1	dassie			
+3791537	C	A	A1	dassie	M_suricattae		
+3797283	A	C	A1	dassie			
+3806059	C	T	A1	dassie	M_suricattae		
+3816550	G	A	A1	dassie	M_suricattae		
+3838471	T	A	A1	dassie			
+3855233	G	C	A1	dassie	M_suricattae		
+3861716	C	T	A1	dassie			
+3874878	C	G	A1	dassie	M_suricattae		
+3876293	G	A	A1	dassie	M_suricattae		
+3908170	C	A	A1	dassie	M_suricattae		
+3954544	A	C	A1	dassie	M_suricattae		
+3964644	C	A	A1	dassie	M_suricattae		
+3966028	C	A	A1	dassie			
+3981578	G	T	A1	dassie	M_suricattae		
+4006148	A	T	A1	dassie	M_suricattae		
+4028035	A	G	A1	dassie			
+4028104	G	A	A1	dassie			
+4028507	A	C	A1	dassie	M_suricattae		
+4071872	G	A	A1	dassie	M_suricattae		
+4089291	G	A	A1	dassie	M_suricattae		
+4104836	G	T	A1	dassie	M_suricattae		
+4114081	C	T	A1	dassie	M_suricattae		
+4136187	G	T	A1	dassie	M_suricattae		
+4138845	G	T	A1	dassie	M_suricattae		
+4139641	C	A	A1	dassie	M_suricattae		
+4210936	C	A	A1	dassie	M_suricattae		
+4213901	T	C	A1	dassie			
+4230980	T	G	A1	dassie	M_suricattae		
+4231840	C	T	A1	dassie	M_suricattae		
+4250180	C	A	A1	dassie	M_suricattae		
+4250850	G	A	A1	dassie			
+4261349	G	A	A1	dassie			
+4292047	C	A	A1	dassie	M_suricattae		
+4299316	C	A	A1	dassie	M_suricattae		
+4339776	C	T	A1	dassie	M_suricattae		
+4342562	G	T	A1	dassie	M_suricattae		
+4366968	C	A	A1	dassie			
+4372192	A	G	A1	dassie	M_suricattae		
+4382684	C	A	A1	dassie	M_suricattae		
+8134	T	C	A1	M_mungi			
+19298	G	A	A1	M_mungi			
+47938	G	A	A1	M_mungi			
+62289	A	G	A1	M_mungi			
+69238	C	G	A1	M_mungi			
+71893	C	A	A1	M_mungi			
+80991	T	G	A1	M_mungi			
+98946	C	A	A1	M_mungi			
+145640	G	C	A1	M_mungi			
+165140	T	C	A1	M_mungi			
+170588	G	C	A1	M_mungi			
+212106	G	C	A1	M_mungi			
+219227	G	T	A1	M_mungi			
+236420	C	G	A1	M_mungi			
+240521	G	C	A1	M_mungi			
+241178	C	T	A1	M_mungi			
+255384	C	G	A1	M_mungi			
+278592	G	C	A1	M_mungi			
+286615	G	C	A1	M_mungi			
+297011	C	T	A1	M_mungi			
+307572	C	G	A1	M_mungi			
+320871	G	A	A1	M_mungi			
+321662	T	C	A1	M_mungi			
+351550	C	T	A1	M_mungi			
+352407	C	T	A1	M_mungi			
+379359	G	A	A1	M_mungi			
+381076	C	A	A1	M_mungi			
+408416	T	A	A1	M_mungi			
+415612	C	T	A1	M_mungi			
+437770	G	T	A1	M_mungi			
+441213	T	G	A1	M_mungi			
+463613	C	T	A1	M_mungi			
+487088	T	C	A1	M_mungi			
+515315	C	A	A1	M_mungi			
+560616	G	T	A1	M_mungi			
+578912	T	C	A1	M_mungi			
+657685	G	T	A1	M_mungi			
+729711	G	T	A1	M_mungi			
+730344	T	A	A1	M_mungi			
+758721	G	A	A1	M_mungi			
+771938	A	G	A1	M_mungi			
+782904	G	T	A1	M_mungi			
+798106	C	T	A1	M_mungi			
+823126	G	T	A1	M_mungi			
+826562	G	C	A1	M_mungi			
+911524	G	A	A1	M_mungi			
+946363	G	A	A1	M_mungi			
+952121	A	G	A1	M_mungi			
+1011933	G	C	A1	M_mungi			
+1023146	C	T	A1	M_mungi			
+1023300	T	C	A1	M_mungi			
+1049050	G	C	A1	M_mungi			
+1124812	C	G	A1	M_mungi			
+1135104	A	T	A1	M_mungi			
+1144363	C	T	A1	M_mungi			
+1219631	G	A	A1	M_mungi			
+1253418	C	A	A1	M_mungi			
+1257415	C	T	A1	M_mungi			
+1274760	A	G	A1	M_mungi			
+1285406	G	A	A1	M_mungi			
+1317202	C	A	A1	M_mungi			
+1319266	A	G	A1	M_mungi			
+1330083	G	A	A1	M_mungi			
+1330221	G	A	A1	M_mungi			
+1332738	T	C	A1	M_mungi			
+1355066	C	G	A1	M_mungi			
+1365034	G	C	A1	M_mungi			
+1404554	C	G	A1	M_mungi			
+1408799	C	T	A1	M_mungi			
+1431913	C	T	A1	M_mungi			
+1448091	G	T	A1	M_mungi			
+1455822	G	C	A1	M_mungi			
+1544475	C	A	A1	M_mungi			
+1557525	C	G	A1	M_mungi			
+1593279	C	T	A1	M_mungi			
+1599000	C	T	A1	M_mungi			
+1605850	G	T	A1	M_mungi			
+1617223	C	T	A1	M_mungi			
+1638679	C	A	A1	M_mungi			
+1681245	C	G	A1	M_mungi			
+1687850	C	G	A1	M_mungi			
+1747701	G	A	A1	M_mungi			
+1797583	G	T	A1	M_mungi			
+1808441	A	G	A1	M_mungi			
+1816530	G	C	A1	M_mungi			
+1827816	G	A	A1	M_mungi			
+1833589	A	G	A1	M_mungi			
+1842711	A	C	A1	M_mungi			
+1853203	C	T	A1	M_mungi			
+1883618	C	T	A1	M_mungi			
+1907594	G	T	A1	M_mungi			
+1920722	A	G	A1	M_mungi			
+1924711	G	A	A1	M_mungi			
+1926386	C	T	A1	M_mungi			
+1935833	G	A	A1	M_mungi			
+1938845	C	T	A1	M_mungi			
+1948906	A	G	A1	M_mungi			
+1953960	G	T	A1	M_mungi			
+1955149	T	C	A1	M_mungi			
+1966517	T	C	A1	M_mungi			
+1967561	C	A	A1	M_mungi			
+2018452	T	C	A1	M_mungi			
+2024062	C	G	A1	M_mungi			
+2031488	C	G	A1	M_mungi			
+2071153	C	A	A1	M_mungi			
+2075613	C	G	A1	M_mungi			
+2075713	A	G	A1	M_mungi			
+2085322	G	C	A1	M_mungi			
+2104159	G	T	A1	M_mungi			
+2106983	G	A	A1	M_mungi			
+2123382	A	G	A1	M_mungi			
+2125412	T	C	A1	M_mungi			
+2144682	C	T	A1	M_mungi			
+2150638	C	A	A1	M_mungi			
+2176374	A	G	A1	M_mungi			
+2183712	A	C	A1	M_mungi			
+2184020	C	A	A1	M_mungi			
+2203739	C	T	A1	M_mungi			
+2204080	G	T	A1	M_mungi			
+2233290	C	T	A1	M_mungi			
+2241419	G	A	A1	M_mungi			
+2242847	C	A	A1	M_mungi			
+2314628	T	C	A1	M_mungi			
+2327160	A	G	A1	M_mungi			
+2336541	A	C	A1	M_mungi			
+2344952	C	A	A1	M_mungi			
+2346701	G	T	A1	M_mungi			
+2379094	G	C	A1	M_mungi			
+2384227	T	C	A1	M_mungi			
+2391993	A	C	A1	M_mungi			
+2394942	C	G	A1	M_mungi			
+2414391	G	T	A1	M_mungi			
+2426495	G	T	A1	M_mungi			
+2477379	A	G	A1	M_mungi			
+2485754	G	A	A1	M_mungi			
+2488780	A	C	A1	M_mungi			
+2507397	C	G	A1	M_mungi			
+2517821	A	C	A1	M_mungi			
+2545134	A	G	A1	M_mungi			
+2546555	T	C	A1	M_mungi			
+2557039	G	A	A1	M_mungi			
+2570210	G	T	A1	M_mungi			
+2571842	T	C	A1	M_mungi			
+2579346	G	T	A1	M_mungi			
+2650905	G	C	A1	M_mungi			
+2718489	A	C	A1	M_mungi			
+2852571	T	C	A1	M_mungi			
+2894113	G	C	A1	M_mungi			
+2909459	A	G	A1	M_mungi			
+2928925	C	A	A1	M_mungi			
+2988267	G	A	A1	M_mungi			
+3025681	C	G	A1	M_mungi			
+3026000	G	A	A1	M_mungi			
+3032524	T	C	A1	M_mungi			
+3032975	C	G	A1	M_mungi			
+3044562	G	C	A1	M_mungi			
+3049972	G	A	A1	M_mungi			
+3056436	C	G	A1	M_mungi			
+3057606	T	A	A1	M_mungi			
+3156644	G	T	A1	M_mungi			
+3167779	C	A	A1	M_mungi			
+3185117	C	A	A1	M_mungi			
+3209829	G	T	A1	M_mungi			
+3300648	C	G	A1	M_mungi			
+3321287	C	T	A1	M_mungi			
+3388748	C	G	A1	M_mungi			
+3392503	A	G	A1	M_mungi			
+3412641	G	A	A1	M_mungi			
+3424482	G	T	A1	M_mungi			
+3459522	T	C	A1	M_mungi			
+3507375	C	G	A1	M_mungi			
+3513533	G	A	A1	M_mungi			
+3519159	G	T	A1	M_mungi			
+3531581	C	A	A1	M_mungi			
+3596650	G	T	A1	M_mungi			
+3610776	T	A	A1	M_mungi			
+3619012	C	T	A1	M_mungi			
+3655465	G	A	A1	M_mungi			
+3662780	C	T	A1	M_mungi			
+3673864	T	G	A1	M_mungi			
+3703790	G	C	A1	M_mungi			
+3705490	C	A	A1	M_mungi			
+3723720	T	C	A1	M_mungi			
+3773375	C	A	A1	M_mungi			
+3792134	T	C	A1	M_mungi			
+3797636	G	A	A1	M_mungi			
+3825879	C	A	A1	M_mungi			
+3832546	A	G	A1	M_mungi			
+3853587	G	T	A1	M_mungi			
+3889785	G	T	A1	M_mungi			
+3905799	A	G	A1	M_mungi			
+3939214	A	C	A1	M_mungi			
+3953984	G	A	A1	M_mungi			
+3994894	T	C	A1	M_mungi			
+4009995	C	T	A1	M_mungi			
+4035948	G	C	A1	M_mungi			
+4036076	G	A	A1	M_mungi			
+4055564	G	T	A1	M_mungi			
+4063645	G	A	A1	M_mungi			
+4068288	G	T	A1	M_mungi			
+4090128	C	A	A1	M_mungi			
+4112348	C	A	A1	M_mungi			
+4122018	G	A	A1	M_mungi			
+4140387	A	G	A1	M_mungi			
+4231075	G	C	A1	M_mungi			
+4262684	T	C	A1	M_mungi			
+4272830	G	T	A1	M_mungi			
+4288540	C	A	A1	M_mungi			
+4298449	T	C	A1	M_mungi			
+4316111	G	T	A1	M_mungi			
+4324037	A	C	A1	M_mungi			
+4333791	T	C	A1	M_mungi			
+4344233	G	A	A1	M_mungi			
+4345592	A	C	A1	M_mungi			
+4402802	G	A	A1	M_mungi			
+349070	G	A	A1				
+569617	C	T	A1				
+1145441	G	T	A1				
+2058839	G	A	A1				
+2873278	G	T	A1				
+2986470	G	A	A1				
+3396493	C	T	A1				
+4008780	G	C	A1				
+44	C	T	A2	M_microti			
+66189	G	A	A2	M_microti			
+237552	G	A	A2	M_microti			
+452994	C	T	A2	M_microti			
+541460	G	T	A2	M_microti			
+561519	C	A	A2	M_microti			
+887664	A	T	A2	M_microti			
+912970	G	C	A2	M_microti			
+1003764	A	G	A2	M_microti			
+1136322	C	T	A2	M_microti			
+1187227	T	G	A2	M_microti			
+1402854	A	C	A2	M_microti			
+1530014	C	T	A2	M_microti			
+1543507	C	A	A2	M_microti			
+1647379	G	C	A2	M_microti			
+1769655	G	T	A2	M_microti			
+1806433	G	A	A2	M_microti			
+1823237	C	A	A2	M_microti			
+1911306	A	C	A2	M_microti			
+1950982	C	T	A2	M_microti			
+2389624	A	C	A2	M_microti			
+2393559	A	G	A2	M_microti			
+2505951	G	A	A2	M_microti			
+2611098	T	G	A2	M_microti			
+2659787	C	T	A2	M_microti			
+2774510	G	A	A2	M_microti			
+3014405	A	T	A2	M_microti			
+3033775	T	C	A2	M_microti			
+3063623	A	G	A2	M_microti			
+3259411	A	G	A2	M_microti			
+3313823	C	G	A2	M_microti			
+3597035	T	G	A2	M_microti			
+3767680	A	G	A2	M_microti			
+3835354	A	G	A2	M_microti			
+3956342	G	A	A2	M_microti			
+3957281	C	G	A2	M_microti			
+4016514	T	C	A2	M_microti			
+4088344	C	A	A2	M_microti			
+4108400	G	C	A2	M_microti			
+4143032	C	T	A2	M_microti			
+4191537	A	C	A2	M_microti			
+4285551	T	C	A2	M_microti			
+4410696	G	C	A2	M_microti			
+3139	C	G	A2	M_pinnipedii			
+70838	C	A	A2	M_pinnipedii			
+88252	C	A	A2	M_pinnipedii			
+218540	T	C	A2	M_pinnipedii			
+220807	A	G	A2	M_pinnipedii			
+272161	C	A	A2	M_pinnipedii			
+311493	C	T	A2	M_pinnipedii			
+420100	C	T	A2	M_pinnipedii			
+443618	A	T	A2	M_pinnipedii			
+447042	G	A	A2	M_pinnipedii			
+501190	G	A	A2	M_pinnipedii			
+563312	C	T	A2	M_pinnipedii			
+588490	C	T	A2	M_pinnipedii			
+658732	C	T	A2	M_pinnipedii			
+670674	A	G	A2	M_pinnipedii			
+715796	T	G	A2	M_pinnipedii			
+728600	C	T	A2	M_pinnipedii			
+778854	C	G	A2	M_pinnipedii			
+886295	G	A	A2	M_pinnipedii			
+918006	C	T	A2	M_pinnipedii			
+919919	C	T	A2	M_pinnipedii			
+980058	C	G	A2	M_pinnipedii			
+1012232	A	G	A2	M_pinnipedii			
+1018359	C	T	A2	M_pinnipedii			
+1118314	C	T	A2	M_pinnipedii			
+1152555	A	C	A2	M_pinnipedii			
+1153401	G	T	A2	M_pinnipedii			
+1168515	G	C	A2	M_pinnipedii			
+1352253	A	G	A2	M_pinnipedii			
+1431918	T	C	A2	M_pinnipedii			
+1437945	T	C	A2	M_pinnipedii			
+1454047	C	A	A2	M_pinnipedii			
+1570491	A	G	A2	M_pinnipedii			
+1598689	G	A	A2	M_pinnipedii			
+1611449	G	C	A2	M_pinnipedii			
+1654272	C	T	A2	M_pinnipedii			
+1674520	C	T	A2	M_pinnipedii			
+1694300	C	A	A2	M_pinnipedii			
+1694432	G	C	A2	M_pinnipedii			
+1698720	A	G	A2	M_pinnipedii			
+1715953	G	C	A2	M_pinnipedii			
+1743856	T	G	A2	M_pinnipedii			
+1811406	C	G	A2	M_pinnipedii			
+1825337	G	A	A2	M_pinnipedii			
+1845241	C	A	A2	M_pinnipedii			
+1953723	G	A	A2	M_pinnipedii			
+1954355	T	G	A2	M_pinnipedii			
+1966916	A	T	A2	M_pinnipedii			
+1995095	C	G	A2	M_pinnipedii			
+2037400	G	C	A2	M_pinnipedii			
+2068198	A	C	A2	M_pinnipedii			
+2087585	G	T	A2	M_pinnipedii			
+2113979	G	A	A2	M_pinnipedii			
+2127154	C	G	A2	M_pinnipedii			
+2199107	T	C	A2	M_pinnipedii			
+2241321	T	G	A2	M_pinnipedii			
+2313267	G	A	A2	M_pinnipedii			
+2364140	A	C	A2	M_pinnipedii			
+2373439	C	A	A2	M_pinnipedii			
+2525495	T	C	A2	M_pinnipedii			
+2573216	G	T	A2	M_pinnipedii			
+2650718	C	T	A2	M_pinnipedii			
+2791246	G	A	A2	M_pinnipedii			
+2821049	G	A	A2	M_pinnipedii			
+2847083	T	A	A2	M_pinnipedii			
+2868926	C	A	A2	M_pinnipedii			
+2888485	G	A	A2	M_pinnipedii			
+2893507	G	T	A2	M_pinnipedii			
+2901924	G	A	A2	M_pinnipedii			
+2911896	G	A	A2	M_pinnipedii			
+2913111	G	T	A2	M_pinnipedii			
+2948095	G	A	A2	M_pinnipedii			
+3010768	T	C	A2	M_pinnipedii			
+3092446	A	G	A2	M_pinnipedii			
+3110305	C	G	A2	M_pinnipedii			
+3127534	T	C	A2	M_pinnipedii			
+3148588	A	C	A2	M_pinnipedii			
+3167216	T	C	A2	M_pinnipedii			
+3185114	T	C	A2	M_pinnipedii			
+3204160	A	C	A2	M_pinnipedii			
+3217451	G	C	A2	M_pinnipedii			
+3220433	G	T	A2	M_pinnipedii			
+3258833	C	T	A2	M_pinnipedii			
+3272117	G	A	A2	M_pinnipedii			
+3312169	G	C	A2	M_pinnipedii			
+3413842	C	A	A2	M_pinnipedii			
+3575088	G	A	A2	M_pinnipedii			
+3585433	A	G	A2	M_pinnipedii			
+3629632	C	A	A2	M_pinnipedii			
+3709604	T	A	A2	M_pinnipedii			
+3790489	G	T	A2	M_pinnipedii			
+3826594	A	C	A2	M_pinnipedii			
+3882987	G	C	A2	M_pinnipedii			
+4028029	G	C	A2	M_pinnipedii			
+4070961	G	A	A2	M_pinnipedii			
+4106951	G	A	A2	M_pinnipedii			
+4119524	A	T	A2	M_pinnipedii			
+4174612	G	A	A2	M_pinnipedii			
+4214338	G	T	A2	M_pinnipedii			
+4261083	C	T	A2	M_pinnipedii			
+4310262	C	T	A2	M_pinnipedii			
+4315537	G	C	A2	M_pinnipedii			
+4369000	T	C	A2	M_pinnipedii			
+4385917	G	A	A2	M_pinnipedii			
+38121	A	C	A2				
+47899	C	G	A2				
+97085	A	T	A2				
+126103	C	T	A2				
+135928	G	A	A2				
+149100	A	C	A2				
+209424	G	A	A2				
+218978	G	C	A2				
+305622	C	T	A2				
+384248	G	C	A2				
+482237	A	G	A2				
+510766	C	A	A2				
+539799	G	A	A2				
+559437	G	C	A2				
+682151	C	A	A2				
+817299	G	A	A2				
+818161	G	C	A2				
+858531	C	T	A2				
+866345	T	C	A2				
+874792	A	C	A2				
+879463	G	A	A2				
+910002	G	A	A2				
+939168	G	T	A2				
+1030043	A	G	A2				
+1078209	A	T	A2				
+1115540	G	A	A2				
+1130635	A	G	A2				
+1140846	C	T	A2				
+1147542	C	T	A2				
+1180796	A	C	A2				
+1271636	G	A	A2				
+1404944	A	G	A2				
+1457621	G	A	A2				
+1465741	G	T	A2				
+1537362	C	T	A2				
+1712419	A	C	A2				
+1768141	A	G	A2				
+1854695	C	T	A2				
+2053155	G	A	A2				
+2156056	C	A	A2				
+2286850	G	T	A2				
+2316624	G	A	A2				
+2319043	C	A	A2				
+2345834	A	G	A2				
+2351739	C	T	A2				
+2400450	C	G	A2				
+2527522	G	A	A2				
+2542395	G	T	A2				
+2547118	A	C	A2				
+2631424	T	G	A2				
+2646381	G	T	A2				
+2750773	G	A	A2				
+2762064	G	A	A2				
+2773381	C	A	A2				
+2792233	C	T	A2				
+2807597	A	C	A2				
+2881485	A	G	A2				
+2906715	C	T	A2				
+2955305	T	G	A2				
+3000734	A	C	A2				
+3016735	C	G	A2				
+3086424	G	T	A2				
+3204224	G	A	A2				
+3376061	G	A	A2				
+3444583	C	T	A2				
+3536154	G	C	A2				
+3564910	C	A	A2				
+3593557	C	T	A2				
+3618932	T	C	A2				
+3673625	C	G	A2				
+3702451	C	A	A2				
+3773499	G	C	A2				
+3790688	T	A	A2				
+3866374	G	A	A2				
+3917241	G	A	A2				
+3964715	G	A	A2				
+3987111	C	G	A2				
+3987939	C	T	A2				
+3997420	G	C	A2				
+4068804	A	C	A2				
+4112360	C	G	A2				
+4118789	C	T	A2				
+4169587	G	A	A2				
+4179368	C	A	A2				
+4217456	G	A	A2				
+4220876	T	G	A2				
+4339149	G	T	A2				
+4376768	C	T	A2				
+6717	T	C	A3				
+13315	A	G	A3				
+19964	A	C	A3				
+44625	A	T	A3				
+47881	A	T	A3				
+47950	C	T	A3				
+82085	T	A	A3				
+90480	G	T	A3				
+154276	T	G	A3				
+156249	G	C	A3				
+172107	A	G	A3				
+173096	G	C	A3				
+204609	C	T	A3				
+211485	G	A	A3				
+221561	C	A	A3				
+230101	C	T	A3				
+231284	G	A	A3				
+233314	G	A	A3				
+244497	T	C	A3				
+261680	G	A	A3				
+289720	A	C	A3				
+291282	C	T	A3				
+314781	C	T	A3				
+320226	G	A	A3				
+331340	T	G	A3				
+389880	G	C	A3				
+392423	C	A	A3				
+397203	A	G	A3				
+412484	C	G	A3				
+415677	A	G	A3				
+415993	T	G	A3				
+440018	C	T	A3				
+472597	G	A	A3				
+476457	A	G	A3				
+477349	G	C	A3				
+480416	T	C	A3				
+491749	C	T	A3				
+538706	C	G	A3				
+546602	A	C	A3				
+559970	C	T	A3				
+560231	T	C	A3				
+568708	G	A	A3				
+586206	G	C	A3				
+649047	A	G	A3				
+665220	T	C	A3				
+684214	C	T	A3				
+706429	C	T	A3				
+714884	G	A	A3				
+783826	T	C	A3				
+789117	C	T	A3				
+794122	A	G	A3				
+808432	A	T	A3				
+831525	A	C	A3				
+858137	C	T	A3				
+862747	G	T	A3				
+872261	A	T	A3				
+880856	A	G	A3				
+901102	G	T	A3				
+907834	T	C	A3				
+942322	G	A	A3				
+952865	C	T	A3				
+972070	G	C	A3				
+974431	T	C	A3				
+1031572	G	A	A3				
+1041747	T	C	A3				
+1047661	A	C	A3				
+1067609	G	A	A3				
+1074474	C	T	A3				
+1081629	C	T	A3				
+1083147	C	G	A3				
+1087802	A	G	A3				
+1096847	A	T	A3				
+1131309	A	G	A3				
+1210022	C	A	A3				
+1211274	C	T	A3				
+1215822	G	T	A3				
+1230028	A	G	A3				
+1237312	T	G	A3				
+1240481	A	C	A3				
+1243942	C	T	A3				
+1250415	C	A	A3				
+1286172	C	T	A3				
+1289401	A	G	A3				
+1321202	G	C	A3				
+1323374	T	C	A3				
+1323589	G	T	A3				
+1334999	A	G	A3				
+1349002	T	C	A3				
+1359225	C	A	A3				
+1414381	T	G	A3				
+1418091	A	G	A3				
+1425039	C	T	A3				
+1430009	G	A	A3				
+1433143	G	A	A3				
+1453460	C	T	A3				
+1461451	T	C	A3				
+1465317	C	T	A3				
+1498691	A	C	A3				
+1505028	G	A	A3				
+1505029	C	T	A3				
+1517316	G	C	A3				
+1519924	A	C	A3				
+1520344	G	T	A3				
+1532173	A	G	A3				
+1544411	G	T	A3				
+1546130	A	C	A3				
+1555736	C	T	A3				
+1564506	A	G	A3				
+1567479	A	G	A3				
+1582172	C	G	A3				
+1589420	A	G	A3				
+1598857	A	G	A3				
+1612514	G	A	A3				
+1615163	A	G	A3				
+1639579	A	G	A3				
+1654736	T	C	A3				
+1655137	G	T	A3				
+1658863	T	A	A3				
+1665634	T	C	A3				
+1673680	C	G	A3				
+1678778	T	C	A3				
+1686313	C	T	A3				
+1692670	C	G	A3				
+1694058	G	C	A3				
+1696370	T	C	A3				
+1697726	G	A	A3				
+1698204	C	G	A3				
+1708095	C	T	A3				
+1729178	C	T	A3				
+1734398	G	C	A3				
+1759230	T	C	A3				
+1797375	T	C	A3				
+1806205	G	A	A3				
+1819985	G	C	A3				
+1838408	A	C	A3				
+1889181	A	C	A3				
+1904816	T	C	A3				
+1912317	T	C	A3				
+1952606	C	T	A3				
+1958149	A	C	A3				
+1965267	T	C	A3				
+1966825	G	T	A3				
+1969154	C	A	A3				
+1971609	A	G	A3				
+2002663	G	A	A3				
+2047970	G	A	A3				
+2054026	C	A	A3				
+2070327	A	G	A3				
+2084450	C	T	A3				
+2093412	A	T	A3				
+2093618	C	A	A3				
+2093681	G	T	A3				
+2097066	A	G	A3				
+2098211	G	C	A3				
+2107654	C	A	A3				
+2119821	C	T	A3				
+2123847	C	T	A3				
+2124303	G	C	A3				
+2125968	G	C	A3				
+2127555	C	G	A3				
+2134439	A	G	A3				
+2148068	T	C	A3				
+2149049	G	A	A3				
+2154707	C	G	A3				
+2171499	C	G	A3				
+2176840	G	C	A3				
+2184017	G	C	A3				
+2205429	C	G	A3				
+2247508	A	T	A3				
+2267276	G	A	A3				
+2275820	T	G	A3				
+2282095	A	C	A3				
+2289978	A	C	A3				
+2324709	T	G	A3				
+2327613	C	T	A3				
+2332128	A	G	A3				
+2333351	G	C	A3				
+2333724	G	A	A3				
+2333804	A	G	A3				
+2338433	G	A	A3				
+2358471	T	G	A3				
+2363160	T	C	A3				
+2369128	G	C	A3				
+2378822	G	A	A3				
+2379532	T	C	A3				
+2427896	G	T	A3				
+2428213	T	C	A3				
+2449412	G	A	A3				
+2453885	G	A	A3				
+2464208	C	T	A3				
+2515138	A	C	A3				
+2519445	C	A	A3				
+2536029	T	C	A3				
+2539831	A	C	A3				
+2556298	G	C	A3				
+2556572	T	G	A3				
+2569448	G	A	A3				
+2577116	C	G	A3				
+2585958	T	C	A3				
+2609478	T	C	A3				
+2641666	T	C	A3				
+2648854	T	C	A3				
+2656466	A	T	A3				
+2662776	T	G	A3				
+2675648	T	C	A3				
+2702921	G	A	A3				
+2710207	G	A	A3				
+2736789	C	T	A3				
+2746391	A	G	A3				
+2772924	C	G	A3				
+2773919	T	C	A3				
+2780705	A	G	A3				
+2787304	C	T	A3				
+2807031	G	A	A3				
+2807945	T	G	A3				
+2815003	C	G	A3				
+2821013	T	C	A3				
+2827731	T	G	A3				
+2831140	A	G	A3				
+2877192	C	A	A3				
+2880538	T	C	A3				
+2884050	C	A	A3				
+2884053	T	G	A3				
+2952452	G	A	A3				
+2962815	G	C	A3				
+3019513	G	C	A3				
+3022008	C	T	A3				
+3026468	T	C	A3				
+3041338	T	C	A3				
+3047816	A	G	A3				
+3048079	C	T	A3				
+3048771	C	T	A3				
+3067812	T	C	A3				
+3093116	G	C	A3				
+3152703	T	G	A3				
+3159466	C	T	A3				
+3169415	C	A	A3				
+3187731	G	T	A3				
+3196645	A	G	A3				
+3199583	T	C	A3				
+3209573	C	G	A3				
+3223382	G	A	A3				
+3229906	C	T	A3				
+3232112	A	G	A3				
+3234662	C	T	A3				
+3243880	T	G	A3				
+3262800	G	A	A3				
+3270705	A	C	A3				
+3277590	A	C	A3				
+3316941	G	A	A3				
+3357966	T	C	A3				
+3409642	T	C	A3				
+3416967	A	C	A3				
+3424064	C	T	A3				
+3425070	C	A	A3				
+3434914	T	A	A3				
+3459524	G	C	A3				
+3460286	C	G	A3				
+3478468	G	A	A3				
+3493778	T	C	A3				
+3507667	A	T	A3				
+3525977	C	T	A3				
+3531230	G	A	A3				
+3534919	T	C	A3				
+3556419	G	T	A3				
+3577779	G	A	A3				
+3584203	G	C	A3				
+3591413	G	A	A3				
+3598424	C	G	A3				
+3613600	C	T	A3				
+3619321	T	C	A3				
+3641584	T	C	A3				
+3670629	C	A	A3				
+3681411	C	T	A3				
+3689479	T	G	A3				
+3693456	C	A	A3				
+3727055	A	G	A3				
+3798231	C	A	A3				
+3825405	G	A	A3				
+3834511	G	C	A3				
+3838155	C	A	A3				
+3854387	T	C	A3				
+3898794	T	G	A3				
+3904329	T	C	A3				
+3938305	C	A	A3				
+3968535	A	G	A3				
+3987779	T	C	A3				
+4012894	C	G	A3				
+4022890	A	T	A3				
+4026236	A	T	A3				
+4049550	A	G	A3				
+4055050	T	C	A3				
+4086798	G	A	A3				
+4124667	T	C	A3				
+4128947	A	G	A3				
+4143502	T	G	A3				
+4172322	G	A	A3				
+4180969	A	T	A3				
+4251542	C	T	A3				
+4251932	C	A	A3				
+4261415	T	C	A3				
+4266174	C	G	A3				
+4287466	C	T	A3				
+4290331	T	A	A3				
+4291142	C	A	A3				
+4296296	G	C	A3				
+4303791	C	A	A3				
+4304150	T	C	A3				
+4339116	A	G	A3				
+4341639	A	G	A3				
+4347219	G	A	A3				
+4356840	A	G	A3				
+4370399	A	G	A3				
+4371384	A	G	A3				
+4409754	T	C	A3				
+4409775	G	A	A3				
+4410091	G	A	A3				
+2271555	G	A	A4	M_bovis	A4.1		
+3581187	G	A	A4	M_bovis	A4.1		
+1985034	T	C	A4	M_bovis	A4.2		
+3033644	T	C	A4	M_bovis	A4.2		
+4309281	A	T	A4	M_bovis	A4.2		
+2027617	G	A	A4	M_bovis	A4.2	A4.2.BCG	
+3095342	A	C	A4	M_bovis	A4.2	A4.2.BCG	
+3423939	T	A	A4	M_bovis	A4.2	A4.2.BCG	
+23297	G	T	A4	M_bovis	A4.3		
+67076	C	T	A4	M_bovis	A4.3		
+4193069	G	A	A4	M_bovis	A4.3		
+471576	T	C	A4	M_bovis	A4.4		
+2183681	G	A	A4	M_bovis	A4.4		
+51459	T	C	A4	M_bovis	A4.5		
+594057	G	A	A4	M_bovis	A4.5		
+1552837	C	T	A4	M_bovis	A4.5		
+2669115	G	A	A4	M_bovis	A4.5		
+3038566	G	A	A4	M_bovis	A4.5		
+2655824	T	C	A4	M_bovis	A4.6		
+3072872	G	A	A4	M_bovis	A4.6		
+118468	C	T	A4	M_bovis	A4.7		
+540940	T	C	A4	M_bovis	A4.7		
+2963597	G	A	A4	M_bovis	A4.7		
+313605	C	A	A4	M_bovis	A4.7	A4.7.1	
+2553395	G	A	A4	M_bovis	A4.7	A4.7.1	
+2702178	G	A	A4	M_bovis	A4.7	A4.7.1	
+636624	C	T	A4	M_bovis	A4.7	A4.7.X-unk4	
+1158434	G	A	A4	M_bovis	A4.7	A4.7.X-unk4	
+1401050	C	T	A4	M_bovis	A4.7	A4.7.X-unk4	
+1765767	T	C	A4	M_bovis	A4.7	A4.7.X-unk4	
+2807764	G	A	A4	M_bovis	A4.7	A4.7.X-unk4	
+1978431	G	T	A4	M_bovis	A4.7	A4.7.X-unk5	
+2291557	A	G	A4	M_bovis	A4.7	A4.7.X-unk5	
+10727	A	G	A4	M_bovis	A4.8		
+288952	C	T	A4	M_bovis	A4.8		
+2715125	T	C	A4	M_bovis	A4.8		
+2853155	G	A	A4	M_bovis	A4.8		
+25306	C	G	A4	M_bovis	A4.8	A4.8.1	
+1534929	G	T	A4	M_bovis	A4.8	A4.8.1	
+2890668	C	T	A4	M_bovis	A4.8	A4.8.1	
+3347070	G	T	A4	M_bovis	A4.8	A4.8.1	
+4030259	A	G	A4	M_bovis	A4.8	A4.8.1	
+1358422	C	T	A4	M_bovis	A4.8	A4.8.2	
+2594632	C	A	A4	M_bovis	A4.8	A4.8.2	
+2989191	T	C	A4	M_bovis	A4.8	A4.8.2	
+4297210	A	G	A4	M_bovis	A4.8	A4.8.2	
+220104	C	T	A4	M_bovis	A4.8	A4.8.X-unk6	
+545403	C	T	A4	M_bovis	A4.8	A4.8.X-unk6	
+1288126	G	C	A4	M_bovis	A4.8	A4.8.X-unk6	
+3676093	C	T	A4	M_bovis	A4.8	A4.8.X-unk6	
+24294	C	T	A4	M_bovis			
+29462	C	T	A4	M_bovis			
+32624	C	A	A4	M_bovis			
+53679	C	T	A4	M_bovis			
+184727	A	G	A4	M_bovis			
+262160	G	A	A4	M_bovis			
+268277	G	C	A4	M_bovis			
+294198	T	G	A4	M_bovis			
+294453	T	C	A4	M_bovis			
+382991	A	G	A4	M_bovis			
+398034	A	G	A4	M_bovis			
+481880	A	G	A4	M_bovis			
+732552	A	G	A4	M_bovis			
+769162	A	G	A4	M_bovis			
+786393	T	G	A4	M_bovis			
+843859	T	C	A4	M_bovis			
+862575	C	T	A4	M_bovis			
+1076917	C	T	A4	M_bovis			
+1294004	C	T	A4	M_bovis			
+1376624	C	T	A4	M_bovis			
+1467695	C	T	A4	M_bovis			
+1527936	A	C	A4	M_bovis			
+1536939	C	T	A4	M_bovis			
+1710592	A	C	A4	M_bovis			
+1804315	T	C	A4	M_bovis			
+1881935	G	T	A4	M_bovis			
+1886109	A	G	A4	M_bovis			
+1947951	G	A	A4	M_bovis			
+1971029	C	T	A4	M_bovis			
+2082865	C	T	A4	M_bovis			
+2084228	G	A	A4	M_bovis			
+2096326	C	A	A4	M_bovis			
+2104270	C	T	A4	M_bovis			
+2113188	G	C	A4	M_bovis			
+2175713	G	A	A4	M_bovis			
+2197669	C	T	A4	M_bovis			
+2201296	T	C	A4	M_bovis			
+2265626	A	G	A4	M_bovis			
+2442749	G	T	A4	M_bovis			
+2484801	A	G	A4	M_bovis			
+2486454	T	C	A4	M_bovis			
+2501504	T	C	A4	M_bovis			
+2580546	G	T	A4	M_bovis			
+2583201	G	A	A4	M_bovis			
+2723847	A	G	A4	M_bovis			
+2774180	G	C	A4	M_bovis			
+2817446	G	T	A4	M_bovis			
+2945543	G	A	A4	M_bovis			
+2968273	T	C	A4	M_bovis			
+3042353	G	C	A4	M_bovis			
+3081731	G	A	A4	M_bovis			
+3115543	A	C	A4	M_bovis			
+3140153	C	A	A4	M_bovis			
+3229201	G	A	A4	M_bovis			
+3447463	G	A	A4	M_bovis			
+3467315	G	C	A4	M_bovis			
+3480106	G	C	A4	M_bovis			
+3492430	T	G	A4	M_bovis			
+3584190	C	T	A4	M_bovis			
+3607942	G	A	A4	M_bovis			
+3672233	G	A	A4	M_bovis			
+3678929	G	A	A4	M_bovis			
+3897075	A	T	A4	M_bovis			
+3907958	G	A	A4	M_bovis			
+3987645	T	C	A4	M_bovis			
+4004604	A	G	A4	M_bovis			
+4028925	G	T	A4	M_bovis			
+4128320	C	G	A4	M_bovis			
+4157578	G	A	A4	M_bovis			
+4173210	G	A	A4	M_bovis			
+4284438	G	A	A4	M_bovis			
+4286330	G	A	A4	M_bovis			
+4286884	G	A	A4	M_bovis			
+4322905	G	A	A4	M_bovis			
+4356825	G	A	A4	M_bovis			
+4364649	T	C	A4	M_bovis			
+4368124	A	G	A4	M_bovis			
+4386753	A	C	A4	M_bovis			
+39147	C	T	A4	M_caprae			
+58740	C	T	A4	M_caprae			
+63737	C	T	A4	M_caprae			
+87213	A	G	A4	M_caprae			
+140619	G	T	A4	M_caprae			
+153072	A	G	A4	M_caprae			
+226270	A	G	A4	M_caprae			
+287195	C	T	A4	M_caprae			
+346800	A	T	A4	M_caprae			
+381136	C	G	A4	M_caprae			
+386723	A	G	A4	M_caprae			
+506685	A	T	A4	M_caprae			
+523207	T	G	A4	M_caprae			
+535453	T	C	A4	M_caprae			
+563808	A	G	A4	M_caprae			
+597532	C	G	A4	M_caprae			
+640876	A	G	A4	M_caprae			
+654057	C	G	A4	M_caprae			
+705876	A	G	A4	M_caprae			
+741507	T	C	A4	M_caprae			
+792464	T	C	A4	M_caprae			
+866476	T	C	A4	M_caprae			
+893739	A	G	A4	M_caprae			
+956758	A	G	A4	M_caprae			
+979595	G	C	A4	M_caprae			
+1061573	A	G	A4	M_caprae			
+1070879	G	A	A4	M_caprae			
+1084057	G	A	A4	M_caprae			
+1129180	C	T	A4	M_caprae			
+1146960	G	A	A4	M_caprae			
+1181375	A	G	A4	M_caprae			
+1229187	A	G	A4	M_caprae			
+1249316	C	T	A4	M_caprae			
+1251382	T	C	A4	M_caprae			
+1378736	T	C	A4	M_caprae			
+1388822	G	A	A4	M_caprae			
+1402420	A	G	A4	M_caprae			
+1508356	A	G	A4	M_caprae			
+1549427	T	C	A4	M_caprae			
+1604657	G	T	A4	M_caprae			
+1609719	A	G	A4	M_caprae			
+1625695	A	C	A4	M_caprae			
+1626430	A	G	A4	M_caprae			
+1657168	T	G	A4	M_caprae			
+1670241	T	C	A4	M_caprae			
+1693027	T	C	A4	M_caprae			
+1698691	T	C	A4	M_caprae			
+1699761	A	G	A4	M_caprae			
+1710086	T	C	A4	M_caprae			
+1771240	A	G	A4	M_caprae			
+1803276	G	C	A4	M_caprae			
+1823425	A	G	A4	M_caprae			
+1847591	T	C	A4	M_caprae			
+1899476	A	C	A4	M_caprae			
+1901261	C	T	A4	M_caprae			
+1944206	C	T	A4	M_caprae			
+1951913	T	C	A4	M_caprae			
+2024373	A	G	A4	M_caprae			
+2079674	A	C	A4	M_caprae			
+2090255	T	A	A4	M_caprae			
+2090259	T	G	A4	M_caprae			
+2191145	G	T	A4	M_caprae			
+2246101	T	C	A4	M_caprae			
+2334558	G	A	A4	M_caprae			
+2353648	T	C	A4	M_caprae			
+2372822	G	A	A4	M_caprae			
+2491930	G	A	A4	M_caprae			
+2527340	G	A	A4	M_caprae			
+2545191	A	G	A4	M_caprae			
+2587828	T	G	A4	M_caprae			
+2607952	A	G	A4	M_caprae			
+2672180	C	A	A4	M_caprae			
+2710995	A	C	A4	M_caprae			
+2720113	G	A	A4	M_caprae			
+2747956	A	G	A4	M_caprae			
+2764555	T	G	A4	M_caprae			
+2882990	T	C	A4	M_caprae			
+2932871	T	C	A4	M_caprae			
+2967124	T	C	A4	M_caprae			
+2968345	A	G	A4	M_caprae			
+3004504	G	C	A4	M_caprae			
+3032435	T	G	A4	M_caprae			
+3040015	C	T	A4	M_caprae			
+3274106	C	T	A4	M_caprae			
+3336980	C	G	A4	M_caprae			
+3340235	A	G	A4	M_caprae			
+3366726	G	A	A4	M_caprae			
+3428267	C	G	A4	M_caprae			
+3441557	C	G	A4	M_caprae			
+3506168	C	T	A4	M_caprae			
+3532844	C	A	A4	M_caprae			
+3537557	T	C	A4	M_caprae			
+3539484	A	C	A4	M_caprae			
+3545165	T	C	A4	M_caprae			
+3577923	C	T	A4	M_caprae			
+3601935	T	C	A4	M_caprae			
+3821149	G	T	A4	M_caprae			
+3857814	G	A	A4	M_caprae			
+3967229	A	G	A4	M_caprae			
+4019914	A	G	A4	M_caprae			
+4023427	A	G	A4	M_caprae			
+4055835	T	C	A4	M_caprae			
+4075000	T	C	A4	M_caprae			
+4128839	A	C	A4	M_caprae			
+4197642	G	A	A4	M_caprae			
+4207763	G	A	A4	M_caprae			
+4274253	G	C	A4	M_caprae			
+4282580	C	A	A4	M_caprae			
+4323139	T	A	A4	M_caprae			
+4357744	A	C	A4	M_caprae			
+4372820	A	C	A4	M_caprae			
+4376736	G	T	A4	M_caprae			
+4406355	A	G	A4	M_caprae			
+467	A	G	A4				
+2347	A	G	A4				
+13197	G	C	A4				
+52028	C	T	A4				
+71731	C	T	A4				
+94303	T	C	A4				
+96101	G	A	A4				
+138301	G	A	A4				
+147456	G	A	A4				
+181672	T	C	A4				
+195566	T	G	A4				
+244393	T	C	A4				
+394935	C	G	A4				
+422379	C	T	A4				
+442971	A	C	A4				
+451439	A	G	A4				
+469329	T	C	A4				
+605338	A	G	A4				
+668383	A	C	A4				
+679497	A	G	A4				
+687353	T	C	A4				
+735865	A	G	A4				
+741741	C	T	A4				
+743317	C	T	A4				
+831566	A	G	A4				
+844209	A	G	A4				
+912830	C	G	A4				
+920514	G	A	A4				
+931437	A	G	A4				
+937677	G	T	A4				
+1083043	C	A	A4				
+1085093	T	A	A4				
+1105518	T	G	A4				
+1125316	C	T	A4				
+1128935	G	A	A4				
+1226077	G	A	A4				
+1240241	T	C	A4				
+1280689	T	C	A4				
+1280741	C	T	A4				
+1289789	A	G	A4				
+1307958	G	T	A4				
+1316927	A	C	A4				
+1393003	T	G	A4				
+1405937	T	C	A4				
+1425641	T	A	A4				
+1710441	C	A	A4				
+1754572	T	C	A4				
+1766620	C	T	A4				
+1936194	G	A	A4				
+1964030	C	G	A4				
+1980552	T	C	A4				
+2011627	C	G	A4				
+2021564	G	A	A4				
+2247169	G	A	A4				
+2336001	C	T	A4				
+2362193	G	T	A4				
+2373248	A	C	A4				
+2459234	G	C	A4				
+2502757	C	T	A4				
+2529798	G	C	A4				
+2595933	C	T	A4				
+2604875	A	C	A4				
+2606092	A	C	A4				
+2606813	G	T	A4				
+2614823	C	T	A4				
+2700912	C	G	A4				
+2752448	A	G	A4				
+2809318	G	A	A4				
+2896020	T	C	A4				
+2907009	G	T	A4				
+2918796	T	A	A4				
+2932890	A	G	A4				
+2984932	G	C	A4				
+2997325	C	T	A4				
+3013119	C	T	A4				
+3021942	C	G	A4				
+3032137	T	C	A4				
+3041679	G	A	A4				
+3139964	G	A	A4				
+3142580	G	A	A4				
+3152257	C	T	A4				
+3154588	G	C	A4				
+3213089	C	T	A4				
+3267715	A	C	A4				
+3282079	T	A	A4				
+3283492	A	G	A4				
+3402955	C	A	A4				
+3428446	G	T	A4				
+3429041	T	C	A4				
+3470168	T	C	A4				
+3474427	G	A	A4				
+3525557	G	A	A4				
+3540144	G	A	A4				
+3660692	C	T	A4				
+3663404	T	C	A4				
+3664615	G	T	A4				
+3690854	T	C	A4				
+3769445	T	C	A4				
+3770588	T	G	A4				
+3791135	T	C	A4				
+3924350	C	T	A4				
+4018709	G	A	A4				
+4099764	T	C	A4				
+4140690	G	C	A4				
+4141190	C	G	A4				
+4178792	G	A	A4				
+4204847	G	A	A4				
+4207844	A	G	A4				
+4267858	T	C	A4				
+4278968	A	G	A4				
+4304847	C	A	A4				
+4321317	T	C	A4				
+4337468	T	C	A4				
+4382604	T	C	A4				
+4390466	T	C	A4				
+117295	G	A	L1	L1.1			
+281208	C	T	L1	L1.1			
+313425	G	T	L1	L1.1			
+406389	G	A	L1	L1.1			
+423334	G	A	L1	L1.1			
+529363	C	T	L1	L1.1			
+701867	C	T	L1	L1.1			
+870112	C	T	L1	L1.1			
+1924765	T	C	L1	L1.1			
+2063106	C	T	L1	L1.1			
+2989683	C	T	L1	L1.1			
+4286156	T	C	L1	L1.1			
+4404247	G	A	L1	L1.1			
+851797	C	A	L1	L1.1	L1.1.1.1		
+1111469	C	T	L1	L1.1	L1.1.1.1		
+1526100	A	G	L1	L1.1	L1.1.1.1		
+1750465	T	C	L1	L1.1	L1.1.1.1		
+12234	C	G	L1	L1.1	L1.1.2		
+225039	G	A	L1	L1.1	L1.1.2		
+498010	T	C	L1	L1.1	L1.1.2		
+559350	G	A	L1	L1.1	L1.1.2		
+567446	G	A	L1	L1.1	L1.1.2		
+569045	C	T	L1	L1.1	L1.1.2		
+711155	G	A	L1	L1.1	L1.1.2		
+2622402	G	A	L1	L1.1	L1.1.2		
+3879882	G	A	L1	L1.1	L1.1.2		
+15177	C	G	L1	L1.1	L1.1.3		
+832072	G	C	L1	L1.1	L1.1.3		
+852641	C	T	L1	L1.1	L1.1.3		
+877055	A	C	L1	L1.1	L1.1.3		
+1144221	G	A	L1	L1.1	L1.1.3		
+1184798	C	T	L1	L1.1	L1.1.3		
+1491275	G	A	L1	L1.1	L1.1.3		
+1697460	C	T	L1	L1.1	L1.1.3		
+305455	G	A	L1	L1.1	L1.1.3	L1.1.3.1	
+685578	C	A	L1	L1.1	L1.1.3	L1.1.3.1	
+738603	C	T	L1	L1.1	L1.1.3	L1.1.3.1	
+1060878	C	T	L1	L1.1	L1.1.3	L1.1.3.1	
+1249771	G	A	L1	L1.1	L1.1.3	L1.1.3.1	
+1353773	C	G	L1	L1.1	L1.1.3	L1.1.3.1	
+1599996	C	T	L1	L1.1	L1.1.3	L1.1.3.1	
+25139	A	G	L1	L1.1	L1.1.3	L1.1.3.2	
+187285	G	C	L1	L1.1	L1.1.3	L1.1.3.2	
+2369187	C	T	L1	L1.1	L1.1.3	L1.1.3.2	
+2369460	G	A	L1	L1.1	L1.1.3	L1.1.3.2	
+4154816	G	A	L1	L1.1	L1.1.3	L1.1.3.2	
+67969	C	T	L1	L1.1	L1.1.3	L1.1.3.3	
+264535	C	T	L1	L1.1	L1.1.3	L1.1.3.3	
+1193668	G	A	L1	L1.1	L1.1.3	L1.1.3.3	
+1799178	G	A	L1	L1.1	L1.1.3	L1.1.3.3	
+1976014	C	T	L1	L1.1	L1.1.3	L1.1.3.3	
+2066474	T	C	L1	L1.1	L1.1.3	L1.1.3.3	
+303414	C	T	L1	L1.2.1			
+654996	C	T	L1	L1.2.1			
+864166	C	T	L1	L1.2.1			
+990383	G	A	L1	L1.2.1			
+1315746	G	A	L1	L1.2.1			
+1363194	G	A	L1	L1.2.1			
+1553855	C	T	L1	L1.2.1			
+28439	T	C	L1	L1.2.1	L1.2.1.1		
+282486	G	A	L1	L1.2.1	L1.2.1.1		
+465837	G	A	L1	L1.2.1	L1.2.1.1		
+590595	G	A	L1	L1.2.1	L1.2.1.1		
+2640960	C	T	L1	L1.2.1	L1.2.1.1		
+2847191	G	A	L1	L1.2.1	L1.2.1.1		
+3387252	G	A	L1	L1.2.1	L1.2.1.1		
+4402048	C	T	L1	L1.2.1	L1.2.1.1		
+13175	A	G	L1	L1.2.1	L1.2.1.2		
+528781	G	A	L1	L1.2.1	L1.2.1.2		
+2639868	A	G	L1	L1.2.1	L1.2.1.2		
+3629612	G	A	L1	L1.2.1	L1.2.1.2		
+3862181	C	T	L1	L1.2.1	L1.2.1.2		
+4024368	C	T	L1	L1.2.1	L1.2.1.2		
+4237383	C	A	L1	L1.2.1	L1.2.1.2		
+297396	G	A	L1	L1.2.1	L1.2.1.2	L1.2.1.2.1	
+1406312	A	G	L1	L1.2.1	L1.2.1.2	L1.2.1.2.1	
+1903050	C	T	L1	L1.2.1	L1.2.1.2	L1.2.1.2.1	
+2215712	G	A	L1	L1.2.1	L1.2.1.2	L1.2.1.2.1	
+2486342	C	T	L1	L1.2.1	L1.2.1.2	L1.2.1.2.1	
+2958570	G	A	L1	L1.2.1	L1.2.1.2	L1.2.1.2.1	
+3619854	A	G	L1	L1.2.1	L1.2.1.2	L1.2.1.2.1	
+20407	G	A	L1	L1.2.2			
+32773	G	A	L1	L1.2.2			
+154051	A	G	L1	L1.2.2			
+483489	G	A	L1	L1.2.2			
+552361	G	A	L1	L1.2.2			
+1018811	G	A	L1	L1.2.2			
+60297	T	C	L1	L1.2.2	L1.2.2.1		
+204724	G	A	L1	L1.2.2	L1.2.2.1		
+717879	G	A	L1	L1.2.2	L1.2.2.1		
+1245275	C	T	L1	L1.2.2	L1.2.2.1		
+1885495	G	A	L1	L1.2.2	L1.2.2.1		
+61842	T	C	L1	L1.2.2	L1.2.2.2		
+88764	C	T	L1	L1.2.2	L1.2.2.2		
+596475	C	T	L1	L1.2.2	L1.2.2.2		
+729357	C	T	L1	L1.2.2	L1.2.2.2		
+1228067	G	A	L1	L1.2.2	L1.2.2.2		
+1619841	G	A	L1	L1.2.2	L1.2.2.2		
+1672808	G	A	L1	L1.2.2	L1.2.2.2		
+6112	G	C	L1				
+13298	G	C	L1				
+22961	T	G	L1				
+65663	C	G	L1				
+74737	T	G	L1				
+98966	G	C	L1				
+160976	C	G	L1				
+196874	C	T	L1				
+211993	C	A	L1				
+254903	C	A	L1				
+264298	C	A	L1				
+326002	A	G	L1				
+378357	T	G	L1				
+393941	C	T	L1				
+396750	G	A	L1				
+420405	C	T	L1				
+485785	T	G	L1				
+556035	G	T	L1				
+560666	A	G	L1				
+568693	G	T	L1				
+643483	G	A	L1				
+685955	G	A	L1				
+752046	C	T	L1				
+819213	T	C	L1				
+885689	G	T	L1				
+895082	A	G	L1				
+910015	C	A	L1				
+996219	G	A	L1				
+1022613	G	A	L1				
+1032524	T	C	L1				
+1072342	A	G	L1				
+1077754	C	T	L1				
+1083755	A	G	L1				
+1086648	C	A	L1				
+1111518	T	C	L1				
+1117405	C	T	L1				
+1139222	G	A	L1				
+1157771	G	C	L1				
+1184826	G	T	L1				
+1192830	G	A	L1				
+1199019	T	C	L1				
+1320614	C	G	L1				
+1374578	C	T	L1				
+1374639	T	A	L1				
+1387211	G	A	L1				
+1397215	C	G	L1				
+1417019	C	T	L1				
+1514010	G	T	L1				
+1522862	C	T	L1				
+1604290	A	T	L1				
+1625259	A	C	L1				
+1647830	G	A	L1				
+1658535	G	T	L1				
+1659902	T	C	L1				
+1691520	T	G	L1				
+1731563	A	T	L1				
+1739390	A	G	L1				
+1745446	T	A	L1				
+1754299	A	C	L1				
+1754983	C	T	L1				
+1791823	T	C	L1				
+1827553	C	G	L1				
+1832642	G	T	L1				
+1887284	G	A	L1				
+1902156	G	A	L1				
+1907177	C	T	L1				
+1956930	T	G	L1				
+1979026	C	T	L1				
+2023211	G	T	L1				
+2035937	G	A	L1				
+2083124	T	C	L1				
+2090306	G	A	L1				
+2096430	A	C	L1				
+2132062	C	G	L1				
+2138767	G	C	L1				
+2218488	G	C	L1				
+2242808	G	A	L1				
+2249035	A	G	L1				
+2255942	G	T	L1				
+2309356	G	A	L1				
+2327904	T	G	L1				
+2331255	C	T	L1				
+2335500	C	T	L1				
+2397760	C	G	L1				
+2425097	A	C	L1				
+2450045	G	A	L1				
+2451081	C	G	L1				
+2538793	G	A	L1				
+2544979	T	A	L1				
+2547274	A	G	L1				
+2569593	A	G	L1				
+2574598	C	T	L1				
+2602575	G	A	L1				
+2688225	G	C	L1				
+2727037	A	T	L1				
+2791257	A	T	L1				
+2940608	C	T	L1				
+2992564	G	A	L1				
+3086261	T	C	L1				
+3169993	A	G	L1				
+3190342	G	A	L1				
+3229692	G	A	L1				
+3241244	G	A	L1				
+3280132	G	A	L1				
+3299413	G	A	L1				
+3326150	A	G	L1				
+3406798	G	A	L1				
+3448714	G	C	L1				
+3530145	C	A	L1				
+3597682	C	T	L1				
+3671532	G	C	L1				
+3672105	G	C	L1				
+3683715	T	G	L1				
+3687372	A	G	L1				
+3704261	C	A	L1				
+3770325	C	T	L1				
+3793634	A	G	L1				
+3851084	A	G	L1				
+3899654	C	A	L1				
+3921094	C	T	L1				
+3958007	C	T	L1				
+3974142	G	A	L1				
+4003645	C	T	L1				
+4058711	T	C	L1				
+4085200	G	C	L1				
+4092082	A	T	L1				
+4126087	T	G	L1				
+4133907	G	A	L1				
+4142689	G	A	L1				
+4163558	G	C	L1				
+4187063	G	A	L1				
+4201105	G	A	L1				
+4241042	A	G	L1				
+4245969	C	T	L1				
+4275935	A	G	L1				
+4303407	A	C	L1				
+4306339	G	T	L1				
+4307344	C	G	L1				
+4344058	T	C	L1				
+4357946	C	T	L1				
+6950	C	A	L10				
+65150	C	A	L10				
+80851	C	G	L10				
+173419	G	T	L10				
+193026	A	G	L10				
+209638	C	T	L10				
+229846	C	T	L10				
+277977	G	A	L10				
+316764	C	T	L10				
+325551	G	A	L10				
+353308	A	C	L10				
+378142	C	T	L10				
+421443	C	T	L10				
+516405	G	A	L10				
+578249	A	G	L10				
+610311	G	T	L10				
+616502	C	A	L10				
+664706	A	G	L10				
+664734	G	T	L10				
+676464	C	A	L10				
+703666	A	G	L10				
+736141	C	G	L10				
+874359	A	G	L10				
+955852	G	A	L10				
+961616	C	T	L10				
+1038624	C	A	L10				
+1080726	G	A	L10				
+1094825	A	C	L10				
+1155170	C	T	L10				
+1314985	A	G	L10				
+1317445	G	T	L10				
+1320729	C	T	L10				
+1338095	A	G	L10				
+1376618	G	A	L10				
+1393038	A	C	L10				
+1405435	T	C	L10				
+1408303	C	T	L10				
+1413558	T	G	L10				
+1423476	C	T	L10				
+1446686	C	T	L10				
+1512261	C	A	L10				
+1544585	C	A	L10				
+1556722	G	A	L10				
+1583633	T	C	L10				
+1596747	C	A	L10				
+1610020	T	G	L10				
+1643603	T	C	L10				
+1666298	C	A	L10				
+1687854	A	G	L10				
+1698835	C	T	L10				
+1735076	G	A	L10				
+1826233	A	C	L10				
+1890304	T	C	L10				
+1922649	G	T	L10				
+1976165	G	T	L10				
+1977720	A	G	L10				
+2015877	G	T	L10				
+2127161	G	C	L10				
+2141224	C	T	L10				
+2223137	C	A	L10				
+2252353	C	A	L10				
+2259539	G	C	L10				
+2264794	G	A	L10				
+2264913	G	A	L10				
+2364286	C	T	L10				
+2383433	C	A	L10				
+2446781	G	A	L10				
+2476134	C	T	L10				
+2524614	G	T	L10				
+2589754	G	A	L10				
+2645388	C	T	L10				
+2775175	C	T	L10				
+2918139	A	G	L10				
+2962273	A	C	L10				
+2980473	G	A	L10				
+2982185	T	C	L10				
+3049573	G	A	L10				
+3058459	G	A	L10				
+3064426	G	T	L10				
+3089332	C	T	L10				
+3168987	C	T	L10				
+3178903	G	A	L10				
+3206949	C	A	L10				
+3228023	C	T	L10				
+3250260	G	A	L10				
+3303265	A	C	L10				
+3369263	C	A	L10				
+3372789	G	A	L10				
+3443912	C	A	L10				
+3492968	T	G	L10				
+3503045	A	G	L10				
+3542327	G	A	L10				
+3588413	T	G	L10				
+3712958	G	A	L10				
+3716456	C	T	L10				
+3750100	G	T	L10				
+3786104	G	A	L10				
+3804289	C	G	L10				
+3814827	C	T	L10				
+3815595	C	T	L10				
+3890127	C	G	L10				
+3905241	T	G	L10				
+3925736	G	C	L10				
+4049421	T	C	L10				
+4142207	A	C	L10				
+4171467	G	T	L10				
+4186986	G	A	L10				
+4225535	G	A	L10				
+4236035	A	G	L10				
+4242848	C	A	L10				
+4244717	G	T	L10				
+4283592	G	A	L10				
+4292826	C	T	L10				
+4301327	G	A	L10				
+4330839	C	T	L10				
+4345367	A	C	L10				
+4345370	C	G	L10				
+4355323	C	A	L10				
+4368358	C	T	L10				
+4378436	G	T	L10				
+4378939	A	C	L10				
+4382115	G	T	L10				
+208782	A	C	L2	L2.1			
+489240	A	G	L2	L2.1			
+522053	C	A	L2	L2.1			
+648465	A	G	L2	L2.1			
+1135798	C	T	L2	L2.1			
+195682	C	G	L2	L2.2			
+363464	G	A	L2	L2.2			
+465300	C	T	L2	L2.2			
+892416	C	T	L2	L2.2			
+1695037	G	A	L2	L2.2			
+1849051	C	T	L2	L2.2			
+2112832	A	C	L2	L2.2			
+2202500	C	T	L2	L2.2			
+2505085	G	A	L2	L2.2			
+533547	C	G	L2	L2.1	L2.2.1		
+797736	C	T	L2	L2.1	L2.2.1		
+2078246	C	G	L2	L2.1	L2.2.1		
+2825581	T	G	L2	L2.1	L2.2.1		
+3498198	C	T	L2	L2.1	L2.2.1		
+671385	C	G	L2	L2.2	L2.2.1	L2.2.1.1	
+731015	A	G	L2	L2.2	L2.2.1	L2.2.1.1	
+1891388	C	G	L2	L2.2	L2.2.1	L2.2.1.1	
+1947282	A	G	L2	L2.2	L2.2.1	L2.2.1.1	
+4080525	C	T	L2	L2.2	L2.2.1	L2.2.1.1	
+738837	G	T	L2	L2.2	L2.2.1	L2.2.1.2	
+1692069	A	G	L2	L2.2	L2.2.1	L2.2.1.2	
+2826039	G	C	L2	L2.2	L2.2.1	L2.2.1.2	
+154990	G	T	L2	L2.2	L2.2.2		
+252900	C	T	L2	L2.2	L2.2.2		
+294596	T	G	L2	L2.2	L2.2.2		
+346693	G	T	L2	L2.2	L2.2.2		
+449194	G	A	L2	L2.2	L2.2.2		
+1511460	C	T	L2	L2.2	L2.2.2		
+1565566	C	T	L2	L2.2	L2.2.2		
+2640807	G	A	L2	L2.2	L2.2.2		
+14861	G	T	L2				
+36008	G	C	L2				
+37305	C	G	L2				
+87468	C	T	L2				
+147262	G	T	L2				
+230170	C	T	L2				
+264129	G	A	L2				
+353309	G	A	L2				
+484596	C	T	L2				
+628864	T	C	L2				
+657142	C	T	L2				
+798355	G	C	L2				
+940602	C	G	L2				
+1168776	T	G	L2				
+1201581	A	C	L2				
+1556787	T	C	L2				
+1651308	A	G	L2				
+1695796	C	T	L2				
+1831220	A	C	L2				
+1831226	A	G	L2				
+1877744	A	C	L2				
+1955941	G	C	L2				
+2072313	C	A	L2				
+2172380	A	C	L2				
+2185674	A	G	L2				
+2268627	G	C	L2				
+2294007	T	C	L2				
+2399734	G	A	L2				
+2548700	C	T	L2				
+3010993	C	T	L2				
+3304966	G	A	L2				
+3597249	C	G	L2				
+3678249	A	C	L2				
+3778011	G	A	L2				
+3993058	G	A	L2				
+4041581	C	T	L2				
+4167656	A	G	L2				
+4179832	G	C	L2				
+4205325	A	G	L2				
+4267647	T	C	L2				
+4378504	T	C	L2				
+85985	T	C	L3	L3.1.1			
+1378725	T	C	L3	L3.1.1			
+1523575	A	G	L3	L3.1.1			
+1556430	T	G	L3	L3.1.1			
+1591545	G	T	L3	L3.1.1			
+2744388	G	A	L3	L3.1.1			
+3023684	G	A	L3	L3.1.1			
+4065300	G	T	L3	L3.1.1			
+34605	C	A	L3	L3.1.2			
+993016	G	A	L3	L3.1.2			
+2729454	C	T	L3	L3.1.2			
+4132949	C	T	L3	L3.1.2			
+791671	T	C	L3	L3.1.2	L3.1.2.1		
+961598	C	G	L3	L3.1.2	L3.1.2.1		
+1038108	C	G	L3	L3.1.2	L3.1.2.1		
+2020120	C	T	L3	L3.1.2	L3.1.2.1		
+2185538	G	A	L3	L3.1.2	L3.1.2.1		
+2245499	C	T	L3	L3.1.2	L3.1.2.1		
+2271143	G	A	L3	L3.1.2	L3.1.2.1		
+3557911	C	T	L3	L3.1.2	L3.1.2.1		
+4053713	C	G	L3	L3.1.2	L3.1.2.1		
+187342	G	C	L3	L3.1.2	L3.1.2.2		
+288173	T	C	L3	L3.1.2	L3.1.2.2		
+346898	C	T	L3	L3.1.2	L3.1.2.2		
+875034	G	A	L3	L3.1.2	L3.1.2.2		
+1862121	C	T	L3	L3.1.2	L3.1.2.2		
+415693	G	A	L3	L3.1.3			
+457392	G	A	L3	L3.1.3			
+794735	G	A	L3	L3.1.3			
+938153	A	G	L3	L3.1.3			
+1244259	A	C	L3	L3.1.3			
+1919627	G	A	L3	L3.1.3			
+54842	G	T	L3				
+72549	C	T	L3				
+157129	C	T	L3				
+170671	G	A	L3				
+207079	G	C	L3				
+255373	T	C	L3				
+266405	C	T	L3				
+276539	G	C	L3				
+358473	G	C	L3				
+363563	G	A	L3				
+406251	T	C	L3				
+485561	A	C	L3				
+517389	C	A	L3				
+523654	C	T	L3				
+548326	T	C	L3				
+788615	G	C	L3				
+945238	G	T	L3				
+950116	C	G	L3				
+991939	G	A	L3				
+1008460	C	T	L3				
+1111852	G	T	L3				
+1144409	T	G	L3				
+1152805	T	A	L3				
+1177184	C	A	L3				
+1271187	C	G	L3				
+1308317	T	C	L3				
+1371470	G	A	L3				
+1440090	C	T	L3				
+1499221	G	A	L3				
+1650406	C	A	L3				
+1676880	A	G	L3				
+1748439	C	T	L3				
+1802047	C	G	L3				
+1827468	C	A	L3				
+1926029	T	C	L3				
+1972901	C	T	L3				
+2011568	G	C	L3				
+2235170	A	G	L3				
+2275764	G	A	L3				
+2284456	T	G	L3				
+2309203	G	A	L3				
+2333215	C	T	L3				
+2516271	T	C	L3				
+2591172	G	A	L3				
+2615413	A	G	L3				
+2656635	G	A	L3				
+2690160	A	G	L3				
+2700222	T	C	L3				
+2817747	G	A	L3				
+2910852	C	G	L3				
+3010014	G	A	L3				
+3069566	C	T	L3				
+3072285	A	C	L3				
+3076172	C	T	L3				
+3312620	C	A	L3				
+3385218	C	T	L3				
+3428897	G	C	L3				
+3459081	G	C	L3				
+3489665	C	T	L3				
+3509231	G	A	L3				
+3515467	C	T	L3				
+3562338	G	T	L3				
+3645524	C	T	L3				
+3685510	T	C	L3				
+3729342	C	T	L3				
+3821503	A	C	L3				
+3994101	A	G	L3				
+4052349	T	G	L3				
+4142192	G	A	L3				
+4226275	C	T	L3				
+4286826	A	G	L3				
+4305243	G	A	L3				
+4372540	A	C	L3				
+62657	G	A	L4	L4.1			
+902413	C	T	L4	L4.1			
+1875207	C	T	L4	L4.1			
+2020144	G	A	L4	L4.1			
+2253453	T	C	L4	L4.1			
+2671061	C	A	L4	L4.1			
+2906978	C	T	L4	L4.1			
+265968	C	G	L4	L4.1	L4.1.1		
+514245	C	T	L4	L4.1	L4.1.1		
+869440	C	T	L4	L4.1	L4.1.1		
+1256806	C	T	L4	L4.1	L4.1.1		
+1952601	C	T	L4	L4.1	L4.1.1		
+2158582	G	A	L4	L4.1	L4.1.1		
+2603797	G	A	L4	L4.1	L4.1.1		
+2752854	G	A	L4	L4.1	L4.1.1		
+3129359	C	T	L4	L4.1	L4.1.1		
+3231091	C	A	L4	L4.1	L4.1.1		
+69873	C	A	L4	L4.1	L4.1.1	L4.1.1.1	
+201123	A	C	L4	L4.1	L4.1.1	L4.1.1.1	
+253969	G	A	L4	L4.1	L4.1.1	L4.1.1.1	
+894079	C	T	L4	L4.1	L4.1.1	L4.1.1.1	
+1006080	G	A	L4	L4.1	L4.1.1	L4.1.1.1	
+1850119	C	T	L4	L4.1	L4.1.1	L4.1.1.1	
+2585858	G	A	L4	L4.1	L4.1.1	L4.1.1.1	
+2824839	C	T	L4	L4.1	L4.1.1	L4.1.1.1	
+3464053	G	A	L4	L4.1	L4.1.1	L4.1.1.1	
+26300	T	C	L4	L4.1	L4.1.1	L4.1.1.2	
+274930	G	A	L4	L4.1	L4.1.1	L4.1.1.2	
+541048	T	G	L4	L4.1	L4.1.1	L4.1.1.2	
+594027	C	T	L4	L4.1	L4.1.1	L4.1.1.2	
+608179	C	T	L4	L4.1	L4.1.1	L4.1.1.2	
+1109535	G	A	L4	L4.1	L4.1.1	L4.1.1.2	
+1286666	G	A	L4	L4.1	L4.1.1	L4.1.1.2	
+3213615	G	A	L4	L4.1	L4.1.1	L4.1.1.2	
+328641	G	T	L4	L4.1	L4.1.1	L4.1.1.3	
+896356	C	T	L4	L4.1	L4.1.1	L4.1.1.3	
+979859	T	C	L4	L4.1	L4.1.1	L4.1.1.3	
+1028944	C	T	L4	L4.1	L4.1.1	L4.1.1.3	
+2454856	C	T	L4	L4.1	L4.1.1	L4.1.1.3	
+4154051	G	A	L4	L4.1	L4.1.1	L4.1.1.3	
+4229087	C	T	L4	L4.1	L4.1.1	L4.1.1.3	
+2208143	T	C	L4	L4.1	L4.1.1	L4.1.1.3	L4.1.1.3.1
+2739087	C	T	L4	L4.1	L4.1.1	L4.1.1.3	L4.1.1.3.1
+2980975	G	A	L4	L4.1	L4.1.1	L4.1.1.3	L4.1.1.3.1
+3253571	C	T	L4	L4.1	L4.1.1	L4.1.1.3	L4.1.1.3.1
+3865539	G	C	L4	L4.1	L4.1.1	L4.1.1.3	L4.1.1.3.1
+443277	A	C	L4	L4.1	L4.1.2		
+446165	G	C	L4	L4.1	L4.1.2		
+832708	A	C	L4	L4.1	L4.1.2		
+891756	A	G	L4	L4.1	L4.1.2		
+1111925	A	G	L4	L4.1	L4.1.2		
+1153676	C	G	L4	L4.1	L4.1.2		
+2066633	C	G	L4	L4.1	L4.1.2		
+3147742	A	G	L4	L4.1	L4.1.2		
+107794	C	T	L4	L4.1	L4.1.2	L4.1.2.1	
+1931219	G	A	L4	L4.1	L4.1.2	L4.1.2.1	
+2244770	G	A	L4	L4.1	L4.1.2	L4.1.2.1	
+2473699	C	T	L4	L4.1	L4.1.2	L4.1.2.1	
+2724782	C	T	L4	L4.1	L4.1.2	L4.1.2.1	
+4331585	G	A	L4	L4.1	L4.1.2	L4.1.2.1	
+112958	G	A	L4	L4.1	L4.1.2	L4.1.2.1	L4.1.2.1.1
+255225	G	A	L4	L4.1	L4.1.2	L4.1.2.1	L4.1.2.1.1
+740855	G	C	L4	L4.1	L4.1.2	L4.1.2.1	L4.1.2.1.1
+1025614	G	T	L4	L4.1	L4.1.2	L4.1.2.1	L4.1.2.1.1
+1701477	C	G	L4	L4.1	L4.1.2	L4.1.2.1	L4.1.2.1.1
+1877862	G	T	L4	L4.1	L4.1.2	L4.1.2.1	L4.1.2.1.1
+2488724	C	G	L4	L4.1	L4.1.2	L4.1.2.1	L4.1.2.1.1
+2640369	G	A	L4	L4.1	L4.1.2	L4.1.2.1	L4.1.2.1.1
+4404313	G	A	L4	L4.1	L4.1.2	L4.1.2.1	L4.1.2.1.1
+4206	C	T	L4	L4.1	L4.1.3		
+184254	G	C	L4	L4.1	L4.1.3		
+687189	C	G	L4	L4.1	L4.1.3		
+724339	C	T	L4	L4.1	L4.1.3		
+4228101	C	T	L4	L4.1	L4.1.3		
+485434	G	A	L4	L4.1	L4.1.4		
+551419	C	G	L4	L4.1	L4.1.4		
+4391663	G	A	L4	L4.1	L4.1.4		
+217306	C	G	L4	L4.2			
+1466779	C	T	L4	L4.2			
+1568018	C	T	L4	L4.2			
+1872211	G	A	L4	L4.2			
+2748087	G	A	L4	L4.2			
+3469694	G	T	L4	L4.2			
+3666905	C	T	L4	L4.2			
+609254	C	T	L4	L4.2	L4.2.1		
+783601	A	C	L4	L4.2	L4.2.1		
+1017836	A	C	L4	L4.2	L4.2.1		
+3471151	G	A	L4	L4.2	L4.2.1		
+211576	C	A	L4	L4.2	L4.2.1	L4.2.1.1	
+481569	G	A	L4	L4.2	L4.2.1	L4.2.1.1	
+638212	G	T	L4	L4.2	L4.2.1	L4.2.1.1	
+870187	C	T	L4	L4.2	L4.2.1	L4.2.1.1	
+899319	C	G	L4	L4.2	L4.2.1	L4.2.1.1	
+1115796	C	A	L4	L4.2	L4.2.1	L4.2.1.1	
+1526839	G	A	L4	L4.2	L4.2.1	L4.2.1.1	
+1652216	A	G	L4	L4.2	L4.2.1	L4.2.1.1	
+1660440	G	A	L4	L4.2	L4.2.1	L4.2.1.1	
+9944	A	C	L4	L4.2	L4.2.2		
+74956	T	C	L4	L4.2	L4.2.2		
+193735	C	G	L4	L4.2	L4.2.2		
+353766	T	C	L4	L4.2	L4.2.2		
+353767	C	T	L4	L4.2	L4.2.2		
+576077	C	T	L4	L4.2	L4.2.2		
+1487796	C	A	L4	L4.2	L4.2.2		
+3383966	G	C	L4	L4.2	L4.2.2		
+1131	C	A	L4	L4.2	L4.2.2	L4.2.2.1	
+1053308	C	T	L4	L4.2	L4.2.2	L4.2.2.1	
+1455780	T	C	L4	L4.2	L4.2.2	L4.2.2.1	
+1919736	T	G	L4	L4.2	L4.2.2	L4.2.2.1	
+1985573	C	A	L4	L4.2	L4.2.2	L4.2.2.1	
+3007524	G	A	L4	L4.2	L4.2.2	L4.2.2.1	
+3259272	A	C	L4	L4.2	L4.2.2	L4.2.2.1	
+611463	G	A	L4	L4.2	L4.2.2	L4.2.2.2	
+1233285	G	A	L4	L4.2	L4.2.2	L4.2.2.2	
+1880850	G	A	L4	L4.2	L4.2.2	L4.2.2.2	
+2153246	T	G	L4	L4.2	L4.2.2	L4.2.2.2	
+3141827	C	G	L4	L4.2	L4.2.2	L4.2.2.2	
+3416734	G	A	L4	L4.2	L4.2.2	L4.2.2.2	
+3497369	G	A	L4	L4.2	L4.2.2	L4.2.2.2	
+4298106	C	A	L4	L4.2	L4.2.2	L4.2.2.2	
+14251	G	A	L4	L4.3			
+162581	G	A	L4	L4.3			
+534691	C	T	L4	L4.3			
+1452071	C	A	L4	L4.3			
+2053682	C	T	L4	L4.3			
+2503625	C	T	L4	L4.3			
+3191027	G	A	L4	L4.3			
+3418330	G	A	L4	L4.3			
+825585	T	C	L4	L4.3	L4.3.1		
+1169028	G	A	L4	L4.3	L4.3.1		
+1421109	A	G	L4	L4.3	L4.3.1		
+1541214	T	C	L4	L4.3	L4.3.1		
+1715828	G	C	L4	L4.3	L4.3.1		
+3037136	G	A	L4	L4.3	L4.3.1		
+223627	C	A	L4	L4.3	L4.3.1	L4.3.1.1	
+324662	C	T	L4	L4.3	L4.3.1	L4.3.1.1	
+772803	C	G	L4	L4.3	L4.3.1	L4.3.1.1	
+1083082	G	T	L4	L4.3	L4.3.1	L4.3.1.1	
+1363986	C	T	L4	L4.3	L4.3.1	L4.3.1.1	
+1620582	T	C	L4	L4.3	L4.3.1	L4.3.1.1	
+1647807	T	C	L4	L4.3	L4.3.1	L4.3.1.1	
+2614031	T	G	L4	L4.3	L4.3.1	L4.3.1.1	
+3360032	G	A	L4	L4.3	L4.3.1	L4.3.1.1	
+47699	G	A	L4	L4.3	L4.3.2		
+326039	C	T	L4	L4.3	L4.3.2		
+2249403	C	T	L4	L4.3	L4.3.2		
+2649855	G	A	L4	L4.3	L4.3.2		
+2907629	G	A	L4	L4.3	L4.3.2		
+147655	G	C	L4	L4.3	L4.3.2	L4.3.2.1	
+784581	G	C	L4	L4.3	L4.3.2	L4.3.2.1	
+1232496	T	C	L4	L4.3	L4.3.2	L4.3.2.1	
+1451542	C	T	L4	L4.3	L4.3.2	L4.3.2.1	
+1592015	C	T	L4	L4.3	L4.3.2	L4.3.2.1	
+2470627	G	A	L4	L4.3	L4.3.2	L4.3.2.1	
+2844689	G	C	L4	L4.3	L4.3.2	L4.3.2.1	
+403920	C	T	L4	L4.3	L4.3.3		
+535695	C	T	L4	L4.3	L4.3.3		
+812808	G	A	L4	L4.3	L4.3.3		
+919393	G	C	L4	L4.3	L4.3.3		
+2077253	G	A	L4	L4.3	L4.3.3		
+2814961	G	A	L4	L4.3	L4.3.3		
+3423184	C	T	L4	L4.3	L4.3.3		
+3643392	C	T	L4	L4.3	L4.3.3		
+4390753	C	G	L4	L4.3	L4.3.3		
+1037355	T	C	L4	L4.3	L4.3.4		
+1847811	A	C	L4	L4.3	L4.3.4		
+2527676	G	A	L4	L4.3	L4.3.4		
+2599821	C	A	L4	L4.3	L4.3.4		
+3612009	C	T	L4	L4.3	L4.3.4		
+197047	A	G	L4	L4.3	L4.3.4	L4.3.4.1	
+393780	T	G	L4	L4.3	L4.3.4	L4.3.4.1	
+831206	C	T	L4	L4.3	L4.3.4	L4.3.4.1	
+1106649	T	C	L4	L4.3	L4.3.4	L4.3.4.1	
+1251955	C	T	L4	L4.3	L4.3.4	L4.3.4.1	
+1274335	G	A	L4	L4.3	L4.3.4	L4.3.4.1	
+1364434	C	T	L4	L4.3	L4.3.4	L4.3.4.1	
+2199684	G	A	L4	L4.3	L4.3.4	L4.3.4.1	
+3244674	G	A	L4	L4.3	L4.3.4	L4.3.4.1	
+784440	G	T	L4	L4.3	L4.3.4	L4.3.4.2	
+990533	T	C	L4	L4.3	L4.3.4	L4.3.4.2	
+1132368	C	T	L4	L4.3	L4.3.4	L4.3.4.2	
+1771320	G	A	L4	L4.3	L4.3.4	L4.3.4.2	
+3504930	C	T	L4	L4.3	L4.3.4	L4.3.4.2	
+225495	T	C	L4	L4.3	L4.3.4	L4.3.4.2	L4.3.4.2.1
+1239078	C	A	L4	L4.3	L4.3.4	L4.3.4.2	L4.3.4.2.1
+2729453	C	A	L4	L4.3	L4.3.4	L4.3.4.2	L4.3.4.2.1
+2873374	G	A	L4	L4.3	L4.3.4	L4.3.4.2	L4.3.4.2.1
+4273842	A	C	L4	L4.3	L4.3.4	L4.3.4.2	L4.3.4.2.1
+4380236	T	G	L4	L4.3	L4.3.4	L4.3.4.2	L4.3.4.2.1
+753088	C	T	L4	L4.4			
+1052899	C	T	L4	L4.4			
+2356012	G	A	L4	L4.4			
+2868925	G	A	L4	L4.4			
+3419560	C	T	L4	L4.4			
+3608514	G	A	L4	L4.4			
+4004036	C	T	L4	L4.4			
+4307886	G	A	L4	L4.4			
+197397	G	C	L4	L4.4	L4.4.1		
+821102	C	T	L4	L4.4	L4.4.1		
+1051949	G	A	L4	L4.4	L4.4.1		
+3813473	G	A	L4	L4.4	L4.4.1		
+224901	C	G	L4	L4.4	L4.4.1	L4.4.1.1	
+361145	T	C	L4	L4.4	L4.4.1	L4.4.1.1	
+383081	A	G	L4	L4.4	L4.4.1	L4.4.1.1	
+506386	T	C	L4	L4.4	L4.4.1	L4.4.1.1	
+705062	G	C	L4	L4.4	L4.4.1	L4.4.1.1	
+964099	T	C	L4	L4.4	L4.4.1	L4.4.1.1	
+1321210	C	T	L4	L4.4	L4.4.1	L4.4.1.1	
+2022126	G	C	L4	L4.4	L4.4.1	L4.4.1.1	
+15036	C	G	L4	L4.4	L4.4.1	L4.4.1.1	L4.4.1.1.1
+68688	C	T	L4	L4.4	L4.4.1	L4.4.1.1	L4.4.1.1.1
+135695	C	A	L4	L4.4	L4.4.1	L4.4.1.1	L4.4.1.1.1
+208710	C	A	L4	L4.4	L4.4.1	L4.4.1.1	L4.4.1.1.1
+1126895	G	A	L4	L4.4	L4.4.1	L4.4.1.1	L4.4.1.1.1
+1221479	C	T	L4	L4.4	L4.4.1	L4.4.1.1	L4.4.1.1.1
+1234999	G	A	L4	L4.4	L4.4.1	L4.4.1.1	L4.4.1.1.1
+1853674	G	A	L4	L4.4	L4.4.1	L4.4.1.1	L4.4.1.1.1
+342201	C	G	L4	L4.4	L4.4.1	L4.4.1.2	
+1297981	G	C	L4	L4.4	L4.4.1	L4.4.1.2	
+1494231	G	A	L4	L4.4	L4.4.1	L4.4.1.2	
+1803959	G	T	L4	L4.4	L4.4.1	L4.4.1.2	
+1808124	A	C	L4	L4.4	L4.4.1	L4.4.1.2	
+2410938	A	T	L4	L4.4	L4.4.1	L4.4.1.2	
+3349093	G	C	L4	L4.4	L4.4.1	L4.4.1.2	
+4392120	G	A	L4	L4.4	L4.4.1	L4.4.1.2	
+985287	G	A	L4	L4.4	L4.4.2		
+2245075	C	T	L4	L4.4	L4.4.2		
+3886878	T	C	L4	L4.4	L4.4.2		
+12555	C	T	L4	L4.5			
+281316	C	T	L4	L4.5			
+1435763	C	T	L4	L4.5			
+1645599	C	T	L4	L4.5			
+1901924	T	C	L4	L4.5			
+2093998	C	T	L4	L4.5			
+18091	G	A	L4	L4.6			
+54304	C	T	L4	L4.6			
+122794	T	G	L4	L4.6			
+325038	G	A	L4	L4.6			
+2369971	A	G	L4	L4.6			
+3170460	C	T	L4	L4.6			
+435708	G	A	L4	L4.6	L4.6.1		
+685869	G	A	L4	L4.6	L4.6.1		
+979314	C	T	L4	L4.6	L4.6.1		
+2033748	G	C	L4	L4.6	L4.6.1		
+2184781	G	T	L4	L4.6	L4.6.1		
+2273627	C	T	L4	L4.6	L4.6.1		
+4260268	G	C	L4	L4.6	L4.6.1		
+996871	G	A	L4	L4.6	L4.6.1	L4.6.1.1	
+1439332	C	T	L4	L4.6	L4.6.1	L4.6.1.1	
+1597696	G	A	L4	L4.6	L4.6.1	L4.6.1.1	
+2331061	G	T	L4	L4.6	L4.6.1	L4.6.1.1	
+2377785	C	T	L4	L4.6	L4.6.1	L4.6.1.1	
+3028658	G	A	L4	L4.6	L4.6.1	L4.6.1.1	
+3562270	G	C	L4	L4.6	L4.6.1	L4.6.1.1	
+4406749	G	A	L4	L4.6	L4.6.1	L4.6.1.1	
+138788	C	T	L4	L4.6	L4.6.1	L4.6.1.2	
+578032	C	T	L4	L4.6	L4.6.1	L4.6.1.2	
+818798	G	T	L4	L4.6	L4.6.1	L4.6.1.2	
+1098698	C	G	L4	L4.6	L4.6.1	L4.6.1.2	
+1391868	G	A	L4	L4.6	L4.6.1	L4.6.1.2	
+2058447	G	A	L4	L4.6	L4.6.1	L4.6.1.2	
+2494263	G	A	L4	L4.6	L4.6.1	L4.6.1.2	
+3332626	C	T	L4	L4.6	L4.6.1	L4.6.1.2	
+49079	C	G	L4	L4.6	L4.6.2		
+561021	G	A	L4	L4.6	L4.6.2		
+778298	C	T	L4	L4.6	L4.6.2		
+863340	T	C	L4	L4.6	L4.6.2		
+1010532	G	A	L4	L4.6	L4.6.2		
+1289555	C	G	L4	L4.6	L4.6.2		
+1467753	G	A	L4	L4.6	L4.6.2		
+1534538	C	T	L4	L4.6	L4.6.2		
+4260742	G	A	L4	L4.6	L4.6.2		
+896119	C	T	L4	L4.6	L4.6.2	L4.6.2.1	
+1030368	C	G	L4	L4.6	L4.6.2	L4.6.2.1	
+1588887	T	C	L4	L4.6	L4.6.2	L4.6.2.1	
+1625769	G	A	L4	L4.6	L4.6.2	L4.6.2.1	
+2105065	C	T	L4	L4.6	L4.6.2	L4.6.2.1	
+2225515	G	A	L4	L4.6	L4.6.2	L4.6.2.1	
+2781384	A	G	L4	L4.6	L4.6.2	L4.6.2.1	
+2897684	A	G	L4	L4.6	L4.6.2	L4.6.2.1	
+3238748	G	A	L4	L4.6	L4.6.2	L4.6.2.1	
+3293315	C	T	L4	L4.6	L4.6.2	L4.6.2.1	
+69342	G	A	L4	L4.6	L4.6.2	L4.6.2.2	
+118469	G	A	L4	L4.6	L4.6.2	L4.6.2.2	
+142317	C	T	L4	L4.6	L4.6.2	L4.6.2.2	
+166348	A	C	L4	L4.6	L4.6.2	L4.6.2.2	
+2875883	C	T	L4	L4.6	L4.6.2	L4.6.2.2	
+3354625	G	A	L4	L4.6	L4.6.2	L4.6.2.2	
+3360152	C	A	L4	L4.6	L4.6.2	L4.6.2.2	
+111851	G	A	L4	L4.6	L4.6.3		
+252495	G	A	L4	L4.6	L4.6.3		
+281664	A	G	L4	L4.6	L4.6.3		
+734562	G	A	L4	L4.6	L4.6.3		
+758122	C	T	L4	L4.6	L4.6.3		
+2516365	T	C	L4	L4.6	L4.6.3		
+176821	C	G	L4	L4.6	L4.6.4		
+2755469	G	A	L4	L4.6	L4.6.4		
+2893701	G	A	L4	L4.6	L4.6.4		
+2919532	T	G	L4	L4.6	L4.6.4		
+3048841	G	A	L4	L4.6	L4.6.4		
+4236903	G	A	L4	L4.6	L4.6.4		
+17665	G	A	L4	L4.6	L4.6.5		
+155555	C	T	L4	L4.6	L4.6.5		
+1358197	C	T	L4	L4.6	L4.6.5		
+1498304	A	C	L4	L4.6	L4.6.5		
+201896	A	G	L4	L4.7			
+796876	A	G	L4	L4.7			
+2378813	A	G	L4	L4.7			
+2892168	G	A	L4	L4.7			
+3220222	G	A	L4	L4.7			
+3270289	C	A	L4	L4.7			
+4112595	G	A	L4	L4.7			
+4391579	C	G	L4	L4.7			
+212244	G	A	L4	L4.8			
+1082445	T	A	L4	L4.8			
+1227217	C	T	L4	L4.8			
+1273071	T	C	L4	L4.8			
+2809250	C	T	L4	L4.8			
+3168967	C	A	L4	L4.8			
+3836739	G	A	L4	L4.8			
+4028292	C	T	L4	L4.8			
+306113	C	T	L4	L4.8	L4.8.1		
+449704	C	T	L4	L4.8	L4.8.1		
+545117	C	A	L4	L4.8	L4.8.1		
+1132437	C	T	L4	L4.8	L4.8.1		
+1155868	C	T	L4	L4.8	L4.8.1		
+1547498	G	A	L4	L4.8	L4.8.1		
+2914906	G	C	L4	L4.8	L4.8.1		
+3348870	G	A	L4	L4.8	L4.8.1		
+3389922	T	G	L4	L4.8	L4.8.1		
+681313	C	T	L4	L4.8	L4.8.2		
+953397	C	T	L4	L4.8	L4.8.2		
+1204546	A	G	L4	L4.8	L4.8.2		
+1444655	C	T	L4	L4.8	L4.8.2		
+1764808	C	T	L4	L4.8	L4.8.2		
+2073605	G	C	L4	L4.8	L4.8.2		
+3404883	G	A	L4	L4.8	L4.8.2		
+214036	C	T	L4	L4.8	L4.8.3		
+262868	A	G	L4	L4.8	L4.8.3		
+709493	G	T	L4	L4.8	L4.8.3		
+748923	C	T	L4	L4.8	L4.8.3		
+1154368	A	C	L4	L4.8	L4.8.3		
+2782140	G	A	L4	L4.8	L4.8.3		
+3863545	G	A	L4	L4.8	L4.8.3		
+311613	T	G	L4	L4.9			
+420008	G	A	L4	L4.9			
+541201	G	A	L4	L4.9			
+903913	C	T	L4	L4.9			
+1907296	C	G	L4	L4.9			
+3367765	A	G	L4	L4.9			
+119600	C	G	L4	L4.9	L4.9.1		
+257041	C	T	L4	L4.9	L4.9.1		
+394922	G	T	L4	L4.9	L4.9.1		
+1074929	G	C	L4	L4.9	L4.9.1		
+15117	G	C	L4				
+70267	T	G	L4				
+143207	C	T	L4				
+199470	G	T	L4				
+249522	C	T	L4				
+251575	A	G	L4				
+342146	C	A	L4				
+445780	T	C	L4				
+492150	C	G	L4				
+517358	C	T	L4				
+584171	C	T	L4				
+776100	A	G	L4				
+941845	A	C	L4				
+960367	G	A	L4				
+1024346	G	A	L4				
+1054784	G	C	L4				
+1098523	A	T	L4				
+1104690	G	T	L4				
+1107940	C	A	L4				
+1144585	G	A	L4				
+1211369	C	A	L4				
+1248382	G	A	L4				
+1367484	G	T	L4				
+1479085	C	T	L4				
+1490905	G	A	L4				
+1716472	G	A	L4				
+1859559	A	C	L4				
+2122976	G	C	L4				
+2154724	A	C	L4				
+2158109	C	T	L4				
+2199052	G	C	L4				
+2369186	C	G	L4				
+2448458	T	C	L4				
+2791098	T	C	L4				
+2841022	G	A	L4				
+2925962	C	T	L4				
+3003115	G	C	L4				
+3010420	G	A	L4				
+3027798	C	T	L4				
+3031168	G	A	L4				
+3326554	C	A	L4				
+3420825	G	A	L4				
+3454263	G	C	L4				
+3480789	C	T	L4				
+3530955	G	C	L4				
+3638093	A	G	L4				
+3893480	A	G	L4				
+3909235	C	G	L4				
+4008747	G	A	L4				
+4028752	G	A	L4				
+4107074	C	T	L4				
+4112429	C	T	L4				
+4156503	T	C	L4				
+4179089	T	C	L4				
+4215484	C	G	L4				
+4217557	G	A	L4				
+464958	C	T	L5	L5.1			
+1733618	C	T	L5	L5.1			
+1846092	C	T	L5	L5.1			
+2382645	G	A	L5	L5.1			
+279803	G	T	L5	L5.1	L5.1.1		
+472898	G	A	L5	L5.1	L5.1.1		
+1692640	C	T	L5	L5.1	L5.1.1		
+1695791	G	T	L5	L5.1	L5.1.1		
+1891256	T	G	L5	L5.1	L5.1.1		
+1912268	T	C	L5	L5.1	L5.1.1		
+3368284	C	T	L5	L5.1	L5.1.1		
+3580670	G	T	L5	L5.1	L5.1.1		
+71636	C	T	L5	L5.1	L5.1.2		
+550976	T	G	L5	L5.1	L5.1.2		
+1317796	C	T	L5	L5.1	L5.1.2		
+1543874	G	T	L5	L5.1	L5.1.2		
+1599076	C	T	L5	L5.1	L5.1.2		
+2271443	A	G	L5	L5.1	L5.1.2		
+13529	G	A	L5	L5.1	L5.1.3		
+191218	G	C	L5	L5.1	L5.1.3		
+231261	G	A	L5	L5.1	L5.1.3		
+1741100	G	A	L5	L5.1	L5.1.3		
+1903547	C	T	L5	L5.1	L5.1.3		
+1064934	C	G	L5	L5.1	L5.1.4		
+1311443	C	T	L5	L5.1	L5.1.4		
+1492961	G	A	L5	L5.1	L5.1.4		
+2565446	G	A	L5	L5.1	L5.1.4		
+3097223	C	T	L5	L5.1	L5.1.4		
+3893139	G	A	L5	L5.1	L5.1.4		
+4382534	T	C	L5	L5.1	L5.1.4		
+57162	C	T	L5	L5.1	L5.1.5		
+94019	G	C	L5	L5.1	L5.1.5		
+112490	C	T	L5	L5.1	L5.1.5		
+302191	G	T	L5	L5.1	L5.1.5		
+1556018	C	T	L5	L5.1	L5.1.5		
+2173058	C	A	L5	L5.1	L5.1.5		
+22807	G	T	L5	L5.2			
+354234	G	A	L5	L5.2			
+963022	T	C	L5	L5.2			
+2091597	C	T	L5	L5.2			
+2108386	G	T	L5	L5.2			
+2240716	G	A	L5	L5.2			
+225657	G	A	L5	L5.3			
+261628	G	C	L5	L5.3			
+511350	G	A	L5	L5.3			
+771654	A	G	L5	L5.3			
+1011206	C	G	L5	L5.3			
+1014722	C	T	L5	L5.3			
+1107320	G	A	L5	L5.3			
+1153214	G	A	L5	L5.3			
+2940052	G	A	L5	L5.3			
+16720	C	G	L5				
+25386	C	T	L5				
+27947	C	T	L5				
+39786	C	G	L5				
+47877	T	G	L5				
+50059	T	A	L5				
+51892	T	C	L5				
+60059	C	T	L5				
+71203	C	G	L5				
+73148	G	A	L5				
+75313	A	C	L5				
+77327	A	C	L5				
+87973	C	T	L5				
+113059	C	A	L5				
+137085	A	G	L5				
+141516	C	T	L5				
+155478	C	A	L5				
+164936	C	T	L5				
+204315	A	G	L5				
+229448	G	C	L5				
+233377	C	T	L5				
+251176	C	A	L5				
+258561	A	C	L5				
+274584	A	G	L5				
+281405	G	T	L5				
+406251	T	G	L5				
+408006	G	T	L5				
+408935	C	T	L5				
+409079	G	A	L5				
+442468	G	A	L5				
+443471	C	T	L5				
+458116	C	T	L5				
+464480	G	A	L5				
+477988	T	G	L5				
+487463	A	G	L5				
+495322	C	T	L5				
+501517	G	A	L5				
+512659	C	T	L5				
+539019	G	A	L5				
+555621	T	G	L5				
+562322	T	G	L5				
+588160	G	T	L5				
+588733	C	G	L5				
+609003	C	G	L5				
+613957	G	T	L5				
+635775	C	T	L5				
+648756	C	T	L5				
+649446	G	A	L5				
+660153	T	G	L5				
+666713	A	C	L5				
+731750	G	C	L5				
+735135	G	A	L5				
+861279	A	C	L5				
+869036	G	A	L5				
+904367	G	C	L5				
+907906	C	T	L5				
+941849	A	C	L5				
+1004177	A	C	L5				
+1025135	T	C	L5				
+1155819	T	C	L5				
+1192641	G	T	L5				
+1215581	A	C	L5				
+1239649	C	T	L5				
+1240578	C	T	L5				
+1250131	A	G	L5				
+1251071	A	C	L5				
+1256895	A	C	L5				
+1257823	G	A	L5				
+1316651	A	G	L5				
+1331789	C	T	L5				
+1358934	T	G	L5				
+1359908	A	C	L5				
+1403266	C	G	L5				
+1419373	T	C	L5				
+1422079	C	G	L5				
+1463143	C	T	L5				
+1465542	A	C	L5				
+1487674	G	A	L5				
+1501448	G	T	L5				
+1518271	G	A	L5				
+1518280	C	T	L5				
+1545720	A	G	L5				
+1568891	G	C	L5				
+1591039	G	A	L5				
+1593536	T	C	L5				
+1603637	T	C	L5				
+1639699	A	C	L5				
+1669296	G	A	L5				
+1678639	C	G	L5				
+1703786	A	C	L5				
+1710085	G	C	L5				
+1711221	C	T	L5				
+1717141	C	G	L5				
+1721987	C	T	L5				
+1757727	G	A	L5				
+1811243	A	C	L5				
+1826577	G	T	L5				
+1848963	C	A	L5				
+1849814	A	G	L5				
+1870194	G	C	L5				
+1874985	A	C	L5				
+1890948	T	G	L5				
+1939007	A	C	L5				
+1942121	C	T	L5				
+1961730	G	A	L5				
+2005607	T	G	L5				
+2017860	C	T	L5				
+2060606	C	T	L5				
+2069546	T	C	L5				
+2087453	A	G	L5				
+2090366	A	G	L5				
+2095234	C	A	L5				
+2122443	C	A	L5				
+2132077	T	C	L5				
+2136642	C	T	L5				
+2178941	G	A	L5				
+2186421	T	G	L5				
+2195637	A	C	L5				
+2210198	A	G	L5				
+2223902	A	T	L5				
+2239116	T	G	L5				
+2268887	G	C	L5				
+2290062	C	T	L5				
+2335650	G	A	L5				
+2385408	C	A	L5				
+2408524	G	A	L5				
+2452657	C	A	L5				
+2465721	T	C	L5				
+2488898	C	A	L5				
+2493513	T	C	L5				
+2498200	G	T	L5				
+2503491	T	G	L5				
+2530101	T	A	L5				
+2562933	T	C	L5				
+2574950	T	C	L5				
+2609302	G	C	L5				
+2615969	C	A	L5				
+2663463	C	A	L5				
+2701940	G	A	L5				
+2702612	C	A	L5				
+2724331	T	C	L5				
+2730711	G	A	L5				
+2748366	C	A	L5				
+2753821	G	C	L5				
+2784162	G	T	L5				
+2808296	G	A	L5				
+2810816	T	C	L5				
+2811013	C	T	L5				
+2820743	A	G	L5				
+2855231	A	G	L5				
+2855959	G	A	L5				
+2868769	G	A	L5				
+2875717	T	G	L5				
+2881938	G	C	L5				
+2919947	T	C	L5				
+2958044	G	T	L5				
+2981030	G	C	L5				
+3004427	C	A	L5				
+3009759	G	C	L5				
+3015639	A	G	L5				
+3015834	T	C	L5				
+3016149	G	C	L5				
+3035033	C	T	L5				
+3050362	C	A	L5				
+3068778	C	T	L5				
+3087187	C	G	L5				
+3087190	A	C	L5				
+3108299	T	G	L5				
+3130150	G	C	L5				
+3148511	T	G	L5				
+3151813	G	A	L5				
+3157540	T	C	L5				
+3214120	A	G	L5				
+3286789	G	A	L5				
+3297989	T	C	L5				
+3300479	A	C	L5				
+3309071	G	A	L5				
+3309916	C	A	L5				
+3345427	A	G	L5				
+3391138	G	A	L5				
+3399945	T	G	L5				
+3416432	G	A	L5				
+3416630	G	A	L5				
+3426279	C	A	L5				
+3445777	C	G	L5				
+3471147	C	T	L5				
+3478253	C	A	L5				
+3496002	T	G	L5				
+3499247	C	T	L5				
+3504410	C	A	L5				
+3573080	T	C	L5				
+3591661	C	T	L5				
+3596354	T	C	L5				
+3648267	G	T	L5				
+3651849	T	G	L5				
+3656289	C	G	L5				
+3778148	G	A	L5				
+3790652	C	T	L5				
+3866953	A	G	L5				
+3870238	T	G	L5				
+3872171	G	A	L5				
+3875633	A	G	L5				
+3902782	C	G	L5				
+3919261	C	T	L5				
+3923267	A	C	L5				
+3987180	G	A	L5				
+3999805	T	C	L5				
+4008252	C	T	L5				
+4041899	T	G	L5				
+4080434	C	T	L5				
+4109151	G	A	L5				
+4113005	C	T	L5				
+4117097	A	C	L5				
+4128879	A	G	L5				
+4139131	C	T	L5				
+4200686	C	T	L5				
+4205237	C	T	L5				
+4214206	G	C	L5				
+4231528	A	G	L5				
+4239843	A	C	L5				
+4245147	C	T	L5				
+4271348	G	A	L5				
+4304824	G	C	L5				
+4322042	G	A	L5				
+4327103	C	T	L5				
+4357657	G	A	L5				
+4361250	A	G	L5				
+4387423	G	A	L5				
+4397374	G	A	L5				
+1882817	T	A	L6	L6.1			
+65811	C	T	L6	L6.1	L6.1.1		
+276363	C	T	L6	L6.1	L6.1.1		
+1450463	C	T	L6	L6.1	L6.1.1		
+3488812	C	T	L6	L6.1	L6.1.1		
+3918067	T	C	L6	L6.1	L6.1.1		
+3955404	G	A	L6	L6.1	L6.1.1		
+4192677	G	A	L6	L6.1	L6.1.1		
+19947	G	A	L6	L6.1	L6.1.2		
+136732	C	T	L6	L6.1	L6.1.2		
+247552	G	A	L6	L6.1	L6.1.2		
+599577	C	T	L6	L6.1	L6.1.2		
+2408442	G	A	L6	L6.1	L6.1.2		
+3402590	G	A	L6	L6.1	L6.1.2		
+203214	T	C	L6	L6.1	L6.1.3		
+951567	A	G	L6	L6.1	L6.1.3		
+1134959	G	C	L6	L6.1	L6.1.3		
+1436230	A	G	L6	L6.1	L6.1.3		
+4055217	G	A	L6	L6.1	L6.1.3		
+4127646	G	A	L6	L6.1	L6.1.3		
+202715	A	G	L6	L6.2			
+420308	C	T	L6	L6.2			
+756568	G	A	L6	L6.2			
+1626590	G	A	L6	L6.2			
+1775674	C	T	L6	L6.2			
+2749452	G	A	L6	L6.2			
+918646	G	A	L6	L6.2	L6.2.1		
+1454192	A	G	L6	L6.2	L6.2.1		
+47978	C	T	L6	L6.2	L6.2.2		
+136351	G	A	L6	L6.2	L6.2.2		
+311380	G	C	L6	L6.2	L6.2.2		
+436203	C	G	L6	L6.2	L6.2.2		
+541869	C	T	L6	L6.2	L6.2.2		
+1120159	G	A	L6	L6.2	L6.2.2		
+1449011	G	A	L6	L6.2	L6.2.2		
+1459257	C	T	L6	L6.2	L6.2.2		
+3368415	G	A	L6	L6.2	L6.2.2		
+294935	G	A	L6	L6.2	L6.2.3		
+495692	G	A	L6	L6.2	L6.2.3		
+656298	C	G	L6	L6.2	L6.2.3		
+903226	C	T	L6	L6.2	L6.2.3		
+1551194	C	A	L6	L6.2	L6.2.3		
+4332755	C	T	L6	L6.2	L6.2.3		
+78093	G	A	L6	L6.3			
+98536	C	T	L6	L6.3			
+298596	G	C	L6	L6.3			
+329079	A	G	L6	L6.3			
+1221279	C	T	L6	L6.3			
+1870173	G	A	L6	L6.3			
+2758268	C	T	L6	L6.3			
+3153183	A	G	L6	L6.3			
+303111	G	A	L6	L6.3	L6.3.1		
+461439	G	A	L6	L6.3	L6.3.1		
+895563	G	A	L6	L6.3	L6.3.1		
+2024413	C	T	L6	L6.3	L6.3.1		
+2198182	C	T	L6	L6.3	L6.3.1		
+2602160	G	A	L6	L6.3	L6.3.1		
+2641658	A	C	L6	L6.3	L6.3.1		
+2671677	C	T	L6	L6.3	L6.3.1		
+3093941	A	G	L6	L6.3	L6.3.1		
+490376	C	T	L6	L6.3	L6.3.2		
+771723	G	A	L6	L6.3	L6.3.2		
+860034	G	A	L6	L6.3	L6.3.2		
+1645620	G	A	L6	L6.3	L6.3.2		
+1841961	G	A	L6	L6.3	L6.3.2		
+1842237	A	G	L6	L6.3	L6.3.2		
+4268186	G	A	L6	L6.3	L6.3.2		
+1229123	C	G	L6	L6.3	L6.3.3		
+1601416	C	T	L6	L6.3	L6.3.3		
+1667070	G	A	L6	L6.3	L6.3.3		
+2239384	G	A	L6	L6.3	L6.3.3		
+2248163	T	C	L6	L6.3	L6.3.3		
+2546350	C	T	L6	L6.3	L6.3.3		
+3348128	C	T	L6	L6.3	L6.3.3		
+3363401	G	A	L6	L6.3	L6.3.3		
+3433140	G	A	L6	L6.3	L6.3.3		
+89113	T	G	L6				
+116901	T	G	L6				
+135398	G	A	L6				
+140644	C	T	L6				
+195315	T	C	L6				
+217521	A	G	L6				
+217875	C	G	L6				
+218515	T	G	L6				
+441891	T	C	L6				
+452730	T	C	L6				
+464816	T	G	L6				
+489514	G	A	L6				
+490398	G	A	L6				
+491668	A	G	L6				
+494915	C	A	L6				
+495108	G	T	L6				
+526255	G	A	L6				
+526406	G	A	L6				
+556089	A	G	L6				
+592494	G	A	L6				
+669225	T	C	L6				
+669231	T	G	L6				
+688260	G	A	L6				
+760969	C	T	L6				
+761723	A	C	L6				
+937614	C	A	L6				
+962133	G	T	L6				
+988043	T	C	L6				
+1149547	C	T	L6				
+1153920	C	T	L6				
+1220180	G	A	L6				
+1242216	T	G	L6				
+1384188	C	A	L6				
+1391728	C	T	L6				
+1515003	G	A	L6				
+1585900	C	T	L6				
+1690970	G	T	L6				
+1714678	T	C	L6				
+1718322	G	C	L6				
+1829836	G	A	L6				
+1937727	G	T	L6				
+1970432	G	A	L6				
+2115064	C	T	L6				
+2115776	C	T	L6				
+2199061	T	G	L6				
+2389698	C	A	L6				
+2474271	G	A	L6				
+2526709	T	C	L6				
+2596056	C	T	L6				
+2614882	G	A	L6				
+2641813	C	T	L6				
+2819183	G	A	L6				
+2854864	G	A	L6				
+2886640	C	G	L6				
+2984105	G	A	L6				
+3039842	A	T	L6				
+3057375	C	T	L6				
+3137026	A	C	L6				
+3277599	G	C	L6				
+3493823	A	G	L6				
+3591488	G	A	L6				
+3599099	C	A	L6				
+3617228	C	G	L6				
+3693548	C	T	L6				
+3792262	C	A	L6				
+3823494	C	A	L6				
+3980437	A	C	L6				
+4069598	T	C	L6				
+4106075	C	T	L6				
+4183288	G	A	L6				
+4193641	A	G	L6				
+4241843	C	A	L6				
+4271498	A	G	L6				
+4289216	C	T	L6				
+4303675	A	G	L6				
+4326465	T	C	L6				
+4386625	C	T	L6				
+15735	C	T	L7				
+39699	T	G	L7				
+47371	G	C	L7				
+49405	G	T	L7				
+69603	C	A	L7				
+72545	T	G	L7				
+80705	G	A	L7				
+90613	A	G	L7				
+100122	A	G	L7				
+101706	C	T	L7				
+111135	C	T	L7				
+112336	G	A	L7				
+123065	G	A	L7				
+137163	A	T	L7				
+138083	T	C	L7				
+167150	T	C	L7				
+168945	A	G	L7				
+174058	A	G	L7				
+184321	A	G	L7				
+204504	C	G	L7				
+205773	A	C	L7				
+212165	G	A	L7				
+217794	T	C	L7				
+227697	A	G	L7				
+237215	G	C	L7				
+237762	C	T	L7				
+247732	T	G	L7				
+250454	A	G	L7				
+254676	C	A	L7				
+255200	C	T	L7				
+271357	C	A	L7				
+272740	T	C	L7				
+331042	G	A	L7				
+344329	G	C	L7				
+345719	G	C	L7				
+347456	C	A	L7				
+353026	A	C	L7				
+404496	G	A	L7				
+412842	A	G	L7				
+420243	G	A	L7				
+453561	T	C	L7				
+482789	C	A	L7				
+498932	G	T	L7				
+502881	G	A	L7				
+526533	T	G	L7				
+536722	C	T	L7				
+545800	G	C	L7				
+560504	C	T	L7				
+611543	A	C	L7				
+612629	A	C	L7				
+648647	G	T	L7				
+654376	G	A	L7				
+688558	T	A	L7				
+699431	T	G	L7				
+704034	C	G	L7				
+718229	A	G	L7				
+732691	C	G	L7				
+764013	A	C	L7				
+771378	T	C	L7				
+774301	C	T	L7				
+776202	C	G	L7				
+796515	G	A	L7				
+826066	A	G	L7				
+845487	A	G	L7				
+872505	G	A	L7				
+873676	C	G	L7				
+885228	G	A	L7				
+895250	G	C	L7				
+895504	T	C	L7				
+904403	G	A	L7				
+907649	A	C	L7				
+918558	C	T	L7				
+940745	G	A	L7				
+948743	A	C	L7				
+956055	A	G	L7				
+994229	C	T	L7				
+994568	T	G	L7				
+995018	A	C	L7				
+997124	C	T	L7				
+1024413	C	G	L7				
+1032476	T	A	L7				
+1032978	A	G	L7				
+1037024	C	T	L7				
+1039887	A	G	L7				
+1048808	T	G	L7				
+1073031	G	T	L7				
+1102273	T	G	L7				
+1131396	C	T	L7				
+1138636	G	T	L7				
+1141176	C	T	L7				
+1149058	A	C	L7				
+1158720	C	T	L7				
+1172771	A	G	L7				
+1177819	G	T	L7				
+1236776	G	A	L7				
+1245045	T	G	L7				
+1246311	G	A	L7				
+1266130	G	A	L7				
+1268760	C	T	L7				
+1272843	C	T	L7				
+1273368	C	T	L7				
+1274955	G	A	L7				
+1291650	T	G	L7				
+1295399	A	C	L7				
+1315186	G	A	L7				
+1325990	T	G	L7				
+1384291	T	G	L7				
+1384292	G	C	L7				
+1388741	T	G	L7				
+1395587	C	T	L7				
+1396792	G	T	L7				
+1416977	T	C	L7				
+1430596	C	T	L7				
+1444492	C	T	L7				
+1504334	A	G	L7				
+1507101	T	C	L7				
+1515388	A	C	L7				
+1516704	C	T	L7				
+1518078	G	A	L7				
+1522385	G	A	L7				
+1534767	T	G	L7				
+1570300	G	T	L7				
+1570380	G	A	L7				
+1575188	C	T	L7				
+1583387	C	T	L7				
+1608935	A	G	L7				
+1614979	G	C	L7				
+1627488	T	C	L7				
+1649476	G	T	L7				
+1656971	G	T	L7				
+1690140	A	C	L7				
+1699495	C	T	L7				
+1708170	A	G	L7				
+1714913	C	T	L7				
+1798690	C	T	L7				
+1806811	C	A	L7				
+1806812	G	C	L7				
+1823649	G	A	L7				
+1824531	T	C	L7				
+1827492	G	C	L7				
+1834916	A	C	L7				
+1840168	G	T	L7				
+1890146	G	C	L7				
+1896923	C	T	L7				
+1910450	A	G	L7				
+1934970	C	T	L7				
+1970346	G	A	L7				
+2017422	T	C	L7				
+2022098	G	C	L7				
+2078963	C	G	L7				
+2098345	A	C	L7				
+2120842	G	C	L7				
+2133817	C	T	L7				
+2134602	G	A	L7				
+2138547	G	A	L7				
+2152688	C	T	L7				
+2173273	A	C	L7				
+2174215	T	C	L7				
+2175153	G	A	L7				
+2191261	A	G	L7				
+2211460	T	C	L7				
+2241316	G	T	L7				
+2245063	T	G	L7				
+2269261	C	T	L7				
+2274477	G	T	L7				
+2280092	G	A	L7				
+2292549	G	A	L7				
+2293847	A	G	L7				
+2307439	C	T	L7				
+2317633	A	C	L7				
+2337697	G	A	L7				
+2399808	T	C	L7				
+2415149	G	C	L7				
+2429729	G	T	L7				
+2436352	C	G	L7				
+2438422	T	G	L7				
+2450895	G	T	L7				
+2478401	G	A	L7				
+2541694	C	A	L7				
+2546994	G	T	L7				
+2558668	G	A	L7				
+2588440	T	G	L7				
+2592048	C	T	L7				
+2595295	A	C	L7				
+2603380	G	A	L7				
+2716008	C	T	L7				
+2724174	G	A	L7				
+2730359	G	C	L7				
+2731731	G	A	L7				
+2764924	G	A	L7				
+2766211	C	A	L7				
+2781628	C	T	L7				
+2789267	G	T	L7				
+2789503	T	G	L7				
+2832776	A	C	L7				
+2839468	A	C	L7				
+2894182	G	A	L7				
+2909916	C	T	L7				
+2929571	T	G	L7				
+2948000	T	C	L7				
+2949204	C	T	L7				
+2950574	G	T	L7				
+2952062	T	C	L7				
+2952738	T	A	L7				
+2955128	G	A	L7				
+2955392	T	C	L7				
+2958245	G	T	L7				
+2967747	G	T	L7				
+2968348	T	G	L7				
+2968593	T	G	L7				
+2982028	C	T	L7				
+3004837	C	T	L7				
+3035390	T	G	L7				
+3035681	T	C	L7				
+3059346	A	G	L7				
+3083059	G	C	L7				
+3096005	A	C	L7				
+3123689	A	C	L7				
+3141736	C	A	L7				
+3175295	C	G	L7				
+3177240	G	A	L7				
+3179636	G	A	L7				
+3187814	C	A	L7				
+3198080	C	T	L7				
+3228978	C	T	L7				
+3232007	T	G	L7				
+3271760	A	C	L7				
+3274835	C	G	L7				
+3286669	C	G	L7				
+3292044	G	A	L7				
+3292903	G	A	L7				
+3310776	A	G	L7				
+3314728	T	G	L7				
+3319841	A	G	L7				
+3327073	G	A	L7				
+3364438	T	G	L7				
+3367184	C	T	L7				
+3402510	C	T	L7				
+3408050	G	T	L7				
+3412710	C	T	L7				
+3429470	A	C	L7				
+3456275	A	C	L7				
+3465072	G	C	L7				
+3479661	A	G	L7				
+3489839	T	G	L7				
+3492156	A	C	L7				
+3509448	G	T	L7				
+3512287	A	G	L7				
+3525531	T	C	L7				
+3581047	G	T	L7				
+3602652	A	C	L7				
+3616681	A	G	L7				
+3619430	G	A	L7				
+3631360	A	G	L7				
+3634808	T	G	L7				
+3645990	C	T	L7				
+3650505	A	T	L7				
+3688142	T	C	L7				
+3780885	A	G	L7				
+3812032	C	G	L7				
+3823763	A	T	L7				
+3827443	G	T	L7				
+3865541	C	T	L7				
+3887200	G	C	L7				
+3911389	A	G	L7				
+3991333	C	A	L7				
+4018680	T	C	L7				
+4022147	C	T	L7				
+4073875	T	G	L7				
+4090980	T	C	L7				
+4100209	T	C	L7				
+4112211	C	T	L7				
+4122786	G	A	L7				
+4141126	C	T	L7				
+4162310	A	C	L7				
+4167830	C	T	L7				
+4173568	T	C	L7				
+4174350	C	T	L7				
+4178700	C	G	L7				
+4191174	G	A	L7				
+4198576	G	A	L7				
+4213412	G	C	L7				
+4238778	G	A	L7				
+4272216	C	T	L7				
+4284514	C	A	L7				
+4352439	G	T	L7				
+4355145	T	A	L7				
+4355146	A	C	L7				
+4368292	G	C	L7				
+4370531	G	A	L7				
+4371623	T	G	L7				
+4377344	T	C	L7				
+4384325	G	C	L7				
+4398270	G	C	L7				
+46892	C	T	L8				
+51247	T	C	L8				
+65236	T	C	L8				
+75191	G	A	L8				
+82317	G	T	L8				
+89209	G	A	L8				
+111963	C	A	L8				
+130355	C	A	L8				
+141291	C	A	L8				
+173566	C	T	L8				
+195233	A	C	L8				
+196973	G	C	L8				
+198351	C	A	L8				
+199034	G	T	L8				
+209411	C	A	L8				
+220295	C	T	L8				
+227466	G	A	L8				
+233374	G	C	L8				
+233562	G	C	L8				
+235157	C	G	L8				
+238202	C	T	L8				
+238576	C	A	L8				
+239882	C	A	L8				
+251795	C	T	L8				
+271188	C	A	L8				
+293874	G	C	L8				
+344352	T	G	L8				
+387368	G	C	L8				
+387604	G	A	L8				
+398579	C	T	L8				
+459239	C	A	L8				
+477331	C	T	L8				
+552086	G	A	L8				
+568389	C	A	L8				
+589404	C	A	L8				
+601402	C	T	L8				
+616595	G	T	L8				
+637273	G	A	L8				
+643928	A	G	L8				
+650106	G	T	L8				
+679048	T	C	L8				
+679280	G	A	L8				
+682156	A	C	L8				
+731167	G	A	L8				
+732330	T	C	L8				
+758571	G	A	L8				
+822260	G	A	L8				
+824591	C	T	L8				
+852640	A	C	L8				
+854518	T	G	L8				
+861390	A	G	L8				
+867664	C	A	L8				
+911498	A	G	L8				
+923075	G	A	L8				
+930984	T	C	L8				
+936869	T	G	L8				
+941719	C	T	L8				
+1005061	G	T	L8				
+1007777	C	A	L8				
+1008384	G	T	L8				
+1011096	C	A	L8				
+1029955	G	A	L8				
+1032300	G	A	L8				
+1033705	C	T	L8				
+1040256	C	T	L8				
+1044437	C	A	L8				
+1045716	T	G	L8				
+1055937	C	A	L8				
+1059827	C	T	L8				
+1059920	C	T	L8				
+1089464	C	A	L8				
+1102289	C	T	L8				
+1128619	G	A	L8				
+1143756	G	T	L8				
+1193608	C	A	L8				
+1242471	G	T	L8				
+1270813	G	T	L8				
+1295651	C	G	L8				
+1326348	C	T	L8				
+1365061	A	G	L8				
+1397989	A	C	L8				
+1413285	T	G	L8				
+1450204	T	G	L8				
+1494172	C	T	L8				
+1495341	G	A	L8				
+1496863	C	T	L8				
+1522142	T	G	L8				
+1522404	C	A	L8				
+1539232	A	G	L8				
+1547137	T	G	L8				
+1547426	C	G	L8				
+1574707	C	T	L8				
+1584520	A	G	L8				
+1599128	T	C	L8				
+1600514	C	T	L8				
+1604512	C	T	L8				
+1620287	C	T	L8				
+1644830	A	G	L8				
+1651164	G	A	L8				
+1692101	T	C	L8				
+1693461	A	G	L8				
+1698180	G	T	L8				
+1703723	T	G	L8				
+1707420	C	A	L8				
+1718928	A	G	L8				
+1731931	C	A	L8				
+1736030	C	T	L8				
+1773429	A	G	L8				
+1792221	G	A	L8				
+1804585	T	C	L8				
+1814285	A	G	L8				
+1847792	T	C	L8				
+1848974	C	T	L8				
+1874994	G	T	L8				
+1875067	G	A	L8				
+1888300	A	G	L8				
+1917786	G	A	L8				
+1931339	A	G	L8				
+1942136	A	G	L8				
+1955083	C	T	L8				
+1958709	G	A	L8				
+1967306	A	G	L8				
+1970306	C	T	L8				
+1974662	G	T	L8				
+1977977	C	A	L8				
+1979299	G	A	L8				
+2020828	G	T	L8				
+2069849	G	T	L8				
+2100298	A	C	L8				
+2114845	C	T	L8				
+2122674	G	T	L8				
+2133877	G	T	L8				
+2134373	G	A	L8				
+2158398	C	T	L8				
+2172747	G	A	L8				
+2182945	C	T	L8				
+2203692	G	A	L8				
+2216070	A	G	L8				
+2216335	G	T	L8				
+2234456	G	A	L8				
+2238157	C	A	L8				
+2250889	G	A	L8				
+2283156	C	T	L8				
+2325372	C	T	L8				
+2336005	A	C	L8				
+2345676	G	T	L8				
+2349801	G	C	L8				
+2377481	G	C	L8				
+2449112	G	A	L8				
+2463313	T	C	L8				
+2466525	C	T	L8				
+2496846	G	A	L8				
+2496917	C	T	L8				
+2535956	C	A	L8				
+2535996	A	C	L8				
+2545359	C	A	L8				
+2563441	G	T	L8				
+2566485	A	C	L8				
+2574104	C	T	L8				
+2622149	C	T	L8				
+2653370	C	T	L8				
+2668377	G	T	L8				
+2680787	A	G	L8				
+2681368	G	A	L8				
+2692342	C	T	L8				
+2704994	G	A	L8				
+2740014	C	A	L8				
+2744699	G	T	L8				
+2776401	C	T	L8				
+2791431	T	C	L8				
+2793772	G	A	L8				
+2819656	C	T	L8				
+2821795	C	A	L8				
+2859482	C	T	L8				
+2870141	A	C	L8				
+2893585	C	T	L8				
+2912502	G	A	L8				
+2932966	G	C	L8				
+2945655	G	A	L8				
+2947235	G	A	L8				
+2951624	C	T	L8				
+2957783	A	C	L8				
+2959517	A	C	L8				
+2980996	C	A	L8				
+3000274	A	G	L8				
+3000482	A	C	L8				
+3024592	G	A	L8				
+3025013	G	A	L8				
+3032714	C	A	L8				
+3050848	T	C	L8				
+3093181	C	T	L8				
+3106464	C	A	L8				
+3108219	G	T	L8				
+3126826	C	A	L8				
+3129454	G	T	L8				
+3173545	A	G	L8				
+3264109	G	A	L8				
+3274640	T	C	L8				
+3301548	G	T	L8				
+3317130	A	C	L8				
+3370174	C	A	L8				
+3438787	C	A	L8				
+3454982	G	A	L8				
+3455582	G	A	L8				
+3476933	A	C	L8				
+3498595	G	A	L8				
+3499034	G	C	L8				
+3513313	C	T	L8				
+3531578	G	A	L8				
+3555565	G	T	L8				
+3566731	A	C	L8				
+3570614	T	C	L8				
+3612540	G	A	L8				
+3628867	G	C	L8				
+3644565	G	T	L8				
+3651328	T	G	L8				
+3657402	C	A	L8				
+3702750	G	T	L8				
+3720541	C	T	L8				
+3724896	G	C	L8				
+3785673	G	A	L8				
+3798461	G	A	L8				
+3807382	G	A	L8				
+3897404	C	A	L8				
+3899040	C	T	L8				
+3909314	G	C	L8				
+3957028	G	C	L8				
+3960135	T	C	L8				
+3965918	A	G	L8				
+3985342	G	A	L8				
+4019001	C	T	L8				
+4027800	G	T	L8				
+4039645	G	C	L8				
+4057947	C	G	L8				
+4058885	T	C	L8				
+4071303	G	A	L8				
+4106679	T	C	L8				
+4123454	C	G	L8				
+4131023	G	A	L8				
+4162382	G	A	L8				
+4169161	C	G	L8				
+4174876	C	A	L8				
+4176813	C	A	L8				
+4180897	G	A	L8				
+4205160	C	A	L8				
+4212374	A	G	L8				
+4221357	C	T	L8				
+4233061	C	A	L8				
+4247252	T	G	L8				
+4248022	G	C	L8				
+4248206	A	G	L8				
+4250245	C	T	L8				
+4313062	G	A	L8				
+4315767	G	A	L8				
+4335306	T	G	L8				
+4355622	G	T	L8				
+4355834	C	A	L8				
+4367150	T	G	L8				
+4367585	T	C	L8				
+4373913	G	T	L8				
+4384280	G	A	L8				
+153263	A	G	L9				
+164846	G	A	L9				
+170022	A	C	L9				
+277022	A	G	L9				
+282533	A	T	L9				
+364869	C	A	L9				
+418942	G	A	L9				
+442244	T	C	L9				
+537051	T	C	L9				
+598972	A	G	L9				
+771092	G	A	L9				
+772345	G	A	L9				
+894843	G	C	L9				
+934769	T	G	L9				
+987724	C	G	L9				
+993988	C	A	L9				
+995661	T	C	L9				
+1383672	T	G	L9				
+1436571	C	T	L9				
+1543495	A	G	L9				
+1555872	A	G	L9				
+1732719	C	G	L9				
+1766556	A	T	L9				
+1844722	A	C	L9				
+1865595	C	A	L9				
+1897502	C	A	L9				
+1916707	A	C	L9				
+2057858	G	T	L9				
+2063900	A	G	L9				
+2102072	G	A	L9				
+2237320	C	A	L9				
+2333187	C	A	L9				
+2347054	C	A	L9				
+2382650	A	G	L9				
+2432984	A	G	L9				
+2723440	G	C	L9				
+2848837	C	A	L9				
+2860561	G	T	L9				
+2861269	G	A	L9				
+2984872	C	G	L9				
+3040601	G	T	L9				
+3045833	A	C	L9				
+3190181	A	T	L9				
+3258046	C	G	L9				
+3286906	G	A	L9				
+3287507	T	C	L9				
+3340650	C	A	L9				
+3390795	C	T	L9				
+3407504	G	C	L9				
+3421758	C	A	L9				
+3430039	C	A	L9				
+3447117	G	T	L9				
+3479573	G	A	L9				
+3514074	C	A	L9				
+3602855	C	A	L9				
+3678107	A	C	L9				
+3698626	A	G	L9				
+3799400	G	A	L9				
+3954522	C	T	L9				
+3984704	T	C	L9				
+4050944	G	T	L9				
+4134149	C	G	L9				
+4136561	A	G	L9				
+4191573	G	T	L9				
+4235425	T	G	L9				
+4241489	G	A	L9				
+4361538	A	G	L9				

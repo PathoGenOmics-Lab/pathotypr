@@ -1,0 +1,61 @@
+name: Bug Report
+description: Report a bug in pathotypr
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: pathotypr version
+      placeholder: "e.g., 0.2.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: module
+    attributes:
+      label: Module
+      options:
+        - classify
+        - predict
+        - train
+        - split-fastq
+        - match
+        - GUI
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS & Architecture
+      placeholder: "e.g., macOS 15.3 ARM64, Ubuntu 22.04 x86_64"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened? What did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Commands or steps to trigger the bug
+      render: bash
+    validations:
+      required: true
+
+  - type: textarea
+    id: error
+    attributes:
+      label: Error output
+      description: Paste the error message or log
+      render: text
+    validations:
+      required: false

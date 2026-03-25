@@ -1,5 +1,3 @@
-
-/target
-*.lock
-/.vscode
-.DS_Store
+/target/
+**/target/
+*.DS_Store

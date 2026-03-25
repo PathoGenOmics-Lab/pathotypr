@@ -1,0 +1,125 @@
+title: "[Lineage Markers] "
+labels:
+  - marker-proposal
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🧬 MTBC Lineage Marker Proposal
+
+        Propose new **phylogenetic SNP markers** for MTBC lineage classification in pathotypr.
+        See [docs/marker_format.md](../docs/marker_format.md) for the expected TSV format.
+
+        > **Scope:** Lineage-defining SNPs for the *Mycobacterium tuberculosis* complex only.
+        > This includes *M. tuberculosis*, *M. bovis*, *M. caprae*, *M. africanum*, *M. microti*, *M. pinnipedii*, *M. orygis*, and related species.
+
+  - type: dropdown
+    id: organism
+    attributes:
+      label: MTBC species / subspecies
+      description: Which MTBC member(s) do these markers target?
+      options:
+        - M. tuberculosis (sensu stricto)
+        - M. bovis
+        - M. caprae
+        - M. africanum
+        - M. microti
+        - M. pinnipedii
+        - M. orygis
+        - Dassie bacillus
+        - Chimpanzee bacillus
+        - M. mungi
+        - Multiple / whole MTBC
+    validations:
+      required: true
+
+  - type: input
+    id: reference
+    attributes:
+      label: Reference genome
+      description: GenBank/RefSeq accession of the reference genome used
+      placeholder: "e.g., GCF_000195955.2 (H37Rv)"
+      value: "GCF_000195955.2 (H37Rv)"
+    validations:
+      required: true
+
+  - type: input
+    id: lineages
+    attributes:
+      label: Lineages covered
+      description: Which MTBC lineages do these phylogenetic markers define?
+      placeholder: "e.g., L1–L10, A1–A4, L4.1.2, A4;M_bovis"
+    validations:
+      required: true
+
+  - type: input
+    id: n_markers
+    attributes:
+      label: Number of markers
+      description: Total number of markers in the set
+      placeholder: "e.g., 3707"
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence / References
+      description: |
+        Papers, phylogenies, or other evidence supporting these markers.
+        Include DOIs or URLs when possible.
+      placeholder: |
+        - Comas et al. 2010 (doi:10.1038/ng.590)
+        - Validated on 500 RefSeq genomes
+    validations:
+      required: true
+
+  - type: textarea
+    id: tsv_preview
+    attributes:
+      label: Marker TSV preview (first 10 rows)
+      description: |
+        Paste the first few rows of your marker file. 
+        Format: `position\tref\talt\tlineage` (tab-separated)
+      render: text
+      placeholder: |
+        position	ref	alt	lineage
+        615938	A	G	L1
+        1799921	C	G	L2
+    validations:
+      required: true
+
+  - type: textarea
+    id: file_upload
+    attributes:
+      label: Full marker file
+      description: |
+        Attach the full TSV file by dragging it here, or link to a public URL / Zenodo DOI.
+    validations:
+      required: false
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation results (optional)
+      description: |
+        If you tested these markers with `pathotypr classify`, share the results:
+        - Number of genomes tested
+        - Concordance with known lineages
+        - Any edge cases or limitations
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: Markers are in TSV format (position / ref / alt / lineage)
+          required: true
+        - label: Positions are 1-based relative to the reference genome
+          required: true
+        - label: I have tested these markers on at least a small validation set
+          required: false
+        - label: I am willing to maintain this marker set
+          required: false
