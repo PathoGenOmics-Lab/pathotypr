@@ -5,6 +5,7 @@
 <div align="center">
 
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL%20v3-%23af64d1?style=flat-square)](LICENSE)
+[![Preprint](https://img.shields.io/badge/preprint-bioRxiv-%23b31b1b?style=flat-square)](https://doi.org/10.64898/2026.03.24.714002)
 [![DOI](https://img.shields.io/badge/doi-10.5281%2Fzenodo.19210044-%23ff0077?style=flat-square)](https://doi.org/10.5281/zenodo.19210044)
 [![Markers](https://img.shields.io/badge/markers-Zenodo%2019210044-%230072B2?style=flat-square)](https://zenodo.org/records/19210044)
 
@@ -278,11 +279,20 @@ pathotypr/
 
 If you use pathotypr, please cite:
 
-> Ruiz-Rodriguez P, Coscollá M. Pathotypr: harmonised MTBC lineage assignment and resistance-associated variant detection for genomic surveillance. *bioRxiv* (2026).
->
-> Software DOI: [10.5281/zenodo.19210044](https://doi.org/10.5281/zenodo.19210044)
->
-> Marker files DOI: [10.5281/zenodo.19210044](https://zenodo.org/records/19210044)
+> Ruiz-Rodriguez P, Coscollá M. **Pathotypr: harmonised MTBC lineage assignment and resistance-associated variant detection for genomic surveillance.** *bioRxiv* (2026). doi: [10.64898/2026.03.24.714002](https://doi.org/10.64898/2026.03.24.714002)
+
+```bibtex
+@article{ruiz-rodriguez_pathotypr_2026,
+  title     = {Pathotypr: harmonised {MTBC} lineage assignment and resistance-associated variant detection for genomic surveillance},
+  author    = {Ruiz-Rodriguez, Paula and Coscoll{\'a}, Mireia},
+  journal   = {bioRxiv},
+  year      = {2026},
+  doi       = {10.64898/2026.03.24.714002},
+  url       = {https://www.biorxiv.org/content/10.64898/2026.03.24.714002v1}
+}
+```
+
+> Software & markers DOI: [10.5281/zenodo.19210044](https://doi.org/10.5281/zenodo.19210044)
 
 ## License
 
