@@ -6,7 +6,6 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL%20v3-%23af64d1?style=flat-square)](LICENSE)
 [![Preprint](https://img.shields.io/badge/preprint-bioRxiv-%23b31b1b?style=flat-square)](https://doi.org/10.64898/2026.03.24.714002)
-[![DOI](https://img.shields.io/badge/doi-10.5281%2Fzenodo.19210044-%23ff0077?style=flat-square)](https://doi.org/10.5281/zenodo.19210044)
 [![Markers](https://img.shields.io/badge/markers-Zenodo%2019210044-%230072B2?style=flat-square)](https://zenodo.org/records/19210044)
 
 **Lineage classification and marker-driven genotyping — from assemblies or raw reads.**
