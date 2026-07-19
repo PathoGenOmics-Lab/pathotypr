@@ -11,8 +11,10 @@ use rust_xlsxwriter::{
 // ---------------------------------------------------------------------------
 
 fn excel_path_from_tsv(tsv_path: &str) -> String {
-    if tsv_path.ends_with(".tsv") {
-        tsv_path.replace(".tsv", ".xlsx")
+    // Replace only the trailing ".tsv" extension, not every occurrence in the
+    // path (a directory name or sample name may legitimately contain ".tsv").
+    if let Some(stem) = tsv_path.strip_suffix(".tsv") {
+        format!("{}.xlsx", stem)
     } else {
         format!("{}.xlsx", tsv_path)
     }

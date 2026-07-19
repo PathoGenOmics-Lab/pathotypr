@@ -292,8 +292,13 @@ pub fn run(args: PredictArgs) -> AppResult<()> {
                         .to_string();
                     let seq = String::from_utf8(record.seq().to_vec())
                         .map_err(|e| AppError::Parsing(format!("Non-UTF8 sequence in {}: {}", header, e)))?;
-                    if seq.is_empty() {
-                        warn!("Skipping entry with empty sequence: {}", header);
+                    if seq.len() < kmer_size {
+                        warn!(
+                            "Skipping entry shorter than k={} ({} bp), no k-mer can be extracted: {}",
+                            kmer_size,
+                            seq.len(),
+                            header
+                        );
                         continue;
                     }
                     batch.push((header, seq));
