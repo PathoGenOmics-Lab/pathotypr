@@ -82,16 +82,19 @@ pub fn detect_paired_end_files(paths: &[String]) -> PairedEndResult {
         None
     }
 
-    // Group files by their base name.
-    let mut grouped: HashMap<String, (Option<String>, Option<String>)> = HashMap::new();
+    // Group files by their base name. Accumulate every R1 and R2 path so that
+    // chunked / lane-split output for the same sample (e.g. `_R1_001`,
+    // `_R1_002`) is kept together instead of the later file overwriting the
+    // earlier one.
+    let mut grouped: HashMap<String, (Vec<String>, Vec<String>)> = HashMap::new();
     let mut unmatched: Vec<String> = Vec::new();
 
     for path in paths {
         if let Some((base_name, read_num)) = extract_base_name(path, patterns) {
-            let entry = grouped.entry(base_name).or_insert((None, None));
+            let entry = grouped.entry(base_name).or_default();
             match read_num {
-                1 => entry.0 = Some(path.clone()),
-                2 => entry.1 = Some(path.clone()),
+                1 => entry.0.push(path.clone()),
+                2 => entry.1.push(path.clone()),
                 _ => unmatched.push(path.clone()),
             }
         } else {
@@ -104,32 +107,28 @@ pub fn detect_paired_end_files(paths: &[String]) -> PairedEndResult {
     let mut paired_count = 0;
     let mut single_count = 0;
 
-    for (base_name, (r1, r2)) in grouped {
-        match (r1, r2) {
-            (Some(r1_path), Some(r2_path)) => {
-                samples.insert(base_name, vec![r1_path, r2_path]);
-                paired_count += 1;
-            }
-            (Some(path), None) | (None, Some(path)) => {
-                let sample_name = derive_sample_name(&path);
-                samples.insert(sample_name, vec![path]);
-                single_count += 1;
-            }
-            (None, None) => {}
+    for (base_name, (mut r1, mut r2)) in grouped {
+        if !r1.is_empty() && !r2.is_empty() {
+            // Paired: all R1 files followed by all R2 files. scan_fastq_with_index
+            // scans an arbitrary number of input files for the sample.
+            let mut files = Vec::with_capacity(r1.len() + r2.len());
+            files.append(&mut r1);
+            files.append(&mut r2);
+            insert_unique_sample(&mut samples, base_name, files);
+            paired_count += 1;
+        } else if !r1.is_empty() || !r2.is_empty() {
+            // Only one read direction present: treat as single-end.
+            let mut files = r1;
+            files.append(&mut r2);
+            let sample_name = derive_sample_name(&files[0]);
+            insert_unique_sample(&mut samples, sample_name, files);
+            single_count += 1;
         }
     }
 
     for path in unmatched {
-        let mut sample_name = derive_sample_name(&path);
-        if samples.contains_key(&sample_name) {
-            sample_name = Path::new(&path)
-                .file_stem()
-                .unwrap_or_default()
-                .to_str()
-                .unwrap_or(&path)
-                .to_string();
-        }
-        samples.entry(sample_name).or_default().push(path);
+        let sample_name = derive_sample_name(&path);
+        insert_unique_sample(&mut samples, sample_name, vec![path]);
         single_count += 1;
     }
 
@@ -149,6 +148,30 @@ pub fn detect_paired_end_files(paths: &[String]) -> PairedEndResult {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/// Inserts a sample under a unique key, appending an incrementing numeric
+/// suffix on collision. This guarantees that two distinct inputs never merge
+/// into the same sample bucket (which would silently contaminate one sample's
+/// read counts with another's).
+fn insert_unique_sample(
+    samples: &mut HashMap<String, Vec<String>>,
+    desired_name: String,
+    files: Vec<String>,
+) {
+    let mut name = desired_name;
+    if samples.contains_key(&name) {
+        let base = name.clone();
+        let mut n = 2;
+        loop {
+            name = format!("{}_{}", base, n);
+            if !samples.contains_key(&name) {
+                break;
+            }
+            n += 1;
+        }
+    }
+    samples.insert(name, files);
+}
 
 /// Derives a clean sample name from a file path by stripping extensions and
 /// paired-end suffixes (e.g., `_R1_001`, `-R2`, `_1`).
