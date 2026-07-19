@@ -315,8 +315,12 @@ async function loadDemoData() {
   document.getElementById('match-kmer').value = 31;
   document.getElementById('match-threads').value = 4;
   document.getElementById('match-max-ref-freq').value = 0;
-  document.getElementById('match-coarse-top-n').value = 128;
-  document.getElementById('match-coarse-stride').value = 8;
+  // These two controls are optional in the DOM; guard the assignments so a
+  // missing element does not throw a TypeError and abort the demo loader.
+  const matchCoarseTopN = document.getElementById('match-coarse-top-n');
+  if (matchCoarseTopN) matchCoarseTopN.value = 128;
+  const matchCoarseStride = document.getElementById('match-coarse-stride');
+  if (matchCoarseStride) matchCoarseStride.value = 8;
   document.getElementById('match-early-stop-confidence').value = 0;
   document.getElementById('match-early-stop-min-kmers').value = 1000000;
   document.getElementById('match-strict-percentages').checked = true;
@@ -622,6 +626,13 @@ function normalizeListHeaderToken(value) {
 
 function detectInputListHasHeader(columns) {
   if (!Array.isArray(columns) || columns.length < 2) return false;
+  // A second column that looks like a filesystem path (contains a separator or
+  // ends in a file extension) means this is a data row, not a header. Without
+  // this, a legitimate first sample such as "genome_A\t/data/genome_A.fasta"
+  // is misread as a header (col0 matches 'genome', col1 matches 'fasta') and
+  // silently dropped from the classify track context.
+  const secondCol = String(columns[1] || '').trim();
+  if (/[\\/]/.test(secondCol) || /\.[A-Za-z0-9]+$/.test(secondCol)) return false;
   const col0 = normalizeListHeaderToken(columns[0]);
   const col1 = normalizeListHeaderToken(columns[1]);
   const hasSample = col0.includes('sample') || col0.includes('genome') || col0.includes('name');

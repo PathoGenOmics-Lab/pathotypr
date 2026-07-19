@@ -2103,14 +2103,18 @@ function matchTrackSearchStatus(state) {
   return `${index}/${matches} match${matches === 1 ? '' : 'es'}`;
 }
 
-function matchTrackDomainValueFromEvent(event, svgEl, state) {
+function matchTrackDomainValueFromEvent(event, svgEl, state, useOverview = false) {
   if (!svgEl) return (state.windowStart + state.windowEnd) / 2;
   const viewWidth = Number(svgEl.dataset.viewWidth || 980);
   const plotLeft = Number(svgEl.dataset.plotLeft || 0);
   const plotWidth = Number(svgEl.dataset.plotWidth || 1);
   const x = getSvgViewXFromClient(svgEl, event.clientX, viewWidth / 2);
   const rel = Math.max(0, Math.min(1, (x - plotLeft) / Math.max(1, plotWidth)));
-  return state.windowStart + rel * (state.windowEnd - state.windowStart);
+  // The overview strip spans the full domain (same plot geometry), so a click
+  // on it must map through the full domain, not the current zoom window.
+  const domainStart = useOverview ? state.domainStart : state.windowStart;
+  const domainEnd = useOverview ? state.domainEnd : state.windowEnd;
+  return domainStart + rel * (domainEnd - domainStart);
 }
 
 function matchTrackFocusItem(state, point, domainStart, domainEnd, zoom = true) {
@@ -2553,7 +2557,7 @@ function attachMatchTrackInteractions(toolId, data, primaryColumn, model, state,
       return;
     }
     if (event.target.closest('.viz-match-overview-hit')) {
-      const center = matchTrackDomainValueFromEvent(event, svgEl, state);
+      const center = matchTrackDomainValueFromEvent(event, svgEl, state, true);
       const span = Math.max(1, state.windowEnd - state.windowStart);
       matchTrackSetWindow(state, center - span / 2, center + span / 2, domain.start, domain.end);
       scheduleMatchTrackRender(toolId, data, primaryColumn);
@@ -4141,15 +4145,17 @@ function getTrackRecordGeneLabel(record) {
 }
 
 function getTrackRecordGeneStart(record) {
-  const value = Number(record?.displayGeneStart);
-  if (Number.isFinite(value)) return value;
-  return Number.isFinite(record?.geneStart) ? Number(record.geneStart) : null;
+  // Test finiteness on the raw value: Number(null) and Number('') are 0, which
+  // would defeat the null guard and read a missing gene start as position 0.
+  const raw = record?.displayGeneStart;
+  if (Number.isFinite(raw)) return raw;
+  return Number.isFinite(record?.geneStart) ? record.geneStart : null;
 }
 
 function getTrackRecordGeneEnd(record) {
-  const value = Number(record?.displayGeneEnd);
-  if (Number.isFinite(value)) return value;
-  return Number.isFinite(record?.geneEnd) ? Number(record.geneEnd) : null;
+  const raw = record?.displayGeneEnd;
+  if (Number.isFinite(raw)) return raw;
+  return Number.isFinite(record?.geneEnd) ? record.geneEnd : null;
 }
 
 function getTrackRecordGeneStrand(record) {

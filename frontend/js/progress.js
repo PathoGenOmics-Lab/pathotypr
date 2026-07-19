@@ -154,14 +154,14 @@ export async function setupProgressEvents() {
       logToConsole(message);
     });
 
-    // Listen for completion event
+    // Listen for completion event. Do NOT force every step to 'completed' here:
+    // the backend emits 'progress-complete' on all terminal paths (including
+    // errors), so marking steps green before the invoke promise resolves would
+    // make a failed run appear fully successful. stopProgress() finalizes the
+    // step visuals based on the real outcome once the command returns.
     completeUnlisten = await listen('progress-complete', () => {
       const run = getCurrentRun();
       if (!run?.id || run.status !== 'running') return;
-      document.querySelectorAll('#progress-steps .step').forEach(stepEl => {
-        stepEl.classList.remove('active', 'error', 'cancelled');
-        stepEl.classList.add('completed');
-      });
     });
 
     // Listen for log events from backend
