@@ -1,6 +1,9 @@
 # Algorithm Documentation
 
-This directory describes the algorithms and data structures behind each pathotypr module. For CLI usage and options, see the [command docs](../).
+This section describes the algorithms and data structures behind each pathotypr
+module. For CLI usage and options, see the command guides:
+[train](../train.md), [predict](../predict.md), [classify](../classify.md),
+[split-fastq](../split-fastq.md), and [match](../match.md).
 
 | Module | Document | Core Idea |
 |---|---|---|
