@@ -256,7 +256,16 @@ fn analyze_genome(
         )));
     }
     info!("Analyzing genome {} ({})", genome_name, fasta_path);
-    let genome_seq = get_ref(fasta_path)?;
+    // Read every record so multi-contig draft assemblies (the common case for
+    // bacterial WGS) are supported. `get_ref` is reserved for the single-record
+    // reference genome; sample assemblies routinely contain several contigs.
+    let contigs = get_genomes_from_fasta(fasta_path)?;
+    if contigs.is_empty() {
+        return Err(AppError::NotEnoughData(format!(
+            "No records found in FASTA '{}'.",
+            fasta_path
+        )));
+    }
 
     let owned_annotations;
     let annotations: Option<&Lapper<usize, Gene>> = if shared_annotations.is_some() {
@@ -268,15 +277,19 @@ fn analyze_genome(
         None
     };
 
-    let matched_markers = find_markers(&genome_seq, marker_index, k);
     let mut result = Vec::new();
-    if matched_markers.is_empty() {
-        result.push(format!("{}\t\t\t\t\t\t\t\t\t\t\t\t\n", genome_name));
-    } else {
+    let mut any_marker = false;
+    for (_contig_id, contig_seq) in &contigs {
+        let matched_markers = find_markers(contig_seq, marker_index, k);
         for m in &matched_markers {
-            let lines = format_marker_match(genome_name, m, &annotations, &genome_seq, ref_seq, ref_seq_rc);
+            any_marker = true;
+            let lines =
+                format_marker_match(genome_name, m, &annotations, contig_seq, ref_seq, ref_seq_rc);
             result.extend(lines);
         }
+    }
+    if !any_marker {
+        result.push(format!("{}\t\t\t\t\t\t\t\t\t\t\t\t\n", genome_name));
     }
     Ok(result)
 }
