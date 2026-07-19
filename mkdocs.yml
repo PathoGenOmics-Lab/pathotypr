@@ -55,6 +55,7 @@ theme:
 
 nav:
   - Home: index.md
+  - Getting started: getting-started.md
   - Installation: installation.md
   - Commands:
       - train: train.md
@@ -62,9 +63,10 @@ nav:
       - classify: classify.md
       - split-fastq: split-fastq.md
       - match: match.md
-  - Formats:
+  - Reference:
       - Input formats: input-formats.md
       - Marker format: marker_format.md
+      - Output files: output-files.md
   - Desktop GUI: gui.md
   - Benchmarks: benchmarks.md
   - Algorithms:
@@ -76,6 +78,7 @@ nav:
       - Marker genotyping: algorithms/marker-genotyping.md
       - Reference matching: algorithms/reference-matching.md
       - Assembly classification: algorithms/assembly-classification.md
+  - FAQ: faq.md
 
 markdown_extensions:
   - abbr
@@ -101,7 +104,11 @@ markdown_extensions:
   - pymdownx.keys
   - pymdownx.mark
   - pymdownx.snippets
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.tilde
