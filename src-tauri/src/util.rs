@@ -1,7 +1,8 @@
 //! Utility functions: file path validation, SSRF protection, and system usage.
 
+use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use serde::Serialize;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, ToSocketAddrs};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, ToSocketAddrs};
 use std::path::PathBuf;
 use std::process::Command;
 use tauri::{AppHandle, Manager};
@@ -157,6 +158,45 @@ pub fn validate_download_url(url: &reqwest::Url) -> Result<(), String> {
         .port_or_known_default()
         .ok_or_else(|| "URL has an unknown port".to_string())?;
     validate_host_resolution(&host, port)
+}
+
+/// A reqwest DNS resolver that rejects any resolution containing a
+/// local/reserved address. Because reqwest uses this resolver for the actual
+/// connection (and for every redirect it follows), validation happens on the
+/// same address the request connects to, closing the validate-then-connect
+/// (DNS-rebinding) TOCTOU gap that a separate up-front check leaves open. All
+/// resolved public addresses are returned unchanged, so CDN failover still
+/// works.
+#[derive(Debug, Default)]
+pub struct SsrfGuardResolver;
+
+impl Resolve for SsrfGuardResolver {
+    fn resolve(&self, name: Name) -> Resolving {
+        Box::pin(async move {
+            let host = name.as_str().to_string();
+            let lookup_host = host.clone();
+            let resolved: Vec<SocketAddr> = tauri::async_runtime::spawn_blocking(move || {
+                (lookup_host.as_str(), 0u16)
+                    .to_socket_addrs()
+                    .map(|iter| iter.collect::<Vec<SocketAddr>>())
+            })
+            .await
+            .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> {
+                format!("DNS resolution task failed: {e}").into()
+            })?
+            .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { Box::new(e) })?;
+
+            if resolved.is_empty() {
+                return Err::<Addrs, Box<dyn std::error::Error + Send + Sync>>(
+                    format!("Could not resolve host '{host}'").into(),
+                );
+            }
+            if resolved.iter().any(|addr| is_disallowed_ip(addr.ip())) {
+                return Err("Cannot download from local/reserved addresses".into());
+            }
+            Ok(Box::new(resolved.into_iter()) as Addrs)
+        })
+    }
 }
 
 // ---------------------------------------------------------------------------

@@ -912,9 +912,13 @@ pub async fn download_file(
 
     let _ = app.emit("log", format!("Downloading {}...", safe_filename));
 
-    // Build HTTP client with User-Agent, timeout, and redirect policy
+    // Build HTTP client with User-Agent, timeout, and redirect policy.
+    // The custom DNS resolver validates the resolved IP for every connection
+    // (initial and redirects), so a low-TTL DNS record cannot rebind to a
+    // local/reserved address between validation and connect.
     let client = reqwest::Client::builder()
         .user_agent(format!("Pathotypr/{}", env!("CARGO_PKG_VERSION")))
+        .dns_resolver(Arc::new(util::SsrfGuardResolver))
         .redirect(reqwest::redirect::Policy::custom(|attempt| {
             if attempt.previous().len() >= 10 {
                 return attempt.stop();
