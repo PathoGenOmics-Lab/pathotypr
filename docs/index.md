@@ -7,7 +7,8 @@ genotypes them against user-defined marker panels. It works with both assembled
 genomes (FASTA) and raw sequencing reads (FASTQ), runs on a single laptop, and
 ships with a native desktop GUI.
 
-![pathotypr workflow](assets/scheme.svg){ width="900" }
+![pathotypr workflow](assets/scheme.svg#only-light){ width="900" }
+![pathotypr workflow](assets/scheme-dark.png#only-dark){ width="900" }
 
 ## Five commands, one binary
 
