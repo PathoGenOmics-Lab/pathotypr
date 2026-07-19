@@ -1,14 +1,17 @@
-# Random Forest on Sparse Vectors
+# Random forest on sparse vectors
 
-## Overview
+**A from-scratch Random Forest that trains CART decision trees directly on sparse k-mer vectors, bags 100 of them, and reports out-of-bag accuracy plus split-count feature importance.**
 
-pathotypr implements a custom Random Forest classifier that operates **directly on sparse feature vectors** — no dense matrix conversion required. This eliminates the O(N × 1M) memory overhead that a library like smartcore would require for N samples with 1M feature buckets.
+pathotypr implements a custom Random Forest classifier that operates **directly on sparse feature vectors** — no dense matrix conversion required.
 
-## Decision Tree (CART)
+!!! note "Why sparse"
+    This eliminates the O(N × 1M) memory overhead that a library like smartcore would require for N samples with 1M feature buckets.
+
+## Decision tree (CART)
 
 Each tree is a binary classifier built with the CART algorithm (Classification and Regression Trees):
 
-### Node Types
+### Node types
 
 ```rust
 enum TreeNode {
@@ -19,7 +22,7 @@ enum TreeNode {
 
 Nodes are stored in a flat arena (`Vec<TreeNode>`) with index-based child pointers. This gives cache-friendly traversal and compact serialization.
 
-### Tree Construction
+### Tree construction
 
 **Input**: Sparse feature vectors `[(bucket_idx, count)]`, class labels, bootstrap sample indices.
 
@@ -32,7 +35,7 @@ Nodes are stored in a flat arena (`Vec<TreeNode>`) with index-based child pointe
    - If not stopped, find the best split (see below)
    - Partition samples by the split and push children onto the stack
 
-### Finding the Best Split
+### Finding the best split
 
 1. **Feature subsampling**: Collect all features present in the current node's data. If more than `sqrt(n_features)` features are present, randomly sample `sqrt(n_features)` via partial Fisher-Yates shuffle.
 
@@ -66,26 +69,28 @@ fn predict_one(row: &[(usize, f32)]) -> usize {
 
 The `sparse_lookup()` function uses binary search on the sorted sparse row, returning 0.0 for absent features.
 
-## Ensemble (Bagging)
+## Ensemble (bagging)
 
 ### Training
 
 - **100 trees** trained in parallel with rayon
 - Each tree gets a **bootstrap sample**: N samples drawn with replacement from N total (each sample appears in ~63% of trees)
-- **Deterministic seeds**: A master RNG (seed=42) generates one seed per tree. Each tree's bootstrap is reproducible from its seed.
 
-### Majority Voting
+!!! tip "Reproducibility"
+    A master RNG (seed = 42) generates one seed per tree, so each tree's bootstrap — and the whole ensemble — is reproducible from that single seed.
+
+### Majority voting
 
 For prediction, all 100 trees vote. The class with the most votes wins:
 
-```
+```text
 confidence = winner_votes / total_trees
 margin = (winner_votes - runner_up_votes) / total_trees
 ```
 
 Both metrics are reported alongside the predicted class.
 
-## Out-of-Bag (OOB) Accuracy
+## Out-of-bag (OOB) accuracy
 
 Each tree's bootstrap sample excludes ~37% of training data. These "out-of-bag" samples provide a free accuracy estimate:
 
@@ -95,17 +100,19 @@ Each tree's bootstrap sample excludes ~37% of training data. These "out-of-bag" 
 4. Aggregate: for each training sample, collect votes from all trees where it was OOB
 5. Compare majority vote to true label
 
-**Why this matters**: OOB accuracy is nearly unbiased and requires no held-out test set. It's always computed, even when using CV for accuracy estimation.
+!!! info "Why this matters"
+    OOB accuracy is nearly unbiased and requires no held-out test set. It's always computed, even when using CV for accuracy estimation.
 
-## Feature Importance
+## Feature importance
 
 Split-count importance: for each feature (bucket), count how many times it was used as a split across all 100 trees. Features that appear in many splits are more discriminative.
 
-```
+```text
 importance(feature_j) = Σ_{trees} count_of_splits_on_feature_j
 ```
 
 The top 500 features are exported with:
+
 - Their k-mer sequences (reverse-mapped from the hashing trick)
 - Genomic coordinates (sequence index + position) in the training data
 
@@ -127,3 +134,9 @@ The top 500 features are exported with:
 | Train ensemble | Above / num_threads (rayon) | O(100 × nodes) |
 | Predict one sample | O(100 × depth × log(nnz)) | O(1) |
 | OOB accuracy | O(N × 100 × depth) | O(N × n_classes) |
+
+## See also
+
+- [train](../train.md)
+- [predict](../predict.md)
+- [Training pipeline](training.md)

@@ -1,8 +1,12 @@
-# Training Pipeline
+# Training pipeline
 
-## End-to-End Flow
+**How pathotypr turns a labeled multi-FASTA into a serialized random-forest classifier — from k-mer feature hashing through accuracy estimation, final training, and interpretable feature-importance export.**
 
-```
+The `train` subcommand runs a six-step pipeline: it vectorizes labeled sequences with feature hashing, estimates accuracy, trains a final ensemble on all data, and writes a compressed model bundle alongside feature-importance reports. Each step below maps directly to `pathotypr-core/src/train.rs`.
+
+## End-to-end flow
+
+```text
 Labeled FASTA ──→ Feature Hashing ──→ Accuracy Estimation ──→ Train Final Model ──→ OOB ──→ Save
                   (k-mer → sparse)    (CV or single split)   (all data, 100 trees)         (bincode+zstd)
                                                                       │
@@ -11,13 +15,13 @@ Labeled FASTA ──→ Feature Hashing ──→ Accuracy Estimation ──→ 
                                                               (reverse map k-mers + coords)
 ```
 
-## Step 1: Data Preparation
+## Step 1: Data preparation
 
-### Input Format
+### Input format
 
 Labeled multi-FASTA where the **first token** in each header is the class label:
 
-```
+```text
 >L4 sample_0001
 ACTGACTG...
 >L2 sample_0002
@@ -33,18 +37,19 @@ Each sequence is transformed into a sparse feature vector via [feature hashing](
 3. Count occurrences per bucket
 4. Output: sorted sparse vector `Vec<(bucket_idx, count)>`
 
-### Label Encoding
+### Label encoding
 
 Class labels (strings) are mapped to integers via `LabelEncoder`:
+
 - `fit()`: Builds bidirectional mapping (label ↔ integer)
 - `transform()`: Converts label strings to integer indices
 - Minimum 2 distinct classes required
 
-## Step 2: Accuracy Estimation
+## Step 2: Accuracy estimation
 
 Two modes, controlled by `--cv-folds`:
 
-### Single Train/Test Split (default)
+### Single train/test split (default)
 
 - Shuffle indices with seed=42
 - Hold out `test_split` fraction (default 20%)
@@ -52,7 +57,7 @@ Two modes, controlled by `--cv-folds`:
 - Evaluate on the held-out test set
 - Report accuracy percentage
 
-### Stratified k-Fold Cross-Validation (`--cv-folds k`)
+### Stratified k-fold cross-validation (`--cv-folds k`)
 
 - Group sample indices by class
 - Shuffle within each class (seed=42)
@@ -62,15 +67,16 @@ Two modes, controlled by `--cv-folds`:
   - Evaluate on the held-out fold
 - Report: mean accuracy ± standard deviation (Bessel's correction: divide by n-1)
 
-**Key**: The accuracy estimation step trains **throwaway** ensembles. The final model is always trained on **all** data.
+!!! note "Estimation uses throwaway models"
+    The accuracy estimation step trains **throwaway** ensembles. The final model is always trained on **all** data.
 
-## Step 3: Final Model Training
+## Step 3: Final model training
 
 - Uses **all** samples (no held-out set)
 - Trains 100 trees in parallel via rayon (see [random-forest.md](random-forest.md))
 - Returns both trees and their bootstrap seeds (for OOB computation)
 
-## Step 4: Out-of-Bag Accuracy
+## Step 4: Out-of-bag accuracy
 
 Always computed on the final model (see [random-forest.md](random-forest.md#out-of-bag-oob-accuracy)):
 
@@ -78,13 +84,14 @@ Always computed on the final model (see [random-forest.md](random-forest.md#out-
 - For each sample, collects votes only from trees where it was OOB (~37% of trees)
 - Reports majority-vote accuracy across all samples
 
-OOB provides a nearly unbiased accuracy estimate at zero additional cost.
+!!! tip "Free accuracy estimate"
+    OOB provides a nearly unbiased accuracy estimate at zero additional cost.
 
-## Step 5: Model Serialization
+## Step 5: Model serialization
 
 ### Format
 
-```
+```rust
 ModelBundle {
     config: ModelConfig {
         pathotypr_version,   // e.g., "0.2.0"
@@ -98,23 +105,24 @@ ModelBundle {
 }
 ```
 
-### Compression Pipeline
+### Compression pipeline
 
-```
+```text
 ModelBundle ──→ bincode::serialize_into ──→ zstd::Encoder (level 3) ──→ file
 ```
 
-Streaming serialization: bincode writes directly into the zstd compressor, which writes to a buffered file. Never holds the full uncompressed + compressed model in memory simultaneously.
+!!! info "Memory-efficient streaming"
+    Streaming serialization: bincode writes directly into the zstd compressor, which writes to a buffered file. Never holds the full uncompressed + compressed model in memory simultaneously.
 
 **Typical sizes**: 5–50 MB compressed for real bacterial genomes; <3 KB for synthetic benchmarks.
 
-## Step 6: Feature Importance Export
+## Step 6: Feature importance export
 
 ### Importance TSV (`model.importance.tsv`)
 
 Top 500 features ranked by split count:
 
-```
+```tsv
 rank  bucket  split_count  importance_pct  kmers
 1     42      87           2.31            ACTGACTGCTAGCTGATCGATC,GATCGATCGATCGATCGATCG
 2     1087    73           1.94            ...
@@ -122,18 +130,18 @@ rank  bucket  split_count  importance_pct  kmers
 
 `importance_pct = split_count / total_splits_across_all_features × 100`
 
-### Genomic Coordinates TSV (`model.importance.coords.tsv`)
+### Genomic coordinates TSV (`model.importance.coords.tsv`)
 
 Maps each discriminant k-mer back to its physical location in the training sequences:
 
-```
+```tsv
 rank  bucket  split_count  importance_pct  kmer  sequence  lineage  position
 1     42      87           2.31            ACTG...  seq_header  L4  1234567
 ```
 
 This enables researchers to identify which genomic regions drive classification — linking ML features to biology.
 
-## Computational Cost
+## Computational cost
 
 | Dataset | Training Time | Model Size |
 |---|---|---|
@@ -142,3 +150,9 @@ This enables researchers to identify which genomic regions drive classification 
 | 4000 synthetic sequences | ~2 s | ~2.5 KB |
 
 Times measured on Apple M4 (4 cores). Training scales approximately linearly with dataset size due to the tree construction dominating.
+
+## See also
+
+- [train](../train.md)
+- [Feature hashing](feature-hashing.md)
+- [Random forest](random-forest.md)

@@ -38,8 +38,8 @@ You must supply exactly one input source (`-i/--input` or `-l/--input-list`) and
 | `-o, --output <FILE>` | stdout | no | Output TSV report. Prints to the console if omitted. |
 | `-k, --kmer-size <N>` | `31` | no | k-mer size for comparison (1–31). |
 | `-t, --threads <N>` | all cores | no | Number of CPU threads. |
-| `--early-stop-confidence <FLOAT>` | `0.0` (off) | no | Stop the exact phase early when confidence is high. Recommended 0.98–0.999; 0 disables. |
-| `--early-stop-min-kmers <N>` | `1000000` | no | Minimum scored query k-mers before early-stop can trigger. |
+| `--early-stop-confidence <FLOAT>` | `0.0` | no | Reserved; accepted but not read in the current release (no effect). |
+| `--early-stop-min-kmers <N>` | `1000000` | no | Reserved; accepted but not read in the current release (no effect). |
 | `--strict-percentages` | `true` | no | Legacy flag retained for backward compatibility (default on); it does not change current results. |
 | `--min-kmer-count <N>` | `2` | no | Minimum k-mer count to keep (singleton filtering as noise). Set `1` to keep all. Only applied when there are more than 100k unique k-mers and this value is greater than `1`. |
 | `--excel` | `false` | no | Also write an Excel (`.xlsx`) file. |
@@ -101,7 +101,7 @@ Available on every subcommand:
 
 The report has a header row followed by exactly one data row. Columns are tab-separated:
 
-```
+```text
 Query_Files	Best_Match_Reference	Shared_Kmer_Fraction
 ```
 
@@ -131,4 +131,3 @@ With `--excel` **and** `-o`, `match` also writes an `.xlsx` workbook whose name 
 - [`pathotypr classify`](classify.md) — marker-based lineage classification once a reference is chosen.
 - [`pathotypr split-fastq`](split-fastq.md) — marker-based classification straight from FASTQ reads.
 - [Benchmarks](benchmarks.md) — runtime and memory characteristics.
-```
