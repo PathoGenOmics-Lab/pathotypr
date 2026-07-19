@@ -244,9 +244,11 @@ pub async fn run_classify(
             &format!("Loading markers: {}...", marker_name),
         );
 
-        // Generate unique output prefix per marker file
+        // Generate unique output prefix per marker file. Include the index so
+        // two marker files with the same basename (from different folders) do
+        // not collide and silently overwrite each other's output.
         let ofile = if marker_files.len() > 1 {
-            format!("{}_{}", params.output_prefix, marker_name)
+            format!("{}_{}_{}", params.output_prefix, idx + 1, marker_name)
         } else {
             params.output_prefix.clone()
         };
@@ -411,9 +413,11 @@ pub async fn run_split_fastq(
             &format!("Indexing reference for {}...", marker_name),
         );
 
-        // Generate unique output prefix per marker file
+        // Generate unique output prefix per marker file. Include the index so
+        // two marker files with the same basename (from different folders) do
+        // not collide and silently overwrite each other's output.
         let oprefix = if marker_files.len() > 1 {
-            format!("{}_{}", output_prefix, marker_name)
+            format!("{}_{}_{}", output_prefix, idx + 1, marker_name)
         } else {
             output_prefix.clone()
         };
