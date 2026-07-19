@@ -332,6 +332,7 @@ pub fn run(args: SplitFastqArgs) -> AppResult<()> {
 
     configure_thread_pool(args.threads);
 
+    crate::common::validate_kmer_size(args.kmer_size)?;
     let kmer_len = args.kmer_size;
     info!("Using k-mer size: {}", kmer_len);
 
