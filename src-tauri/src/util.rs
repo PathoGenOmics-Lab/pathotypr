@@ -78,11 +78,29 @@ fn is_disallowed_ipv4(ip: Ipv4Addr) -> bool {
 }
 
 fn is_disallowed_ipv6(ip: Ipv6Addr) -> bool {
-    ip.is_loopback()
+    // IPv4-mapped addresses (::ffff:a.b.c.d) route to the embedded IPv4 on
+    // dual-stack hosts, so an internal IPv4 target (e.g. ::ffff:169.254.169.254
+    // or ::ffff:127.0.0.1) could otherwise slip past the IPv4 rules. Apply the
+    // IPv4 rules to the mapped address. `to_ipv4_mapped` returns None for ::1
+    // and ::, so those still fall through to the loopback/unspecified checks.
+    if let Some(v4) = ip.to_ipv4_mapped() {
+        return is_disallowed_ipv4(v4);
+    }
+    if ip.is_loopback()
         || ip.is_unspecified()
         || ip.is_unique_local()
         || ip.is_unicast_link_local()
         || ip.is_multicast()
+    {
+        return true;
+    }
+    // Deprecated IPv4-compatible addresses (::a.b.c.d) likewise embed an IPv4;
+    // loopback/unspecified are already handled above, so this only reaches
+    // genuine embedded IPv4 targets.
+    if let Some(v4) = ip.to_ipv4() {
+        return is_disallowed_ipv4(v4);
+    }
+    false
 }
 
 fn is_disallowed_ip(ip: IpAddr) -> bool {
