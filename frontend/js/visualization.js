@@ -25,7 +25,9 @@ import {
   buildResistanceMatrix,
   renderResistanceMatrixHtml,
   buildLineageComposition,
-  renderLineageCompositionHtml
+  renderLineageCompositionHtml,
+  buildDepthFractionModel,
+  renderDepthFractionHtml
 } from './genotype-charts.js';
 
 // Store which tools have active visualizations and their column names
@@ -1820,6 +1822,10 @@ function buildGenotypingInsightSections(data) {
       html += renderLineageLevelsHtml(buildLineageLevels(entries));
     }
   }
+
+  // Quality control: only read-based runs carry depth, so this is absent for
+  // assemblies, where every call has no coverage behind it.
+  html += renderDepthFractionHtml(buildDepthFractionModel(records));
 
   if (fractions.length > 0) {
     // The core only writes variants at or above --min-alt-percent, so the

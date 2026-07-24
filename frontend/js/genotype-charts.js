@@ -257,3 +257,148 @@ export function buildLineageComposition(recordsBySample) {
   }
   return out.sort((a, b) => a.sample.localeCompare(b.sample));
 }
+
+// ---------------------------------------------------------------------------
+// Depth vs allele fraction — the quality-control view
+// ---------------------------------------------------------------------------
+
+/**
+ * Scatter of read depth against alternate allele fraction, one point per called
+ * marker.
+ *
+ * Two continuous measures, so a scatter is the form; it is a single series, so
+ * it takes categorical slot 1 and needs no legend (the title names it). Depth
+ * spans orders of magnitude, hence the log x-axis. Colour is deliberately not
+ * mapped to depth or fraction: both are already positional, and re-encoding
+ * them as hue would spend the only free channel on information the chart shows.
+ *
+ * What it is for: well-supported clean calls sit top-right. Points hugging the
+ * left edge are calls resting on very few reads. Weight in the shaded 20-80%
+ * band means the sample carries more than one strain — the same signal as the
+ * histogram, but with the depth behind each point visible.
+ */
+export function buildDepthFractionModel(records) {
+  const points = [];
+  for (const rec of records || []) {
+    const depth = Number(rec?.coverage);
+    const fraction = Number(rec?.altFraction);
+    if (!Number.isFinite(depth) || depth <= 0) continue;
+    if (!Number.isFinite(fraction)) continue;
+    points.push({
+      depth,
+      fraction: Math.min(100, Math.max(0, fraction)),
+      label: rec.lineagePath || '',
+      sample: rec.sample || ''
+    });
+  }
+  if (points.length < 3) return null;
+
+  const depths = points.map(p => p.depth).sort((a, b) => a - b);
+  const median = depths[Math.floor(depths.length / 2)];
+  const intermediate = points.filter(p => p.fraction >= 20 && p.fraction <= 80).length;
+
+  return {
+    points,
+    minDepth: depths[0],
+    maxDepth: depths[depths.length - 1],
+    medianDepth: median,
+    intermediate,
+    intermediateRatio: intermediate / points.length
+  };
+}
+
+export function renderDepthFractionHtml(model) {
+  if (!model) return '';
+  const { points, minDepth, maxDepth, medianDepth, intermediate } = model;
+
+  // Geometry. The container grows with the axis band, so the labels are never
+  // clipped by a fixed height.
+  const W = 720, H = 300;
+  const m = { top: 14, right: 16, bottom: 40, left: 48 };
+  const plotW = W - m.left - m.right;
+  const plotH = H - m.top - m.bottom;
+
+  // Log x for depth; linear y for a 0-100% fraction.
+  const lo = Math.log10(Math.max(1, minDepth));
+  const hi = Math.log10(Math.max(10, maxDepth));
+  const pad = (hi - lo) * 0.12 || 0.15;
+  const x0 = lo - pad, x1 = hi + pad;
+  const xFor = d => m.left + ((Math.log10(Math.max(1, d)) - x0) / (x1 - x0)) * plotW;
+  const yFor = f => m.top + plotH - (f / 100) * plotH;
+
+  // 1-2-5 ticks per decade: bare powers of ten leave a tight cluster with no
+  // reference anywhere near it.
+  const xTicks = [];
+  for (let e = Math.floor(x0) - 1; e <= Math.ceil(x1) + 1; e += 1) {
+    for (const mult of [1, 2, 5]) {
+      const v = mult * 10 ** e;
+      if (Math.log10(v) >= x0 && Math.log10(v) <= x1) xTicks.push(v);
+    }
+  }
+  const yTicks = [0, 25, 50, 75, 100];
+
+  const grid = yTicks.map(t => `
+    <line class="qc-grid" x1="${m.left}" x2="${m.left + plotW}" y1="${yFor(t)}" y2="${yFor(t)}"/>
+    <text class="qc-tick qc-tick--y" x="${m.left - 8}" y="${yFor(t) + 3}">${t}%</text>
+  `).join('') + xTicks.map(t => `
+    <text class="qc-tick" x="${xFor(t)}" y="${m.top + plotH + 16}">${t >= 1000 ? `${(t / 1000)}k` : t}</text>
+  `).join('');
+
+  // The 20-80% band is context, not a series: where a mixture shows up.
+  const band = `
+    <rect class="qc-band" x="${m.left}" y="${yFor(80)}" width="${plotW}" height="${yFor(20) - yFor(80)}"/>
+    <text class="qc-band-label" x="${m.left + plotW - 6}" y="${yFor(80) - 5}"
+          text-anchor="end">mixed-infection band (20–80%)</text>
+  `;
+
+  const dots = points.map(p => {
+    const tip = `${p.depth}× · ${p.fraction.toFixed(1)}%${p.label ? ` · ${p.label}` : ''}`;
+    return `<circle class="qc-dot" cx="${xFor(p.depth).toFixed(1)}" cy="${yFor(p.fraction).toFixed(1)}" r="4">
+              <title>${attr(tip)}</title>
+            </circle>`;
+  }).join('');
+
+  // Table view: a scatter's honest tabular twin is the binned density, not a
+  // row per point.
+  const bands = [[80, 100], [60, 80], [40, 60], [20, 40], [0, 20]];
+  const depthBins = [[0, 20], [20, 50], [50, 200], [200, Infinity]];
+  const tableRows = bands.map(([f0, f1]) => {
+    const cells = depthBins.map(([d0, d1]) =>
+      `<td>${points.filter(p => p.fraction >= f0 && p.fraction < (f1 === 100 ? 101 : f1) && p.depth >= d0 && p.depth < d1).length}</td>`
+    ).join('');
+    return `<tr><td>${f0}–${f1}%</td>${cells}</tr>`;
+  }).join('');
+
+  const verdict = intermediate > 0
+    ? `${intermediate} of ${points.length} markers sit in the 20–80% band.`
+    : `No marker sits in the 20–80% band.`;
+
+  return `
+    <section class="viz-chart viz-depth-fraction">
+      <header class="viz-chart-head">
+        <h4>Depth vs allele fraction</h4>
+        <p class="viz-chart-sub">
+          ${points.length} called markers · median depth ${medianDepth}× · ${verdict}
+        </p>
+      </header>
+
+      <svg class="qc-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet"
+           role="img" aria-label="Read depth against alternate allele fraction, one point per called marker">
+        ${band}
+        ${grid}
+        <line class="qc-axis" x1="${m.left}" x2="${m.left + plotW}" y1="${m.top + plotH}" y2="${m.top + plotH}"/>
+        <line class="qc-axis" x1="${m.left}" x2="${m.left}" y1="${m.top}" y2="${m.top + plotH}"/>
+        ${dots}
+        <text class="qc-axis-title" x="${m.left + plotW / 2}" y="${H - 6}" text-anchor="middle">read depth (log scale)</text>
+      </svg>
+
+      <details class="viz-table-view">
+        <summary>Table view</summary>
+        <table class="viz-data-table">
+          <thead><tr><th>Allele fraction</th><th>&lt;20×</th><th>20–50×</th><th>50–200×</th><th>≥200×</th></tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </details>
+    </section>
+  `;
+}

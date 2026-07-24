@@ -7362,3 +7362,51 @@ body.track-expanded-open {
   outline: 2px solid var(--text-primary);
   outline-offset: 1px;
 }
+
+/* --- Depth vs allele fraction (QC scatter) --- */
+
+.qc-svg {
+  width: 100%;
+  height: auto;          /* grows with the axis band; never clips the labels */
+  display: block;
+  margin-top: 4px;
+}
+
+.qc-grid,
+.qc-axis {
+  stroke: var(--viz-grid);
+  stroke-width: 1;       /* hairline, solid — never dashed */
+}
+
+.qc-axis { stroke: var(--viz-axis); }
+
+.qc-tick {
+  font-size: 10px;
+  fill: var(--text-muted);
+  text-anchor: middle;
+  font-variant-numeric: tabular-nums;
+}
+
+.qc-tick--y { text-anchor: end; }
+
+.qc-axis-title {
+  font-size: 10.5px;
+  fill: var(--text-secondary);
+}
+
+/* Context band, not a series: the zone where a mixture shows up. */
+.qc-band { fill: var(--st-warning); opacity: 0.10; }
+
+.qc-band-label {
+  font-size: 9.5px;
+  fill: var(--text-muted);
+}
+
+.qc-dot {
+  fill: var(--series-1);
+  fill-opacity: 0.75;
+  stroke: var(--bg-card);   /* 2px surface ring so overlapping marks stay countable */
+  stroke-width: 2;
+}
+
+.qc-dot:hover { fill-opacity: 1; }
