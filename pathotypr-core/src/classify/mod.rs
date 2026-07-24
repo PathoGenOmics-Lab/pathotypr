@@ -48,7 +48,14 @@ pub struct Args {
     pub ref_fasta: String,
 
     /// Path to a TSV file listing samples. Format: sample_name\tfasta_path[\tgff_path].
-    #[arg(short = 'l', long = "input-list", required_unless_present = "fasta_genomes")]
+    // `--input-files` is a full input source too, so it must satisfy this
+    // requirement as well; listing only `--input` made `--input-files` on its
+    // own fail with "the following required arguments were not provided".
+    #[arg(
+        short = 'l',
+        long = "input-list",
+        required_unless_present_any = ["fasta_genomes", "fasta_files"]
+    )]
     pub tsv_genomes: Option<String>,
 
     /// Single FASTA file to analyze.
@@ -56,7 +63,11 @@ pub struct Args {
     pub fasta_genomes: Option<String>,
 
     /// Multiple FASTA files to analyze (for GUI batch mode).
-    #[arg(long = "input-files", required_unless_present_any = ["tsv_genomes", "fasta_genomes"])]
+    #[arg(
+        long = "input-files",
+        num_args = 1..,
+        required_unless_present_any = ["tsv_genomes", "fasta_genomes"]
+    )]
     pub fasta_files: Option<Vec<String>>,
 
     /// Optional GFF file for annotation when using --input.
@@ -64,7 +75,7 @@ pub struct Args {
     pub gff_file: Option<String>,
 
     /// Multiple GFF files for annotation when using --input-files (matched by filename).
-    #[arg(long = "gff-files")]
+    #[arg(long = "gff-files", num_args = 1..)]
     pub gff_files: Option<Vec<String>>,
 
     /// Prefix for the output files.
