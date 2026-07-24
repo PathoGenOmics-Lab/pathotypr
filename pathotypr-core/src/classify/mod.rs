@@ -777,8 +777,12 @@ pub fn run(args: Args) -> AppResult<()> {
         emitted_lines += 1;
         if emitted_lines % 2048 == 0 { check_cancelled(cancel_token)?; }
         write!(outfile, "{}", line).map_err(AppError::Io)?;
-        let trimmed = line.trim_end();
-        if !trimmed.is_empty() {
+        // Trim the newline only, not the trailing tabs: a genome with no marker
+        // hits emits a row of empty columns, and trimming those away leaves a
+        // bare name that the summary parser rejects as malformed — which is how
+        // such genomes used to vanish from the summary entirely.
+        let trimmed = line.trim_end_matches(['\n', '\r']);
+        if !trimmed.trim().is_empty() {
             update_summary_from_detail_line(&mut lineage_count_map, trimmed);
         }
         let mut disable_detail_excel = false;
@@ -1054,6 +1058,24 @@ mod tests {
         let lines = analyze_genome_seq("dup", &doubled, &index, &None, k, ref_seq, &ref_rc);
         let hits = lines.iter().filter(|l| l.contains("L9.9")).count();
         assert_eq!(hits, 1, "a repeated marker must not inflate the lineage tally");
+    }
+
+
+    #[test]
+    fn a_genome_with_no_markers_still_reaches_the_summary() {
+        use std::collections::HashMap;
+        // The exact row analyze_genome emits when nothing matched: the name
+        // followed by empty columns. It must register the genome, or the sample
+        // silently disappears from the summary.
+        let line = format!("{}\t\t\t\t\t\t\t\t\t\t\t\t", "sampleX");
+        let mut map: HashMap<String, HashMap<String, usize>> = HashMap::new();
+        super::update_summary_from_detail_line(&mut map, &line);
+        assert!(map.contains_key("sampleX"), "the genome must appear in the summary");
+        assert!(map["sampleX"].is_empty(), "with no lineage counts");
+        assert_eq!(
+            crate::lineage::determine_major_lineage(&map["sampleX"], false),
+            "Unclassified"
+        );
     }
 
 }
