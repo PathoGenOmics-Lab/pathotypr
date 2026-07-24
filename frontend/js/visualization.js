@@ -21,6 +21,12 @@ import {
   summariseDrProfile,
   drCallLabel
 } from './dr-insights.js';
+import {
+  buildResistanceMatrix,
+  renderResistanceMatrixHtml,
+  buildLineageComposition,
+  renderLineageCompositionHtml
+} from './genotype-charts.js';
 
 // Store which tools have active visualizations and their column names
 const activeVisualizations = {};
@@ -1742,12 +1748,14 @@ function buildGenotypingInsightSections(data) {
   // Summary tables carry no per-marker evidence, only the lineage:count cell.
   if (lineageIdx === -1 && lineageCountIdx === -1) return '';
 
+  const sampleIdx = findSampleColumnIndex(headers, lineageIdx);
   const records = [];
   const fractions = [];
   if (lineageIdx !== -1) {
     rows.forEach(row => {
       const lineagePath = normalizeValue(row[lineageIdx]);
       if (!lineagePath) return;
+      const sample = sampleIdx !== -1 ? (normalizeValue(row[sampleIdx]) || 'Sample') : 'Sample';
       const refCount = refIdx !== -1 ? parseNumericValue(row[refIdx]) : null;
       const altCount = altIdx !== -1 ? parseNumericValue(row[altIdx]) : null;
       const coverage = (refCount || 0) + (altCount || 0);
@@ -1755,7 +1763,7 @@ function buildGenotypingInsightSections(data) {
       if (altFraction === null && coverage > 0 && altCount !== null) {
         altFraction = (altCount / coverage) * 100;
       }
-      records.push({ lineagePath, altFraction, coverage: coverage > 0 ? coverage : null });
+      records.push({ sample, lineagePath, altFraction, coverage: coverage > 0 ? coverage : null });
       if (Number.isFinite(altFraction)) fractions.push(altFraction);
     });
   }
@@ -1763,7 +1771,16 @@ function buildGenotypingInsightSections(data) {
   let html = '';
 
   if (records.length > 0 && isDrPanel(records.map(r => r.lineagePath))) {
-    html += renderDrProfileHtml(buildDrProfile(records));
+    // With several samples a matrix reads far better than a list of cards, and
+    // the cards would silently merge every sample's mutations into one profile.
+    // buildResistanceMatrix returns null for a single sample, where the cards
+    // are the right form and a one-row grid would not be.
+    const matrix = buildResistanceMatrix(records);
+    if (matrix) {
+      html += renderResistanceMatrixHtml(matrix);
+    } else {
+      html += renderDrProfileHtml(buildDrProfile(records));
+    }
   } else {
     // Genuine lineage panel: rebuild the hierarchy the flat paths describe.
     const counts = new Map();
@@ -1776,11 +1793,30 @@ function buildGenotypingInsightSections(data) {
         });
       });
     }
+    if (records.length > 0) {
+      const bySample = new Map();
+      records.forEach(r => {
+        if (!bySample.has(r.sample)) bySample.set(r.sample, new Map());
+        const m = bySample.get(r.sample);
+        m.set(r.lineagePath, (m.get(r.lineagePath) || 0) + 1);
+      });
+      const multiSample = bySample.size > 1;
+      if (multiSample) {
+        const perSample = buildLineageComposition(
+          new Map([...bySample].map(([sample, m]) =>
+            [sample, [...m].map(([lineage, count]) => ({ lineage, count }))]))
+        );
+        html += renderLineageCompositionHtml(perSample);
+      }
+    }
     if (counts.size > 0) {
       const entries = [...counts].map(([lineage, count]) => ({ lineage, count }));
-      // Fixed markers on divergent branches are the mixed-infection signal that
-      // survives --min-alt-percent, so lead with it.
-      html += renderMixedLineagesHtml(detectMixedLineages(buildLineageBranches(entries)));
+      // The mixed-infection verdict describes a single sample; pooling a batch
+      // would count every sample's lineage as a co-infecting strain. For a
+      // batch the composition chart above already carries that story.
+      if (!(records.length > 0 && new Set(records.map(r => r.sample)).size > 1)) {
+        html += renderMixedLineagesHtml(detectMixedLineages(buildLineageBranches(entries)));
+      }
       html += renderLineageLevelsHtml(buildLineageLevels(entries));
     }
   }

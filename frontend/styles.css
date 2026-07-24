@@ -7123,3 +7123,242 @@ body.track-expanded-open {
   color: var(--text-muted);
   padding-top: 2px;
 }
+
+/* ==========================================================================
+   Batch charts — resistance matrix and lineage composition
+   Palettes are the validated data-viz defaults, checked against this app's
+   own surfaces (#ffffff light, #192734 dark). Categorical slots 1-3 pass in
+   both modes; the status roles are used as documented, with a glyph + label
+   so colour never carries meaning alone.
+   ========================================================================== */
+
+.viz-chart {
+  /* status roles (fixed, never themed) */
+  --st-critical: #d03b3b;
+  --st-warning:  #fab219;
+  --st-good:     #0ca30c;
+  --st-neutral:  #c3c2b7;
+  /* categorical slots, light steps */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-other: #898781;
+  /* chrome */
+  --viz-grid: #e1e0d9;
+  --viz-axis: #c3c2b7;
+
+  margin: 16px 0 4px;
+  padding: 16px 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+[data-theme="dark"] .viz-chart {
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --viz-grid: #2c2c2a;
+  --viz-axis: #383835;
+  --st-neutral: #383835;
+}
+
+.viz-chart-head h4 {
+  margin: 0 0 2px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.viz-chart-sub {
+  margin: 0 0 14px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+/* --- Legend (always present) --- */
+
+.viz-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.rm-key,
+.lc-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.lc-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+/* --- Table view (the WCAG-clean twin) --- */
+
+.viz-table-view {
+  margin-top: 12px;
+  font-size: 11.5px;
+}
+
+.viz-table-view summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.viz-data-table {
+  width: 100%;
+  margin-top: 8px;
+  border-collapse: collapse;
+}
+
+.viz-data-table th {
+  text-align: left;
+  padding: 6px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--viz-grid);
+}
+
+.viz-data-table td {
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--viz-grid);
+  color: var(--text-secondary);
+}
+
+/* --- Resistance matrix --- */
+
+.rm-scroll { overflow-x: auto; }
+
+.rm-grid {
+  border-collapse: separate;
+  border-spacing: 2px;      /* the 2px surface gap between cells */
+  font-size: 11px;
+}
+
+.rm-grid thead th {
+  padding: 0 0 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  text-align: center;
+  min-width: 34px;
+}
+
+.rm-corner { min-width: 132px; }
+
+.rm-sample {
+  padding-right: 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.rm-cell {
+  width: 34px;
+  height: 26px;             /* hit target stays comfortably above a pinpoint */
+  border-radius: 4px;
+  text-align: center;
+  background: var(--st-neutral);
+  opacity: 0.35;
+  cursor: default;
+}
+
+.rm-cell--resistant { background: var(--st-critical); opacity: 1; }
+.rm-cell--uncertain { background: var(--st-warning);  opacity: 1; }
+.rm-cell--notassoc  { background: var(--st-good);     opacity: 1; }
+.rm-cell--ungraded  { background: var(--st-neutral);  opacity: 0.8; }
+
+.rm-cell:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 1px;
+}
+
+.rm-glyph {
+  font-size: 11px;
+  line-height: 1;
+  color: #ffffff;
+}
+
+.rm-cell--uncertain .rm-glyph { color: #3b2c00; }  /* warning is light: dark ink */
+.rm-cell--none .rm-glyph,
+.rm-cell:not([class*="rm-cell--"]) .rm-glyph { color: var(--text-muted); }
+
+.rm-key .rm-glyph { color: inherit; }
+.rm-key--resistant { color: var(--st-critical); }
+.rm-key--uncertain { color: #8a6100; }
+.rm-key--notassoc  { color: var(--st-good); }
+.rm-key--none      { color: var(--text-muted); }
+
+/* --- Lineage composition --- */
+
+.lc-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lc-row {
+  display: grid;
+  grid-template-columns: 132px 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.lc-name {
+  font-size: 11.5px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lc-bar {
+  display: flex;
+  gap: 2px;                 /* the 2px surface gap between segments */
+  height: 22px;
+}
+
+.lc-seg {
+  min-width: 3px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  overflow: hidden;
+}
+
+/* rounded data-ends, anchored to the baseline */
+.lc-seg:first-child { border-radius: 4px 2px 2px 4px; }
+.lc-seg:last-child  { border-radius: 2px 4px 4px 2px; }
+
+.lc-seg--1 { background: var(--series-1); }
+.lc-seg--2 { background: var(--series-2); }
+.lc-seg--3 { background: var(--series-3); }
+.lc-seg--0 { background: var(--series-other); }
+
+.lc-seg-label {
+  font-size: 10px;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lc-seg:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 1px;
+}
