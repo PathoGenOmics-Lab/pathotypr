@@ -1455,6 +1455,7 @@ function scheduleSplitfqTrackRender(toolId, data, primaryColumn) {
     const breakdownEl = document.getElementById(`${toolId}-viz-outcome-breakdown`);
     if (!breakdownEl) return;
     renderSplitFastqLightweightInsights(toolId, data, primaryColumn, breakdownEl);
+    renderClassifyGenotypingInsights(toolId, data, breakdownEl);
   });
 }
 
@@ -1792,6 +1793,26 @@ function buildGenotypingInsightSections(data) {
   }
 
   return html;
+}
+
+/**
+ * Classify runs the very same marker panels as split-fastq — including the WHO
+ * resistance catalogue — so it gets the same resistance and lineage panels.
+ * Assembly output carries no read depth, so the allele-fraction panel simply
+ * does not appear for it.
+ */
+function renderClassifyGenotypingInsights(toolId, data, breakdownEl) {
+  if (toolId !== 'classify' || !breakdownEl) return;
+  const existing = breakdownEl.querySelector('.viz-classify-genotyping');
+  const html = buildGenotypingInsightSections(data);
+  if (!html) {
+    existing?.remove();
+    return;
+  }
+  const section = existing || document.createElement('section');
+  section.className = 'viz-classify-genotyping';
+  section.innerHTML = html;
+  if (!existing) breakdownEl.appendChild(section);
 }
 
 function renderSplitFastqLightweightInsights(toolId, data, primaryColumn, breakdownEl) {
@@ -3017,6 +3038,7 @@ function renderToolInsights(toolId, data, counts, primaryColumn) {
     `;
     renderMatchRefTrackInsights(toolId, data, primaryColumn, breakdownEl);
     renderSplitFastqLightweightInsights(toolId, data, primaryColumn, breakdownEl);
+    renderClassifyGenotypingInsights(toolId, data, breakdownEl);
     return;
   }
 
@@ -3056,6 +3078,7 @@ function renderToolInsights(toolId, data, counts, primaryColumn) {
 
   renderMatchRefTrackInsights(toolId, data, primaryColumn, breakdownEl);
   renderSplitFastqLightweightInsights(toolId, data, primaryColumn, breakdownEl);
+  renderClassifyGenotypingInsights(toolId, data, breakdownEl);
   renderPredictConfidenceInsights(toolId, data, breakdownEl);
 }
 
