@@ -217,6 +217,25 @@ export function buildDrProfile(records) {
   return profile;
 }
 
+/**
+ * One-line verdict for a sample, for the KPI header and the single-sample call.
+ * Without this the header would present a raw marker path
+ * ("FQ;FQ-R;gyrA_D94G;1) Assoc w R;gyrA;D94G") as if it were a lineage call.
+ */
+export function summariseDrProfile(profile) {
+  const list = profile || [];
+  const resistant = list.filter(p => p.verdict === GRADE.RESISTANT).map(p => p.drug);
+  if (resistant.length > 0) return `Resistant: ${resistant.join(', ')}`;
+  const uncertain = list.filter(p => p.verdict === GRADE.UNCERTAIN).map(p => p.drug);
+  if (uncertain.length > 0) return `No resistance markers · uncertain: ${uncertain.join(', ')}`;
+  return 'No resistance markers';
+}
+
+/** Label used when tallying a resistance run per drug. */
+export function drCallLabel(entry) {
+  return `${entry.drug} · ${entry.verdictLabel}`;
+}
+
 // ---------------------------------------------------------------------------
 // Lineage levels
 // ---------------------------------------------------------------------------
@@ -497,9 +516,16 @@ export function renderLineageLevelsHtml(levels) {
  * Render the lineage-branch support, which is the primary mixed-infection
  * signal: fixed markers that belong to divergent branches.
  */
-export function renderMixedLineagesHtml(detection) {
-  const shares = detection?.shares || [];
-  if (shares.length === 0) return '';
+export function renderMixedLineagesHtml(detection, options = {}) {
+  const all = detection?.shares || [];
+  if (all.length === 0) return '';
+
+  // A genuine mixture is two or three strains. A long tail of branches usually
+  // means marker noise rather than that many co-infecting strains, so show the
+  // best-supported ones and account for the rest instead of listing them all.
+  const maxBranches = Math.max(2, options.maxBranches || 6);
+  const shares = all.slice(0, maxBranches);
+  const hidden = all.length - shares.length;
 
   const rows = shares.map(entry => `
     <li class="mx-branch${detection.mixed ? '' : ' mx-branch--single'}">
@@ -517,23 +543,35 @@ export function renderMixedLineagesHtml(detection) {
 
   const verdict = detection.mixed
     ? `<p class="mx-verdict mx-verdict--mixed">
-         Mixed infection likely — fixed markers support ${shares.length} incompatible lineages
+         Mixed infection likely — fixed markers support ${all.length} incompatible lineages
        </p>`
     : `<p class="mx-verdict mx-verdict--clonal">
          Consistent with a single strain — all fixed markers lie on one lineage path
        </p>`;
 
+  const overflow = hidden > 0
+    ? `<li class="mx-more">+${hidden} further branch${hidden === 1 ? '' : 'es'} with at least
+         two unique markers, not shown.</li>`
+    : '';
+
+  const manyBranches = all.length > 3
+    ? ` Note that ${all.length} branches is more than a co-infection usually produces: a genuine
+        mixture is normally two or three strains, so check the marker panel and depth before
+        reading this as that many strains.`
+    : '';
+
   const note = detection.mixed
     ? `A single clone can only fix markers along one root-to-tip path, so markers fixed on
        divergent branches point to more than one strain in the sample. Only markers that no
-       other branch can explain are counted, so shared ancestral markers never inflate the call.`
+       other branch can explain are counted, so shared ancestral markers never inflate the
+       call.${manyBranches}`
     : `Every observed marker lies on one root-to-tip path, so no second strain is implied.`;
 
   return `
     <section class="viz-mixed-lineages">
       <header><h4>Lineage support</h4></header>
       ${verdict}
-      <ul class="mx-branches">${rows}</ul>
+      <ul class="mx-branches">${rows}${overflow}</ul>
       <p class="mx-note">${note}</p>
     </section>
   `;

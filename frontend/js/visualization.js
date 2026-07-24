@@ -17,7 +17,9 @@ import {
   renderDrProfileHtml,
   renderLineageLevelsHtml,
   renderMixedLineagesHtml,
-  renderAlleleHistogramHtml
+  renderAlleleHistogramHtml,
+  summariseDrProfile,
+  drCallLabel
 } from './dr-insights.js';
 
 // Store which tools have active visualizations and their column names
@@ -2962,7 +2964,13 @@ function renderToolInsights(toolId, data, counts, primaryColumn) {
 
   const labelColIdx = resolvePrimaryColumnIndex(headers, primaryColumn);
   const sampleCount = estimateSampleCount(data, labelColIdx);
-  const assignedCount = Object.values(counts).reduce((acc, value) => acc + value, 0);
+  // On a resistance panel one sample contributes a count per drug, so summing
+  // the tally would exceed the number of samples ("600% assigned"). What is
+  // assigned there is the sample itself: it carries at least one marker.
+  const drCalls = buildDrCallSummary(data, primaryColumn);
+  const assignedCount = drCalls
+    ? drCalls.sampleSummaries.size
+    : Object.values(counts).reduce((acc, value) => acc + value, 0);
   const unknownCount = Math.max(sampleCount - assignedCount, 0);
   const distinctCount = Object.keys(counts).length;
   const topEntry = Object.entries(counts)
@@ -6670,7 +6678,7 @@ function setupToolVisualization(toolId, title, columnName) {
 
   // Initialize charts storage
   initToolCharts(toolId);
-  activeVisualizations[toolId] = { columnName, visible: false };
+  activeVisualizations[toolId] = { columnName, visible: false, defaultTitle: title };
 
   if (vizBtn) {
     vizBtn.addEventListener('click', () => {
@@ -6781,7 +6789,11 @@ function showToolVisualization(toolId, columnName) {
   }
 
   // Store active visualization info for theme refresh
-  activeVisualizations[toolId] = { columnName, visible: true };
+  activeVisualizations[toolId] = {
+    ...activeVisualizations[toolId],
+    columnName,
+    visible: true
+  };
 
   vizBtn?.classList.add('hidden');
   vizPanel.classList.remove('hidden');
@@ -6865,12 +6877,82 @@ function parseToolData(data, primaryColumn) {
   return counts;
 }
 
+/**
+ * Re-tally a WHO resistance run by drug.
+ *
+ * For a resistance panel the label column holds the whole marker path
+ * (drug;resistance;marker;grade;gene;mutation), so the generic tally produces a
+ * distribution over raw paths and the KPI header ends up presenting one of them
+ * as the sample's "call". Group by sample instead and describe each sample by
+ * the drugs it carries markers for, which is what the cards, the chart and the
+ * single-sample outcome should all be about.
+ *
+ * Returns `null` for a genuine lineage panel, leaving the normal tally alone.
+ */
+function buildDrCallSummary(data, primaryColumn) {
+  const headers = Array.isArray(data?.headers) ? data.headers : [];
+  const rows = Array.isArray(data?.rows) ? data.rows : [];
+  if (headers.length === 0 || rows.length === 0) return null;
+
+  const labelColIdx = resolvePrimaryColumnIndex(headers, primaryColumn);
+  if (labelColIdx === -1) return null;
+
+  const paths = rows.map(row => normalizeValue(row[labelColIdx])).filter(Boolean);
+  if (!isDrPanel(paths)) return null;
+
+  const sampleColIdx = findSampleColumnIndex(headers, labelColIdx);
+  const bySample = new Map();
+  rows.forEach(row => {
+    const lineagePath = normalizeValue(row[labelColIdx]);
+    if (!lineagePath) return;
+    const sample = sampleColIdx !== -1
+      ? (normalizeValue(row[sampleColIdx]) || 'Sample')
+      : 'Sample';
+    if (!bySample.has(sample)) bySample.set(sample, []);
+    bySample.get(sample).push({ lineagePath });
+  });
+  if (bySample.size === 0) return null;
+
+  const counts = {};
+  const sampleSummaries = new Map();
+  for (const [sample, records] of bySample) {
+    const profile = buildDrProfile(records);
+    sampleSummaries.set(sample, summariseDrProfile(profile));
+    // One count per sample per drug, so a multi-sample run answers
+    // "how many samples carry markers for this drug".
+    profile.forEach(entry => {
+      const label = drCallLabel(entry);
+      counts[label] = (counts[label] || 0) + 1;
+    });
+  }
+
+  return { counts, sampleSummaries };
+}
+
+/** Retitle the panel: "Lineage Distribution" is wrong for a resistance run. */
+function setVisualizationTitle(toolId, title) {
+  const heading = document.querySelector(`#${toolId}-visualization .visualization-title h3`);
+  if (!heading) return;
+  const next = title || activeVisualizations[toolId]?.defaultTitle;
+  if (next && heading.textContent !== next) heading.textContent = next;
+}
+
 function renderVisualization(toolId, columnName) {
   const data = getPanelResultsData(`${toolId}-results`);
   if (!data) return;
 
-  const counts = parseToolData(data, columnName);
+  const drCalls = buildDrCallSummary(data, columnName);
+  const counts = drCalls ? drCalls.counts : parseToolData(data, columnName);
+  setVisualizationTitle(toolId, drCalls ? 'Resistance profile' : null);
+
   const singleSampleSummary = buildSingleSampleVisualizationSummary(toolId, data, counts, columnName);
+  if (singleSampleSummary && drCalls) {
+    // Describe the sample by its resistance verdict rather than by whichever
+    // marker path happened to sort first.
+    singleSampleSummary.outcomeLabel =
+      drCalls.sampleSummaries.get(singleSampleSummary.sampleName)
+      || summariseDrProfile([]);
+  }
   renderSingleSampleSummary(toolId, singleSampleSummary);
 
   if (singleSampleSummary) {

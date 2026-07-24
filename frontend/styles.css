@@ -7117,3 +7117,9 @@ body.track-expanded-open {
   line-height: 1.5;
   color: var(--text-muted);
 }
+
+.mx-more {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding-top: 2px;
+}
