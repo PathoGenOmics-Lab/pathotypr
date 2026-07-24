@@ -277,21 +277,61 @@ fn analyze_genome(
         None
     };
 
+    Ok(collect_marker_lines(
+        genome_name,
+        contigs.iter().map(|(_, seq)| seq.as_str()),
+        marker_index,
+        &annotations,
+        k,
+        ref_seq,
+        ref_seq_rc,
+    ))
+}
+
+/// Collects the detail lines for one genome, scanning every contig on **both
+/// strands** and reporting each marker only once.
+///
+/// Contig orientation in a draft assembly is arbitrary, so a marker sitting on
+/// a reverse-oriented contig only matches the reverse complement; scanning the
+/// forward strand alone silently loses it (the FASTQ path already indexes both
+/// orientations). Matches are deduplicated by marker k-mer, so a marker seen on
+/// several contigs — or on both strands of one contig — counts as a single
+/// observation rather than inflating the lineage tally.
+fn collect_marker_lines<'a>(
+    genome_name: &str,
+    contigs: impl Iterator<Item = &'a str>,
+    marker_index: &MarkerIndex,
+    annotations: &Option<&Lapper<usize, Gene>>,
+    k: usize,
+    ref_seq: &str,
+    ref_seq_rc: &str,
+) -> Vec<String> {
     let mut result = Vec::new();
-    let mut any_marker = false;
-    for (_contig_id, contig_seq) in &contigs {
-        let matched_markers = find_markers(contig_seq, marker_index, k);
-        for m in &matched_markers {
-            any_marker = true;
-            let lines =
-                format_marker_match(genome_name, m, &annotations, contig_seq, ref_seq, ref_seq_rc);
-            result.extend(lines);
+    let mut seen: HashSet<String> = HashSet::new();
+    for contig_seq in contigs {
+        let contig_rc = reverse_complement_sequence(contig_seq);
+        for seq in [contig_seq, contig_rc.as_str()] {
+            for m in find_markers(seq, marker_index, k) {
+                if !seen.insert(m.kmer.clone()) {
+                    continue;
+                }
+                // `seq` is the strand that produced the match, so the positions
+                // and the ALT bases sliced out of it stay self-consistent.
+                result.extend(format_marker_match(
+                    genome_name,
+                    &m,
+                    annotations,
+                    seq,
+                    ref_seq,
+                    ref_seq_rc,
+                ));
+            }
         }
     }
-    if !any_marker {
+    if result.is_empty() {
         result.push(format!("{}\t\t\t\t\t\t\t\t\t\t\t\t\n", genome_name));
     }
-    Ok(result)
+    result
 }
 
 pub fn analyze_genome_seq(
@@ -305,17 +345,15 @@ pub fn analyze_genome_seq(
 ) -> Vec<String> {
     info!("Analyzing genome {} (from provided sequence)", genome_name);
     let ann_ref: Option<&Lapper<usize, Gene>> = annotations.as_ref();
-    let matched_markers = find_markers(genome_seq, marker_index, k);
-    let mut result = Vec::new();
-    if matched_markers.is_empty() {
-        result.push(format!("{}\t\t\t\t\t\t\t\t\t\t\t\t\n", genome_name));
-    } else {
-        for m in &matched_markers {
-            let lines = format_marker_match(genome_name, m, &ann_ref, genome_seq, ref_seq, ref_seq_rc);
-            result.extend(lines);
-        }
-    }
-    result
+    collect_marker_lines(
+        genome_name,
+        std::iter::once(genome_seq),
+        marker_index,
+        &ann_ref,
+        k,
+        ref_seq,
+        ref_seq_rc,
+    )
 }
 
 fn format_marker_match(
@@ -888,4 +926,77 @@ mod tests {
         counts.insert("L1;A".to_string(), 2usize);
         assert_eq!(get_final_lineage_call(&counts), "L1;A");
     }
+
+    #[test]
+    fn markers_are_found_on_reverse_oriented_contigs() {
+        use crate::classify::markers::{generate_markerkmer, MarkerVariant};
+        use crate::classify::{analyze_genome_seq, reverse_complement_sequence};
+
+        // 60 bp reference; the marker sits at 1-based position 30.
+        let ref_seq = concat!(
+            "ACGTTGCAAG", "GCTTAACCGG", "ATCGATTCAG", "CTAGCCATGG", "TACGTTAACG", "GCATTGCAGT",
+        );
+        assert_eq!(ref_seq.len(), 60);
+        assert_eq!(&ref_seq[29..30], "G", "reference allele at the marker position");
+
+        let markers = vec![MarkerVariant {
+            pos: 30,
+            ref_allele: "G".to_string(),
+            alt_allele: "A".to_string(),
+            lineage: "L9.9".to_string(),
+            gene: None,
+            mutation: None,
+        }];
+        let k = 11;
+        let index = generate_markerkmer(&markers, ref_seq, k, 5);
+        let ref_rc = reverse_complement_sequence(ref_seq);
+
+        // A genome carrying the ALT allele, in the same orientation as the reference.
+        let mut forward = ref_seq.to_string();
+        forward.replace_range(29..30, "A");
+        let hit_fwd = analyze_genome_seq("fwd", &forward, &index, &None, k, ref_seq, &ref_rc);
+        assert!(
+            hit_fwd.iter().any(|l| l.contains("L9.9")),
+            "marker must be found on a forward-oriented contig"
+        );
+
+        // The very same contig stored in the opposite orientation, which is
+        // arbitrary in a draft assembly, must yield the same call.
+        let reverse = reverse_complement_sequence(&forward);
+        let hit_rev = analyze_genome_seq("rev", &reverse, &index, &None, k, ref_seq, &ref_rc);
+        assert!(
+            hit_rev.iter().any(|l| l.contains("L9.9")),
+            "marker must also be found when the contig is reverse-oriented"
+        );
+    }
+
+    #[test]
+    fn a_marker_present_on_several_contigs_is_counted_once() {
+        use crate::classify::markers::{generate_markerkmer, MarkerVariant};
+        use crate::classify::{analyze_genome_seq, reverse_complement_sequence};
+
+        let ref_seq = concat!(
+            "ACGTTGCAAG", "GCTTAACCGG", "ATCGATTCAG", "CTAGCCATGG", "TACGTTAACG", "GCATTGCAGT",
+        );
+        let markers = vec![MarkerVariant {
+            pos: 30,
+            ref_allele: "G".to_string(),
+            alt_allele: "A".to_string(),
+            lineage: "L9.9".to_string(),
+            gene: None,
+            mutation: None,
+        }];
+        let k = 11;
+        let index = generate_markerkmer(&markers, ref_seq, k, 5);
+        let ref_rc = reverse_complement_sequence(ref_seq);
+
+        let mut forward = ref_seq.to_string();
+        forward.replace_range(29..30, "A");
+        // Same sequence twice over: the marker is one observation, not two.
+        let doubled = format!("{}{}", forward, forward);
+        let lines = analyze_genome_seq("dup", &doubled, &index, &None, k, ref_seq, &ref_rc);
+        let hits = lines.iter().filter(|l| l.contains("L9.9")).count();
+        assert_eq!(hits, 1, "a repeated marker must not inflate the lineage tally");
+    }
+
 }
