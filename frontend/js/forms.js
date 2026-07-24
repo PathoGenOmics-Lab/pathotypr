@@ -1220,9 +1220,9 @@ async function handleMatchSubmit(e) {
     const output = document.getElementById('match-output').value;
     const kmerSize = parseNumberField('match-kmer', {
       label: 'Match k-mer size',
-      fallback: 21,
+      fallback: 31,
       min: 11,
-      max: 51,
+      max: 31,
       integer: true
     });
     const threads = parseNumberField('match-threads', {
@@ -1643,7 +1643,7 @@ async function handleBuildIndex() {
     return;
   }
 
-  const kmerSize = parseInt(document.getElementById('match-kmer').value) || 21;
+  const kmerSize = parseInt(document.getElementById('match-kmer').value) || 31;
 
   buildIndexBtn.classList.add('building');
   buildIndexBtn.disabled = true;

@@ -152,6 +152,10 @@ export async function setDropzoneFile(dropzone, targetId, filePath) {
 
   if (input) {
     input.value = filePath;
+    // Drop any multi-file selection left over from a previous run: the form
+    // builders prefer dataset.files over input.value, so a stale list would
+    // silently override the single file the user just picked.
+    delete input.dataset.files;
     input.dispatchEvent(new CustomEvent('change', { detail: { path: filePath } }));
   }
 

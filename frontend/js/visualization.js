@@ -494,7 +494,11 @@ function parseSplitFastqLineageCounts(rawValue) {
   if (!text) return [];
 
   const counts = new Map();
-  text.split(/[\s,;]+/).forEach(entry => {
+  // Entries are separated by whitespace (both backends join with " ").
+  // ';' must NOT be treated as a separator: it is the delimiter *inside* a
+  // nested lineage path (e.g. "L2;L2.2:5"), so splitting on it shredded the
+  // path and mislabelled the lineage.
+  text.split(/[\s,]+/).forEach(entry => {
     const part = String(entry || '').trim();
     if (!part) return;
 
