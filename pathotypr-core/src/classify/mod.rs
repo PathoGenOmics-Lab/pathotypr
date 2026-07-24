@@ -648,11 +648,15 @@ fn update_summary_from_detail_line(
         _ => return,
     };
     for _ in 0..6 { if fields.next().is_none() { return; } }
+    // Register the genome before inspecting the lineage field: a genome with no
+    // marker hits emits a detail row with empty columns, and returning early
+    // here would drop it from the summary entirely, leaving the user with fewer
+    // summary rows than input genomes and no clue which ones were missing.
+    let genome_entry = lineage_count_map.entry(genome_name.to_string()).or_default();
     let lineage_path = match fields.next() {
         Some(value) if !value.is_empty() => value,
         _ => return,
     };
-    let genome_entry = lineage_count_map.entry(genome_name.to_string()).or_default();
     let mut current_path_part = String::with_capacity(lineage_path.len());
     for (i, component) in lineage_path.split(';').enumerate() {
         if i > 0 { current_path_part.push(';'); }
@@ -716,8 +720,27 @@ pub fn run(args: Args) -> AppResult<()> {
     let marker_variants = get_positions(&args.tsv_pos)?;
     debug!("Found {} marker entries.", marker_variants.len());
 
+    // A k-mer needs room for the allele between the two flanks; otherwise every
+    // marker is skipped and the run silently reports every genome as
+    // Unclassified instead of failing.
+    if 2 * args.min_flank_bases >= k {
+        return Err(AppError::Generic(format!(
+            "--min-flank-bases {} leaves no room for an allele in a {}-mer; use a value below {}.",
+            args.min_flank_bases,
+            k,
+            (k + 1) / 2
+        )));
+    }
+
     info!("Generating marker k-mers...");
     let marker_index = generate_markerkmer(&marker_variants, &ref_seq, k, args.min_flank_bases);
+    if marker_index.len() == 0 {
+        return Err(AppError::NotEnoughData(format!(
+            "No usable marker k-mers could be built from '{}' (k={}, --min-flank-bases={}). \
+             Every marker was skipped, so no genome could be classified.",
+            args.tsv_pos, k, args.min_flank_bases
+        )));
+    }
     debug!("Generated {} unique marker k-mers using {} index storage.", marker_index.len(), marker_index.storage_name());
     check_cancelled(cancel_token)?;
 
@@ -870,14 +893,32 @@ pub fn run(args: Args) -> AppResult<()> {
             Vec::new()
         };
 
+        let mut used_masked_names: HashSet<String> = HashSet::new();
         for fasta_path in &fasta_sources {
-            check_cancelled(cancel_token)?;
+            if let Err(e) = check_cancelled(cancel_token) {
+                cleanup_generated_outputs(&generated_outputs);
+                return Err(e);
+            }
             let stem = Path::new(fasta_path).file_stem().unwrap_or_default().to_string_lossy();
             let out_dir = Path::new(&base_name).parent().unwrap_or(Path::new("."));
-            let masked_path = out_dir.join(format!("{}_masked.fasta", stem));
+            // Inputs from different folders routinely share a file stem (the
+            // usual `<sample>/assembly.fasta` layout). Without disambiguation
+            // the second masked FASTA silently overwrote the first.
+            let mut name = format!("{}_masked.fasta", stem);
+            let mut n = 2;
+            while !used_masked_names.insert(name.clone()) {
+                name = format!("{}_{}_masked.fasta", stem, n);
+                n += 1;
+            }
+            let masked_path = out_dir.join(&name);
             let masked_path_str = masked_path.to_string_lossy().to_string();
-            write_masked_fasta(fasta_path, &masked_path_str, &mask_ranges)?;
-            generated_outputs.push(masked_path_str);
+            // Register the path before writing so a partially written file is
+            // cleaned up if the write fails or the run is cancelled.
+            generated_outputs.push(masked_path_str.clone());
+            if let Err(e) = write_masked_fasta(fasta_path, &masked_path_str, &mask_ranges) {
+                cleanup_generated_outputs(&generated_outputs);
+                return Err(e);
+            }
         }
     }
 
