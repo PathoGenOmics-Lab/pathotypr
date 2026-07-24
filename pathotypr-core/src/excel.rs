@@ -162,7 +162,17 @@ impl ExcelStreamWriter {
             }
         }
 
-        self.workbook.save(&self.xlsx_path)?;
+        // A failed save can leave a partially written workbook behind. Callers
+        // only warn on failure, so without this the run would be reported as
+        // successful next to a corrupt .xlsx.
+        if let Err(e) = self.workbook.save(&self.xlsx_path) {
+            if let Err(rm) = std::fs::remove_file(&self.xlsx_path) {
+                if rm.kind() != std::io::ErrorKind::NotFound {
+                    log::warn!("Failed to remove partial Excel file {}: {}", self.xlsx_path, rm);
+                }
+            }
+            return Err(e.into());
+        }
         Ok(self.xlsx_path)
     }
 }

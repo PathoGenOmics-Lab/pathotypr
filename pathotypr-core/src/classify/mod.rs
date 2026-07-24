@@ -845,9 +845,14 @@ pub fn run(args: Args) -> AppResult<()> {
                 drop(summary_out); cleanup_generated_outputs(&generated_outputs); return Err(e);
             }
         }
-        let lineage_counts_str: String = lineage_map.iter()
+        // Match the TSV exactly: sorted by count (then name) and space-joined.
+        // Iterating the HashMap directly made the Excel column disagree with
+        // its own TSV and vary between otherwise identical runs.
+        let mut sorted_lineages: Vec<(&String, &usize)> = lineage_map.iter().collect();
+        sorted_lineages.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
+        let lineage_counts_str: String = sorted_lineages.iter()
             .map(|(lin, count)| format!("{}:{}", lin, count))
-            .collect::<Vec<_>>().join(", ");
+            .collect::<Vec<_>>().join(" ");
         let major_lineage = determine_major_lineage(&lineage_map, args.nested_classification);
 
         let mut disable_summary_excel = false;
