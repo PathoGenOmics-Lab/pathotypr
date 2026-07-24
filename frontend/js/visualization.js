@@ -3172,13 +3172,11 @@ function parseMutationTrackData(data) {
   }
 
   const genomePosHeader = genomePosIdx >= 0 ? normalizedHeaders[genomePosIdx] : '';
-  const genomePosUsesSnpGenome = genomePosHeader === 'snpgenome';
   const genomePosUsesKmerPos = (
     genomePosHeader === 'k_merpos' ||
     genomePosHeader === 'kmer_pos' ||
     genomePosHeader === 'kmerpos'
   );
-  const genomePosOneBasedOffset = (genomePosUsesSnpGenome || genomePosUsesKmerPos) ? 1 : 0;
 
   const sampleIdx = findHeaderIndexByTokens(headers, [
     'genome',
@@ -3236,6 +3234,9 @@ function parseMutationTrackData(data) {
     let altAlleleSource = altAllele ? 'column' : 'unknown';
     const kmer = kmerIdx >= 0 ? normalizeValue(row[kmerIdx]) : '';
 
+    // SNPgenome and k-merPOS already arrive 1-based from classify
+    // (format_marker_match emits genome_position + 1 / variant_start + 1), so
+    // no extra offset is applied here.
     let normalizedGenomePosRaw = resolvedGenomePosRaw;
     if (genomePosRaw !== null && genomePosUsesKmerPos && kmer) {
       const center = Math.floor(kmer.length / 2);
@@ -3243,7 +3244,6 @@ function parseMutationTrackData(data) {
         normalizedGenomePosRaw += center;
       }
     }
-    normalizedGenomePosRaw += genomePosOneBasedOffset;
 
     if (!altAllele && kmer) {
       const center = Math.floor(kmer.length / 2);
