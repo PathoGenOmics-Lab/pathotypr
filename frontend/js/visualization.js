@@ -7,6 +7,15 @@ import { getPanelResultsData, initToolCharts, setToolChart, destroyToolCharts, g
 import { logMessage } from './console.js';
 import { escapeHtml } from './utils.js';
 import { readFastaRange, readTextFile } from './tauri.js';
+import {
+  isDrPanel,
+  buildDrProfile,
+  buildLineageLevels,
+  buildAlleleHistogram,
+  renderDrProfileHtml,
+  renderLineageLevelsHtml,
+  renderAlleleHistogramHtml
+} from './dr-insights.js';
 
 // Store which tools have active visualizations and their column names
 const activeVisualizations = {};
@@ -1704,6 +1713,81 @@ function renderPredictConfidenceInsights(toolId, data, breakdownEl) {
   }
 }
 
+/**
+ * Build the resistance / lineage-level / allele-fraction panels straight from
+ * the loaded table, so they do not depend on the insight model's internal shape.
+ *
+ * The same output format carries both lineage and drug-resistance panels: the
+ * marker's trailing columns are joined into `lineage_path`. For the WHO
+ * resistance catalogue that path is drug;resistance;marker;grade;gene;mutation,
+ * which is detected and rendered as a clinical profile instead of a lineage.
+ */
+function buildGenotypingInsightSections(data) {
+  const headers = Array.isArray(data?.headers) ? data.headers : [];
+  const rows = Array.isArray(data?.rows) ? data.rows : [];
+  if (headers.length === 0 || rows.length === 0) return '';
+
+  const lineageIdx = findHeaderIndexByTokens(headers, ['lineage_path', 'lineage', 'major_lineage']);
+  const lineageCountIdx = findHeaderIndexByTokens(headers, ['lineage:count', 'lineage_count']);
+  const fracIdx = findHeaderIndexByTokens(headers, ['alt_fraction', 'alt_percent', 'alt_pct', 'vaf', 'allele_fraction']);
+  const refIdx = findHeaderIndexByTokens(headers, ['ref_count', 'reference_count', 'ref_reads']);
+  const altIdx = findHeaderIndexByTokens(headers, ['alt_count', 'alternate_count', 'alt_reads', 'mut_count']);
+
+  // Summary tables carry no per-marker evidence, only the lineage:count cell.
+  if (lineageIdx === -1 && lineageCountIdx === -1) return '';
+
+  const records = [];
+  const fractions = [];
+  if (lineageIdx !== -1) {
+    rows.forEach(row => {
+      const lineagePath = normalizeValue(row[lineageIdx]);
+      if (!lineagePath) return;
+      const refCount = refIdx !== -1 ? parseNumericValue(row[refIdx]) : null;
+      const altCount = altIdx !== -1 ? parseNumericValue(row[altIdx]) : null;
+      const coverage = (refCount || 0) + (altCount || 0);
+      let altFraction = fracIdx !== -1 ? parseNumericValue(row[fracIdx]) : null;
+      if (altFraction === null && coverage > 0 && altCount !== null) {
+        altFraction = (altCount / coverage) * 100;
+      }
+      records.push({ lineagePath, altFraction, coverage: coverage > 0 ? coverage : null });
+      if (Number.isFinite(altFraction)) fractions.push(altFraction);
+    });
+  }
+
+  let html = '';
+
+  if (records.length > 0 && isDrPanel(records.map(r => r.lineagePath))) {
+    html += renderDrProfileHtml(buildDrProfile(records));
+  } else {
+    // Genuine lineage panel: rebuild the hierarchy the flat paths describe.
+    const counts = new Map();
+    if (records.length > 0) {
+      records.forEach(r => counts.set(r.lineagePath, (counts.get(r.lineagePath) || 0) + 1));
+    } else if (lineageCountIdx !== -1) {
+      rows.forEach(row => {
+        parseSplitFastqLineageCounts(row[lineageCountIdx]).forEach(entry => {
+          counts.set(entry.lineage, (counts.get(entry.lineage) || 0) + entry.count);
+        });
+      });
+    }
+    if (counts.size > 0) {
+      const entries = [...counts].map(([lineage, count]) => ({ lineage, count }));
+      html += renderLineageLevelsHtml(buildLineageLevels(entries));
+    }
+  }
+
+  if (fractions.length > 0) {
+    // The core only writes variants at or above --min-alt-percent, so the
+    // lowest fraction present tells us where the data was truncated.
+    const observedMin = fractions.reduce((m, v) => Math.min(m, v), Infinity);
+    html += renderAlleleHistogramHtml(buildAlleleHistogram(fractions, 10), {
+      minAltPercent: Number.isFinite(observedMin) ? observedMin : null
+    });
+  }
+
+  return html;
+}
+
 function renderSplitFastqLightweightInsights(toolId, data, primaryColumn, breakdownEl) {
   if (toolId !== 'splitfq' || !breakdownEl) return;
   const model = buildSplitFastqInsightModel(data, primaryColumn);
@@ -1774,6 +1858,8 @@ function renderSplitFastqLightweightInsights(toolId, data, primaryColumn, breakd
       ? 'X-axis: input row number from the loaded results table (1-based, stable after sorting/filtering).'
       : 'X-axis: marker index (1-based, order in result rows).');
 
+  const genotypingSections = buildGenotypingInsightSections(data);
+
   const section = existingSection || document.createElement('section');
   section.className = 'viz-splitfq-lightweight';
   section.innerHTML = `
@@ -1781,6 +1867,7 @@ function renderSplitFastqLightweightInsights(toolId, data, primaryColumn, breakd
       <h5>${escapeHtml(model.heading || 'Split FASTQ Evidence')}</h5>
       <span>${escapeHtml(model.caption || '')}</span>
     </div>
+    ${genotypingSections}
     <div class="viz-splitfq-kpis">
       ${(model.kpis || []).map(kpi => `
         <article class="viz-splitfq-kpi">

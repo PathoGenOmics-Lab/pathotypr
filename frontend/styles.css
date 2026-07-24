@@ -6789,3 +6789,245 @@ body.track-expanded-open {
 /* ---- Low-confidence row highlighting (predict results) ---- */
 .row-low-confidence { background-color: rgba(255, 193, 7, 0.08); }
 .row-very-low-confidence { background-color: rgba(220, 53, 69, 0.08); }
+
+/* ==========================================================================
+   Drug-resistance profile, lineage levels and allele-fraction distribution
+   ========================================================================== */
+
+.viz-dr-profile,
+.viz-lineage-levels,
+.viz-allele-fraction {
+  margin: 16px 0 4px;
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.viz-dr-profile h4,
+.viz-lineage-levels h4,
+.viz-allele-fraction h4 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.viz-dr-headline {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.viz-dr-note,
+.af-note {
+  margin: 10px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.viz-dr-note code,
+.af-note code {
+  padding: 1px 4px;
+  font-size: 10.5px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+/* --- Per-drug cards --- */
+
+.dr-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dr-card {
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: var(--bg-input);
+  overflow: hidden;
+}
+
+.dr-card-head {
+  display: grid;
+  grid-template-columns: 82px 122px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  list-style: none;
+}
+
+.dr-card-head::-webkit-details-marker { display: none; }
+.dr-card-head:hover { background: var(--bg-sidebar-item-hover); }
+
+.dr-drug {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+}
+
+.dr-verdict {
+  font-size: 11px;
+  white-space: nowrap;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dr-top {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dr-more {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Verdict colours: resistance is the only alarming state. */
+.dr-card--resistant  { border-left-color: var(--error); }
+.dr-card--resistant  .dr-verdict { color: var(--error); }
+.dr-card--uncertain  { border-left-color: var(--warning); }
+.dr-card--uncertain  .dr-verdict { color: var(--warning); }
+.dr-card--not_assoc  { border-left-color: var(--success); }
+.dr-card--not_assoc  .dr-verdict { color: var(--success); }
+.dr-card--ungraded   { border-left-color: var(--text-muted); }
+.dr-card--ungraded   .dr-verdict { color: var(--text-muted); }
+
+.dr-card-body {
+  padding: 0 12px 10px;
+  border-top: 1px solid var(--border);
+}
+
+.dr-mut-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+
+.dr-mut-table th {
+  padding: 7px 6px 5px;
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.dr-mut-table td {
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-secondary);
+}
+
+.dr-mut-gene,
+.dr-mut-change {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: var(--text-primary);
+}
+
+.dr-mut-depth,
+.dr-mut-frac {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.dr-mut--resistant .dr-mut-grade { color: var(--error); font-weight: 600; }
+.dr-mut--uncertain .dr-mut-grade { color: var(--warning); }
+.dr-mut--not_assoc .dr-mut-grade { color: var(--success); }
+
+/* --- Lineage levels --- */
+
+.lvl-tree,
+.lvl-children {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lvl-children {
+  margin-left: 14px;
+  padding-left: 10px;
+  border-left: 1px solid var(--border);
+}
+
+.lvl-node {
+  padding: 3px 0;
+  font-size: 12px;
+}
+
+.lvl-name {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: var(--text-primary);
+}
+
+.lvl-depth-1 > .lvl-name { font-weight: 650; }
+
+.lvl-count {
+  margin-left: 8px;
+  padding: 1px 6px;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  background: var(--bg-sidebar-item);
+  border-radius: 999px;
+}
+
+/* --- Allele fraction histogram --- */
+
+.af-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 96px;
+  padding: 6px 2px 0;
+}
+
+.af-bin {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.af-bar {
+  width: 100%;
+  min-height: 2px;
+  background: var(--accent);
+  border-radius: 3px 3px 0 0;
+  opacity: 0.85;
+}
+
+/* The 20-80% band is where a mixed infection shows up. */
+.af-bin--intermediate .af-bar { background: var(--warning); }
+
+.af-tick {
+  margin-top: 4px;
+  font-size: 9.5px;
+  text-align: center;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.af-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
