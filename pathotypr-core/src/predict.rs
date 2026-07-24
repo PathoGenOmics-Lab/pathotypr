@@ -19,7 +19,6 @@ use log::{info, warn};
 use rayon::prelude::*;
 use std::fs::File;
 use std::io::{BufWriter, Read, Write};
-use std::path::Path;
 use std::time::Instant;
 
 // --- Module Constants ---
@@ -91,13 +90,15 @@ fn cleanup_generated_outputs(paths: &[String]) {
             Err(e) => warn!("Failed to remove partial output {}: {}", out_path, e),
         }
 
-        let xlsx_path = Path::new(out_path).with_extension("xlsx");
+        // Must match the writer's derivation exactly, or cleanup deletes the
+        // wrong file and leaves the real partial .xlsx behind.
+        let xlsx_path = crate::excel::excel_path_from_tsv(out_path);
         match std::fs::remove_file(&xlsx_path) {
             Ok(_) => {}
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
             Err(e) => warn!(
                 "Failed to remove partial output {}: {}",
-                xlsx_path.display(),
+                xlsx_path,
                 e
             ),
         }
@@ -266,14 +267,28 @@ pub fn run(args: PredictArgs) -> AppResult<()> {
     // --- Stream FASTA in batches ---
     // Uses needletail for parsing (handles .gz transparently, ~3× faster).
     info!("▶ Streaming input FASTA in batches of {}...", PREDICT_BATCH_SIZE);
-    let mut fasta_reader = needletail::parse_fastx_file(&args.input).map_err(|e| {
-        AppError::Parsing(format!("Failed to open FASTA {}: {}", args.input, e))
-    })?;
+    // The output file already exists at this point, so every failure from here
+    // on must clean it up: returning early would leave a header-only or
+    // half-written predictions TSV that looks like a finished result.
+    let mut fasta_reader = match needletail::parse_fastx_file(&args.input) {
+        Ok(reader) => reader,
+        Err(e) => {
+            cleanup_generated_outputs(&generated_outputs);
+            return Err(AppError::Parsing(format!(
+                "Failed to open FASTA {}: {}",
+                args.input, e
+            )));
+        }
+    };
 
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::with_template(
-        "  {spinner:.cyan} Predicted: {pos} sequences ({elapsed})",
-    )?);
+    match ProgressStyle::with_template("  {spinner:.cyan} Predicted: {pos} sequences ({elapsed})") {
+        Ok(style) => pb.set_style(style),
+        Err(e) => {
+            cleanup_generated_outputs(&generated_outputs);
+            return Err(e.into());
+        }
+    }
     pb.enable_steady_tick(std::time::Duration::from_millis(120));
 
     let cancellation = ParallelCancellation::new(cancel_token);
@@ -287,11 +302,23 @@ pub fn run(args: PredictArgs) -> AppResult<()> {
         loop {
             match fasta_reader.next() {
                 Some(Ok(record)) => {
-                    let header = std::str::from_utf8(record.id())
-                        .map_err(|e| AppError::Parsing(format!("Non-UTF8 header: {}", e)))?
-                        .to_string();
-                    let seq = String::from_utf8(record.seq().to_vec())
-                        .map_err(|e| AppError::Parsing(format!("Non-UTF8 sequence in {}: {}", header, e)))?;
+                    let header = match std::str::from_utf8(record.id()) {
+                        Ok(h) => h.to_string(),
+                        Err(e) => {
+                            cleanup_generated_outputs(&generated_outputs);
+                            return Err(AppError::Parsing(format!("Non-UTF8 header: {}", e)));
+                        }
+                    };
+                    let seq = match String::from_utf8(record.seq().to_vec()) {
+                        Ok(s) => s,
+                        Err(e) => {
+                            cleanup_generated_outputs(&generated_outputs);
+                            return Err(AppError::Parsing(format!(
+                                "Non-UTF8 sequence in {}: {}",
+                                header, e
+                            )));
+                        }
+                    };
                     if seq.len() < kmer_size {
                         warn!(
                             "Skipping entry shorter than k={} ({} bp), no k-mer can be extracted: {}",

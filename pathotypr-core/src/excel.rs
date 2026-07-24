@@ -10,7 +10,12 @@ use rust_xlsxwriter::{
 // Path helpers
 // ---------------------------------------------------------------------------
 
-fn excel_path_from_tsv(tsv_path: &str) -> String {
+/// Derives the `.xlsx` path that the Excel writers use for a given TSV path.
+///
+/// Cleanup routines must use this too: deriving the path differently (e.g. with
+/// `Path::with_extension`) makes them delete the wrong file when the output does
+/// not end in `.tsv`, leaving the real partial file behind.
+pub(crate) fn excel_path_from_tsv(tsv_path: &str) -> String {
     // Replace only the trailing ".tsv" extension, not every occurrence in the
     // path (a directory name or sample name may legitimately contain ".tsv").
     if let Some(stem) = tsv_path.strip_suffix(".tsv") {

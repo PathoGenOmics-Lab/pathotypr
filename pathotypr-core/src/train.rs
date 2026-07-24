@@ -679,6 +679,10 @@ pub fn run(args: Args) -> AppResult<TrainReport> {
                 .unwrap_or_default();
             writeln!(out, "{}\t{}\t{}\t{:.4}\t{}", rank + 1, feat, count, pct, kmers_str)?;
         }
+        // Flush explicitly: BufWriter's Drop ignores the result, so a failure on
+        // the final buffered chunk would be swallowed and a truncated report
+        // reported as written.
+        out.flush()?;
     }
     info!(
         "  Feature importance written to {} ({} top features).",
@@ -731,6 +735,8 @@ pub fn run(args: Args) -> AppResult<TrainReport> {
                 rank, hit.bucket, splits, pct, hit.kmer, header, lineage, hit.position
             )?;
         }
+        // See above: an unflushed BufWriter can silently truncate the report.
+        out.flush()?;
     }
     info!(
         "  Genomic coordinates written to {} ({} hits).",
