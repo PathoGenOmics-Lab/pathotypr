@@ -265,6 +265,93 @@ export function buildLineageLevels(entries) {
 }
 
 // ---------------------------------------------------------------------------
+// Mixed infections: fixed markers on incompatible lineage branches
+// ---------------------------------------------------------------------------
+
+/**
+ * Two lineage paths are compatible when one is an ancestor of the other (or
+ * they are equal): `L2` and `L2;L2.2` describe one strain seen at different
+ * depths. Paths that diverge — `L2` vs `L4`, or `L2;L2.2` vs `L2;L2.1` — cannot
+ * both come from a single clone.
+ */
+export function isCompatiblePath(a, b) {
+  const pa = String(a || '').split(';').map(s => s.trim()).filter(Boolean);
+  const pb = String(b || '').split(';').map(s => s.trim()).filter(Boolean);
+  const n = Math.min(pa.length, pb.length);
+  if (n === 0) return false;
+  for (let i = 0; i < n; i += 1) {
+    if (pa[i] !== pb[i]) return false;
+  }
+  return true;
+}
+
+/**
+ * Resolve the observed lineage paths into the deepest branches they support,
+ * and measure how much evidence is unique to each.
+ *
+ * Because the core only writes variants at or above `--min-alt-percent`, every
+ * marker in the file is effectively *fixed*. A single clone can only fix
+ * markers along one root-to-tip path, so fixed markers on two divergent
+ * branches are the signature of a mixed infection — and unlike intermediate
+ * allele fractions, this signal survives the default 95% threshold.
+ *
+ * `total` counts every marker compatible with the branch (including the
+ * ancestral ones it shares with its siblings); `specific` counts only markers
+ * that no other branch can explain, which is the evidence that actually
+ * establishes a second strain.
+ */
+export function buildLineageBranches(entries) {
+  const counts = new Map();
+  for (const entry of entries || []) {
+    const path = String(entry?.lineage || '').trim();
+    if (!path) continue;
+    const count = Number.isFinite(entry?.count) ? entry.count : 0;
+    counts.set(path, (counts.get(path) || 0) + count);
+  }
+  if (counts.size === 0) return [];
+
+  const all = [...counts.keys()];
+  // A branch tip is a path no other observed path extends.
+  const tips = all.filter(p => !all.some(q => q !== p && q.startsWith(`${p};`)));
+
+  const branches = tips.map(branch => {
+    let total = 0;
+    let specific = 0;
+    for (const [path, count] of counts) {
+      if (!isCompatiblePath(path, branch)) continue;
+      total += count;
+      const explainedElsewhere = tips.some(other => other !== branch && isCompatiblePath(path, other));
+      if (!explainedElsewhere) specific += count;
+    }
+    return { branch, total, specific };
+  });
+
+  branches.sort((a, b) => b.specific - a.specific || b.total - a.total || a.branch.localeCompare(b.branch));
+  return branches;
+}
+
+/**
+ * Decide whether the observed branches look like more than one strain.
+ *
+ * Requires at least two branches carrying evidence of their own: a branch with
+ * no specific markers is just an ancestor of another and proves nothing.
+ * `minSpecific` guards against a single stray marker calling a mixture.
+ */
+export function detectMixedLineages(branches, minSpecific = 2) {
+  const supported = (branches || []).filter(b => b.specific >= minSpecific);
+  const totalSpecific = supported.reduce((sum, b) => sum + b.specific, 0);
+  return {
+    mixed: supported.length >= 2,
+    branches: supported,
+    totalSpecific,
+    shares: supported.map(b => ({
+      ...b,
+      share: totalSpecific > 0 ? (b.specific / totalSpecific) * 100 : 0
+    }))
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Allele fractions
 // ---------------------------------------------------------------------------
 
@@ -402,6 +489,52 @@ export function renderLineageLevelsHtml(levels) {
     <section class="viz-lineage-levels">
       <header><h4>Lineage levels</h4></header>
       <ul class="lvl-tree">${renderNodes(levels)}</ul>
+    </section>
+  `;
+}
+
+/**
+ * Render the lineage-branch support, which is the primary mixed-infection
+ * signal: fixed markers that belong to divergent branches.
+ */
+export function renderMixedLineagesHtml(detection) {
+  const shares = detection?.shares || [];
+  if (shares.length === 0) return '';
+
+  const rows = shares.map(entry => `
+    <li class="mx-branch${detection.mixed ? '' : ' mx-branch--single'}">
+      <div class="mx-branch-head">
+        <span class="mx-branch-name">${escapeHtml(entry.branch)}</span>
+        <span class="mx-branch-share">${entry.share.toFixed(0)}%</span>
+      </div>
+      <div class="mx-bar"><div class="mx-bar-fill" style="width:${entry.share.toFixed(1)}%"></div></div>
+      <div class="mx-branch-meta">
+        <strong>${entry.specific}</strong> marker${entry.specific === 1 ? '' : 's'} unique to this branch
+        <span class="mx-branch-total">· ${entry.total} compatible in total</span>
+      </div>
+    </li>
+  `).join('');
+
+  const verdict = detection.mixed
+    ? `<p class="mx-verdict mx-verdict--mixed">
+         Mixed infection likely — fixed markers support ${shares.length} incompatible lineages
+       </p>`
+    : `<p class="mx-verdict mx-verdict--clonal">
+         Consistent with a single strain — all fixed markers lie on one lineage path
+       </p>`;
+
+  const note = detection.mixed
+    ? `A single clone can only fix markers along one root-to-tip path, so markers fixed on
+       divergent branches point to more than one strain in the sample. Only markers that no
+       other branch can explain are counted, so shared ancestral markers never inflate the call.`
+    : `Every observed marker lies on one root-to-tip path, so no second strain is implied.`;
+
+  return `
+    <section class="viz-mixed-lineages">
+      <header><h4>Lineage support</h4></header>
+      ${verdict}
+      <ul class="mx-branches">${rows}</ul>
+      <p class="mx-note">${note}</p>
     </section>
   `;
 }

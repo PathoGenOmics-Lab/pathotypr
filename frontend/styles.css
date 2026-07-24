@@ -7031,3 +7031,89 @@ body.track-expanded-open {
   font-size: 10.5px;
   color: var(--text-muted);
 }
+
+/* --- Mixed infection: support per lineage branch --- */
+
+.viz-mixed-lineages {
+  margin: 16px 0 4px;
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.viz-mixed-lineages h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.mx-verdict {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.mx-verdict--mixed  { color: var(--warning); }
+.mx-verdict--clonal { color: var(--success); }
+
+.mx-branches {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mx-branch-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.mx-branch-name {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.mx-branch-share {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.mx-bar {
+  margin: 4px 0 3px;
+  height: 8px;
+  background: var(--bg-sidebar-item);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.mx-bar-fill {
+  height: 100%;
+  background: var(--warning);
+  border-radius: 999px;
+}
+
+/* A single branch is not a mixture — show it in the reassuring colour. */
+.mx-branch--single .mx-bar-fill { background: var(--success); }
+
+.mx-branch-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.mx-branch-total { color: var(--text-muted); }
+
+.mx-note {
+  margin: 12px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}

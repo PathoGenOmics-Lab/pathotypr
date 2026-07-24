@@ -11,9 +11,12 @@ import {
   isDrPanel,
   buildDrProfile,
   buildLineageLevels,
+  buildLineageBranches,
+  detectMixedLineages,
   buildAlleleHistogram,
   renderDrProfileHtml,
   renderLineageLevelsHtml,
+  renderMixedLineagesHtml,
   renderAlleleHistogramHtml
 } from './dr-insights.js';
 
@@ -1772,6 +1775,9 @@ function buildGenotypingInsightSections(data) {
     }
     if (counts.size > 0) {
       const entries = [...counts].map(([lineage, count]) => ({ lineage, count }));
+      // Fixed markers on divergent branches are the mixed-infection signal that
+      // survives --min-alt-percent, so lead with it.
+      html += renderMixedLineagesHtml(detectMixedLineages(buildLineageBranches(entries)));
       html += renderLineageLevelsHtml(buildLineageLevels(entries));
     }
   }
