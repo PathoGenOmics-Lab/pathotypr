@@ -3,7 +3,7 @@
 //! Detects and groups paired-end FASTQ files based on common naming conventions
 //! (Illumina `_R1_001`/`_R2_001`, `_R1`/`_R2`, `_1`/`_2`, `.1`/`.2`).
 
-use log::debug;
+use log::{debug, warn};
 use regex::Regex;
 use std::collections::HashMap;
 use std::path::Path;
@@ -82,16 +82,21 @@ pub fn detect_paired_end_files(paths: &[String]) -> PairedEndResult {
         None
     }
 
-    // Group files by their base name. Accumulate every R1 and R2 path so that
-    // chunked / lane-split output for the same sample (e.g. `_R1_001`,
-    // `_R1_002`) is kept together instead of the later file overwriting the
-    // earlier one.
-    let mut grouped: HashMap<String, (Vec<String>, Vec<String>)> = HashMap::new();
+    // Group files by their directory *and* base name. Accumulating every R1 and
+    // R2 path keeps chunked / lane-split output for the same sample (e.g.
+    // `_R1_001`, `_R1_002`) together, while the directory component keeps
+    // identically named files from different run folders apart — merging those
+    // would silently build a chimera of two distinct isolates.
+    let mut grouped: HashMap<(String, String), (Vec<String>, Vec<String>)> = HashMap::new();
     let mut unmatched: Vec<String> = Vec::new();
 
     for path in paths {
         if let Some((base_name, read_num)) = extract_base_name(path, patterns) {
-            let entry = grouped.entry(base_name).or_default();
+            let dir = Path::new(path)
+                .parent()
+                .map(|p| p.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            let entry = grouped.entry((dir, base_name)).or_default();
             match read_num {
                 1 => entry.0.push(path.clone()),
                 2 => entry.1.push(path.clone()),
@@ -102,12 +107,19 @@ pub fn detect_paired_end_files(paths: &[String]) -> PairedEndResult {
         }
     }
 
-    // Build the result.
+    // Build the result. Sort the groups first: `insert_unique_sample` resolves
+    // name collisions by suffixing, so a HashMap's arbitrary iteration order
+    // would make the assignment of those suffixes differ between identical
+    // runs. Sorting keeps sample naming reproducible.
+    let mut grouped: Vec<((String, String), (Vec<String>, Vec<String>))> =
+        grouped.into_iter().collect();
+    grouped.sort_by(|((d1, b1), _), ((d2, b2), _)| (b1, d1).cmp(&(b2, d2)));
+
     let mut samples: HashMap<String, Vec<String>> = HashMap::new();
     let mut paired_count = 0;
     let mut single_count = 0;
 
-    for (base_name, (mut r1, mut r2)) in grouped {
+    for ((_dir, base_name), (mut r1, mut r2)) in grouped {
         if !r1.is_empty() && !r2.is_empty() {
             // Paired: all R1 files followed by all R2 files. scan_fastq_with_index
             // scans an arbitrary number of input files for the sample.
@@ -169,6 +181,11 @@ fn insert_unique_sample(
             }
             n += 1;
         }
+        warn!(
+            "Sample name '{}' is already in use; {:?} will be reported as '{}'. \
+             Rename the files or use --input-list to control sample names.",
+            base, files, name
+        );
     }
     samples.insert(name, files);
 }
@@ -215,5 +232,88 @@ pub(crate) fn derive_sample_name(path: &str) -> String {
             .to_string()
     } else {
         normalized
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn v(paths: &[&str]) -> Vec<String> {
+        paths.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn groups_r1_r2_into_one_paired_sample() {
+        let r = detect_paired_end_files(&v(&["/d/S1_R1.fastq.gz", "/d/S1_R2.fastq.gz"]));
+        assert_eq!(r.paired_count, 1);
+        assert_eq!(r.single_count, 0);
+        assert!(r.is_paired);
+        assert_eq!(r.samples["S1"].len(), 2);
+    }
+
+    #[test]
+    fn keeps_every_chunk_of_a_split_sample() {
+        // Lane/chunk-split output must not lose reads: all four files belong
+        // to the same sample.
+        let r = detect_paired_end_files(&v(&[
+            "/d/S_L001_R1_001.fastq.gz",
+            "/d/S_L001_R1_002.fastq.gz",
+            "/d/S_L001_R2_001.fastq.gz",
+            "/d/S_L001_R2_002.fastq.gz",
+        ]));
+        assert_eq!(r.paired_count, 1);
+        let files = r.samples.values().next().unwrap();
+        assert_eq!(files.len(), 4, "no chunk may be dropped");
+    }
+
+    #[test]
+    fn same_basename_in_different_dirs_stays_separate() {
+        // Two distinct isolates that happen to share a filename must never be
+        // merged into one chimeric sample.
+        let r = detect_paired_end_files(&v(&[
+            "/runA/S1_R1.fastq.gz",
+            "/runA/S1_R2.fastq.gz",
+            "/runB/S1_R1.fastq.gz",
+            "/runB/S1_R2.fastq.gz",
+        ]));
+        assert_eq!(r.paired_count, 2, "each directory is its own sample");
+        assert_eq!(r.samples.len(), 2);
+        for files in r.samples.values() {
+            assert_eq!(files.len(), 2);
+            let dirs: std::collections::HashSet<_> = files
+                .iter()
+                .map(|f| Path::new(f).parent().unwrap().to_path_buf())
+                .collect();
+            assert_eq!(dirs.len(), 1, "a sample must not mix directories");
+        }
+    }
+
+    #[test]
+    fn unmatched_file_does_not_contaminate_an_existing_sample() {
+        let r = detect_paired_end_files(&v(&["/d/foo_1.fastq", "/d/foo_2.fastq", "/d/foo.fastq"]));
+        assert_eq!(r.samples.len(), 2, "the lone file gets its own sample");
+        let paired = r.samples.values().find(|f| f.len() == 2).unwrap();
+        assert!(paired.iter().all(|f| f.ends_with("_1.fastq") || f.ends_with("_2.fastq")));
+    }
+
+    #[test]
+    fn sample_naming_is_deterministic() {
+        let paths = v(&[
+            "/runA/S1_R1.fastq.gz",
+            "/runA/S1_R2.fastq.gz",
+            "/runB/S1_R1.fastq.gz",
+            "/runB/S1_R2.fastq.gz",
+        ]);
+        let first: Vec<String> = {
+            let mut k: Vec<String> = detect_paired_end_files(&paths).samples.keys().cloned().collect();
+            k.sort();
+            k
+        };
+        for _ in 0..8 {
+            let mut k: Vec<String> = detect_paired_end_files(&paths).samples.keys().cloned().collect();
+            k.sort();
+            assert_eq!(k, first, "sample names must not vary between runs");
+        }
     }
 }
