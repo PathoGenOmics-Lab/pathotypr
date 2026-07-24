@@ -7199,6 +7199,9 @@ export function resetVisualizationForTool(toolId) {
     vizPanel.classList.add('hidden');
     vizPanel.classList.remove('fullscreen');
     vizPanel.classList.remove('single-sample-mode');
+    // See resetInlineResults: the tab bar is only rebuilt on multi-marker runs,
+    // so it must be torn down here or a later run shows stale tabs.
+    vizPanel.querySelector('.result-tabs')?.remove();
     const chartContainer = vizPanel.querySelector('.chart-container');
     chartContainer?.classList.remove('hidden');
   }
