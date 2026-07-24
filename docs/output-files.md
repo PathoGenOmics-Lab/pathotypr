@@ -111,7 +111,7 @@ Marker-based variant calling on assemblies. Writes a detailed per-marker table a
 | `<prefix>.tsv` | always | One row per marker match per genome (the **detailed** table). |
 | `<prefix>_summary.tsv` | always | One row per genome with its major-lineage call. |
 | `<prefix>.xlsx`, `<prefix>_summary.xlsx` | with `--excel` | Excel copies of the two tables. |
-| `<input-stem>_masked.fasta` | with `--output-masked-fasta` | One file **per input assembly**, marker sites replaced by `N`, written to the prefix's parent directory. |
+| `<input-stem>_masked.fasta` | with `--output-masked-fasta` | One file **per input assembly**, marker sites replaced by `N`, written to the prefix's parent directory. Only produced for reference-coordinate sequences (records whose length matches the reference); other inputs are skipped with the reason logged. See [classify](classify.md#output). |
 
 !!! note "Prefix handling"
     If `--output-prefix` already ends in `.tsv` (e.g. `-o run.tsv`), the detailed file is used verbatim (`run.tsv`) and the summary drops the trailing `.tsv` before appending (`run_summary.tsv`). Otherwise `.tsv` / `_summary.tsv` are appended to the prefix.

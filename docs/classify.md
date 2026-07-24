@@ -36,7 +36,7 @@ Exactly one input source is required: a single FASTA (`-i`), a TSV list of sampl
 | `-t, --threads <N>` | all cores | no | Number of CPU threads. |
 | `--nested-classification` | `false` | no | Enable hierarchical (nested) lineage calling using multi-level marker columns. |
 | `--min-flank-bases <N>` | `10` | no | Minimum flanking bases on each side of the allele in a marker k-mer. |
-| `--output-masked-fasta` | `false` | no | Also write masked FASTA files with marker positions replaced by `N`. |
+| `--output-masked-fasta` | `false` | no | Also write masked FASTA files with marker positions replaced by `N`. Only applies to reference-coordinate sequences (see below). |
 | `--excel` | `false` | no | Also write Excel (`.xlsx`) files alongside the TSVs. |
 
 ### Global flags
@@ -123,7 +123,19 @@ All files share the `-o/--output-prefix` value. Given `-o classify_run`:
 | `classify_run.tsv` | always | Detailed table: one row per marker match per genome. |
 | `classify_run_summary.tsv` | always | Summary table: one row per genome with lineage counts and the major lineage. |
 | `classify_run.xlsx`, `classify_run_summary.xlsx` | `--excel` | Excel (`.xlsx`) versions of the detailed and summary tables, written alongside the TSVs. |
-| `<input>_masked.fasta` | `--output-masked-fasta` | One masked FASTA per input FASTA file (named after the input file stem), with marker positions replaced by `N`. |
+| `<input>_masked.fasta` | `--output-masked-fasta` | One masked FASTA per input FASTA file (named after the input file stem), with marker positions replaced by `N`. Colliding stems are disambiguated rather than overwritten. |
+
+!!! warning "Masking needs reference coordinates"
+    Mask positions come from the marker TSV, which is defined against the
+    reference. They can therefore only be applied to a sequence that lives in
+    the **reference coordinate system** — a reference-based consensus genome, or
+    an alignment whose records all have the reference length.
+
+    The contigs of a de-novo assembly are unrelated to those coordinates, so
+    masking one would replace arbitrary positions with `N`. When a record's
+    length does not match the reference, `classify` logs the reason and writes
+    no masked file for that input rather than emitting a misleading one. The
+    detailed and summary tables are unaffected.
 
 !!! note
     If the output prefix already ends in `.tsv`, the detailed file uses it as-is and the summary is derived from the trimmed base name. Genomes with no marker hits still appear in the detailed TSV as a single row with empty match columns, so every input is accounted for.

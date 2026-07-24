@@ -922,9 +922,18 @@ pub fn run(args: Args) -> AppResult<()> {
             // Register the path before writing so a partially written file is
             // cleaned up if the write fails or the run is cancelled.
             generated_outputs.push(masked_path_str.clone());
-            if let Err(e) = write_masked_fasta(fasta_path, &masked_path_str, &mask_ranges) {
-                cleanup_generated_outputs(&generated_outputs);
-                return Err(e);
+            match write_masked_fasta(fasta_path, &masked_path_str, &mask_ranges, ref_seq.len()) {
+                Ok(true) => {}
+                // Not in reference coordinates: nothing was written (the reason
+                // is logged), so drop the reservation and free the name again.
+                Ok(false) => {
+                    generated_outputs.pop();
+                    used_masked_names.remove(&name);
+                }
+                Err(e) => {
+                    cleanup_generated_outputs(&generated_outputs);
+                    return Err(e);
+                }
             }
         }
     }
