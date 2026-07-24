@@ -34,7 +34,7 @@ Writes the trained model plus two feature-importance reports. Filenames are deri
 | `model.pathotypr.importance.coords.tsv` | always | Per-occurrence genomic coordinates of the discriminant k-mers behind those buckets. |
 
 !!! note "Accuracy is not written to a file"
-    Single-split (or cross-validated) accuracy and out-of-bag accuracy are **logged to the terminal** during the run, not saved. Use `-v` for per-fold detail. `train` has no `--excel` option.
+    Single-split (or cross-validated) accuracy and out-of-bag accuracy are **logged to the terminal** during the run, not saved. Per-fold accuracies are printed at the default verbosity when `--cv-folds` is used; `-v` only adds debug-level detail. `train` has no `--excel` option.
 
 ### `*.importance.tsv` columns
 
@@ -81,7 +81,7 @@ Writes one predictions table to `--output`, streamed as sequences are classified
 | Column | Description |
 |---|---|
 | `Header` | Sequence header from the input FASTA. |
-| `Predicted_Lineage` | Most-voted class label across the ensemble (`Unknown` if no tree produced a valid vote). |
+| `Predicted_Lineage` | Most-voted class label across the ensemble. A record on which no tree cast a usable vote still gets a label, but with a `Confidence` at or near zero. |
 | `Confidence` | Fraction of trees voting for the winner, `0`–`1` (4 decimals). |
 | `Confidence_Margin` | Winner votes minus runner-up votes, over total trees, `0`–`1` (4 decimals). |
 | `Other_Votes` | Up to the **top 3** runner-up labels as `label:fraction` (fraction to 2 decimals), comma-separated; empty when there are no other votes. |
@@ -111,7 +111,7 @@ Marker-based variant calling on assemblies. Writes a detailed per-marker table a
 | `<prefix>.tsv` | always | One row per marker match per genome (the **detailed** table). |
 | `<prefix>_summary.tsv` | always | One row per genome with its major-lineage call. |
 | `<prefix>.xlsx`, `<prefix>_summary.xlsx` | with `--excel` | Excel copies of the two tables. |
-| `<input-stem>_masked.fasta` | with `--output-masked-fasta` | One file **per input assembly**, marker sites replaced by `N`, written to the prefix's parent directory. Only produced for reference-coordinate sequences (records whose length matches the reference); other inputs are skipped with the reason logged. See [classify](classify.md#output). |
+| `<input-stem>_masked.fasta` | with `--output-masked-fasta` | One file **per input assembly**, marker sites replaced by `N`, written to the prefix's parent directory. Only produced for reference-coordinate sequences (records whose length matches the reference); other inputs are skipped with the reason logged. Two inputs sharing a file stem do not overwrite each other — the second becomes `<stem>_2_masked.fasta`. See [classify](classify.md#output). |
 
 !!! note "Prefix handling"
     If `--output-prefix` already ends in `.tsv` (e.g. `-o run.tsv`), the detailed file is used verbatim (`run.tsv`) and the summary drops the trailing `.tsv` before appending (`run_summary.tsv`). Otherwise `.tsv` / `_summary.tsv` are appended to the prefix.

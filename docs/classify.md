@@ -26,16 +26,16 @@ Exactly one input source is required: a single FASTA (`-i`), a TSV list of sampl
 |---|---|---|---|
 | `-m, --markers <FILE>` | — | yes | Marker definition TSV (position, REF, ALT, lineage levels...). |
 | `-r, --reference <FILE>` | — | yes | Single-record reference FASTA the marker positions refer to. |
-| `-i, --input <FILE>` | — | one of `-i`/`-l`/`--input-files` | A single sample FASTA. Each FASTA record is treated as a separate genome (one output row per contig). |
+| `-i, --input <FILE>` | — | one of `-i`/`-l`/`--input-files` | A single sample FASTA. Each FASTA record is treated as a separate genome, so a multi-contig assembly yields one summary row per contig. |
 | `-l, --input-list <FILE>` | — | one of `-i`/`-l`/`--input-files` | TSV of samples: `sample_name\tfasta_path[\tgff_path]`. All contigs of a sample's FASTA are aggregated under its sample name. |
-| `--input-files <FILE>...` | — | one of `-i`/`-l`/`--input-files` | Multiple sample FASTA files (GUI batch mode). |
+| `--input-files <FILE>...` | — | one of `-i`/`-l`/`--input-files` | Multiple sample FASTA files. Each record stays a separate genome, named `[filename] record_id`. |
 | `--gff <FILE>` | — | no | GFF annotation for `--input` (adds gene + amino-acid change columns). Requires `--input`. |
 | `--gff-files <FILE>...` | — | no | Multiple GFFs matched by filename, for `--input-files`. |
 | `-o, --output-prefix <PREFIX>` | — | yes | Prefix for all output files. |
 | `--kmer-size <N>` | `31` | no | Marker k-mer size (1–31; 31 is both the default and the maximum). |
 | `-t, --threads <N>` | all cores | no | Number of CPU threads. |
 | `--nested-classification` | `false` | no | Enable hierarchical (nested) lineage calling using multi-level marker columns. |
-| `--min-flank-bases <N>` | `10` | no | Minimum flanking bases on each side of the allele in a marker k-mer. |
+| `--min-flank-bases <N>` | `10` | no | Minimum flanking bases on each side of the allele in a marker k-mer. Must be below half of `--kmer-size`, or no k-mer can be built and the run errors. |
 | `--output-masked-fasta` | `false` | no | Also write masked FASTA files with marker positions replaced by `N`. Only applies to reference-coordinate sequences (see below). |
 | `--excel` | `false` | no | Also write Excel (`.xlsx`) files alongside the TSVs. |
 

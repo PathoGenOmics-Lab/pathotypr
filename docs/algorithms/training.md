@@ -94,7 +94,7 @@ Always computed on the final model (see [random-forest.md](random-forest.md#out-
 ```rust
 ModelBundle {
     config: ModelConfig {
-        pathotypr_version,   // e.g., "0.2.0"
+        pathotypr_version,   // e.g., "1.0.1"
         kmer_size,           // e.g., 21
         n_trees,             // 100
         format_version,      // 3 (current)

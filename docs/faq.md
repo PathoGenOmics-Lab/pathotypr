@@ -167,7 +167,7 @@ Defaults and flags differ per command:
     | `pathotypr_dr_markers_v1.0.0.tsv` | 102,213 DR mutations (WHO catalogue 2021) |
     | `pathotypr_rf_model_v1.0.0.pathotypr` | Pre-trained RF model (k=31, 100 trees) |
 
-    Download links and checksums are on the [Installation](installation.md#mtbc-marker-files-pre-trained-model) page. Pass the marker TSV to `-m` (for `classify`/`split-fastq`) and the model to `-m/--model` (for `predict`).
+    Download links are on the [Installation](installation.md#mtbc-marker-files-pre-trained-model) page. Pass the marker TSV to `-m` (for `classify`/`split-fastq`) and the model to `-m/--model` (for `predict`).
 
 !!! question "Can I use pathotypr for an organism other than *M. tuberculosis*?"
     Technically yes — nothing is hard-coded to one species. The marker panel and

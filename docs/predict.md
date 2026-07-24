@@ -88,8 +88,8 @@ A tab-separated file with a header row and one row per classified record. Column
 
 | Column | Description |
 |---|---|
-| `Header` | Sequence identifier taken from the input FASTA record. |
-| `Predicted_Lineage` | Majority-vote lineage label (`Unknown` if the ensemble cast no valid votes). |
+| `Header` | The input record's full FASTA header line — everything after `>`, description included. |
+| `Predicted_Lineage` | Majority-vote lineage label. A record on which no tree cast a usable vote still gets a label, but with a `Confidence` at or near zero — read low confidence, not a special value, as "unresolved". |
 | `Confidence` | Fraction of trees voting for the winning lineage, in `0.0000`–`1.0000` (4 decimals). |
 | `Confidence_Margin` | Winner-minus-runner-up vote fraction, in `0.0000`–`1.0000` (4 decimals). |
 | `Other_Votes` | Up to the three next-best lineages as `label:fraction` (2 decimals), comma-separated. Empty when there are no alternatives. |
@@ -98,7 +98,7 @@ Example:
 
 ```text
 Header	Predicted_Lineage	Confidence	Confidence_Margin	Other_Votes
-sample_001	L4	0.9600	0.9200	L2:0.03,L1:0.01
+sample_001	L4	0.9600	0.9300	L2:0.03,L1:0.01
 sample_002	L2	0.5400	0.0800	L4:0.46
 ```
 

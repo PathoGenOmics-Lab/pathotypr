@@ -34,7 +34,7 @@ REF k-mer:  ACTGACTG[C]TAGCTAGCGATCGATCGATCG   (k=31)
 ALT k-mer:  ACTGACTG[T]TAGCTAGCGATCGATCGATCG   (k=31)
 ```
 
-The flanking region is centered on the variant, with separate right-flank lengths for ref and alt k-mers when allele lengths differ (MNVs).
+The flanking region is centred on the variant, and the right-flank length is computed separately for the REF and ALT k-mers so that each is exactly k bases even when the alleles differ in length (MNVs).
 
 !!! warning "Indels are intentionally skipped"
 

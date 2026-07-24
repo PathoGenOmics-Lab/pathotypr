@@ -7,7 +7,8 @@ pathotypr reads a small set of plain-text formats. Every file is **UTF-8**; ever
     | Format | Consumed by | Flag |
     |---|---|---|
     | [Training FASTA](#training-fasta-train) | [`train`](train.md) | `-i, --input` |
-    | [Query FASTA](#reference-fasta) | [`classify`](classify.md), [`predict`](predict.md) | `-i, --input` / `--input-files` |
+    | [Query FASTA](#training-fasta-train) | [`classify`](classify.md) | `-i, --input` / `--input-files` / `-l, --input-list` |
+    | [Query FASTA](#training-fasta-train) | [`predict`](predict.md) | `-i, --input` |
     | [Marker TSV](#marker-tsv-classify-and-split-fastq) | [`classify`](classify.md), [`split-fastq`](split-fastq.md) | `-m, --markers` |
     | [Reference FASTA (single-record)](#reference-fasta) | [`classify`](classify.md), [`split-fastq`](split-fastq.md) | `-r, --reference` |
     | [Reference FASTA (multi-record)](#reference-fasta) | [`match`](match.md) | `-r, --references` |
@@ -97,7 +98,7 @@ Tab-separated. Blank lines and lines beginning with `#` are ignored. A header ro
 - **Positions are 1-based** relative to the [reference genome](#reference-fasta).
 - Lineage levels are combined into a hierarchical, semicolon-joined path internally: `L4` + `L4.9` → `L4;L4.9`.
 - Annotation columns: `classify` uses the **first** annotation cell as the gene and the **second** as the mutation; `split-fastq` retains all trailing annotation cells. When a GFF is supplied to `classify`, gene/amino-acid values derived from the GFF take precedence, falling back to these columns.
-- A row is skipped (with a warning) if it has fewer than 4 columns, has a non-numeric position, or has an empty REF, ALT, or lineage path.
+- A row is skipped if it has fewer than 4 columns, has a non-numeric position, or has an empty REF, ALT, or lineage path.
 - **Allele-length limit:** an allele must be shorter than the k-mer size. For `classify`, the allele must also leave room for the flanks, so effectively `max(len(REF), len(ALT)) ≤ kmer_size − 2 × min_flank_bases` (default `min_flank_bases` = 10); markers that exceed this are skipped.
 
 !!! info "Supported variant types differ by command"
@@ -219,7 +220,7 @@ NC_000962.3	RefSeq	CDS	2153889	2156111	.	-	0	ID=cds-KatG;gene=katG;locus_tag=Rv1
     |---|---|---|
     | `-l, --input-list` | list column 3 | per sample (row) |
     | `-i, --input` | `--gff <file>` | applied to the single genome |
-    | `--input-files` | `--gff-files <files…>` | matched to each FASTA by filename stem |
+    | `--input-files` | `--gff-files <files…>` | matched to each FASTA by filename stem; a **single** GFF is applied to every FASTA |
 
 ---
 

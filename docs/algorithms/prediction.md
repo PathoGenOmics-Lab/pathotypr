@@ -74,7 +74,7 @@ Each `predict_one()` traverses root-to-leaf in O(depth) using binary search on t
 | **Predicted class** | argmax(votes) | Class with most votes |
 | **Confidence** | winner_votes / n_trees | Proportion of trees agreeing |
 | **Margin** | (winner − runner_up) / n_trees | Separation from second-best class |
-| **Other votes** | Top 3 non-winning classes with vote % | Alternative classifications |
+| **Other votes** | Top 3 non-winning classes as `label:fraction` (2 decimals) | Alternative classifications |
 
 Here `n_trees` is the number of trees in the loaded model (`bundle.trees.len()`, 100 by default), not a hard-coded constant.
 

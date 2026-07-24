@@ -30,7 +30,7 @@ Fields are separated by a single **tab** (`\t`). Positions are **1-based** relat
 | *m* + 2 | **gene** | optional | Gene name for reporting/annotation |
 | *m* + 3 | **mutation** | optional | Amino-acid or nucleotide change for reporting |
 
-A row must have **at least 4 columns** (position + REF + ALT + one lineage level) or it is skipped with a warning.
+A row must have **at least 4 columns** (position + REF + ALT + one lineage level) or it is skipped. `split-fastq` logs a warning for short rows; `classify` skips them silently.
 
 ### How lineage and annotation columns are split
 
@@ -167,7 +167,7 @@ pathotypr classify \
 ```
 
 !!! tip "Debug skipped markers with verbose logging"
-    Every subcommand accepts the global flags `-v, --verbose` (repeatable: `-v` = debug, `-vv` = trace), `-h, --help`, and `-V, --version`. Run with `-v` (or `-vv`) to see per-row messages explaining exactly which markers were skipped and why — invalid position, empty allele, allele too long for the k-mer window, or indel skipped in FASTQ mode:
+    Every subcommand accepts the global flags `-v, --verbose` (repeatable: `-v` = debug, `-vv` = trace) and `-h, --help`; `-V, --version` works on the top-level `pathotypr` command only. Run with `-v` (or `-vv`) to see per-row messages explaining exactly which markers were skipped and why — invalid position, empty allele, allele too long for the k-mer window, or indel skipped in FASTQ mode:
 
     ```bash
     pathotypr split-fastq -m markers.tsv -r reference.fasta \

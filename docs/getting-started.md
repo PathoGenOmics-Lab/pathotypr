@@ -211,7 +211,7 @@ The companion `sample_lineage_summary.tsv` collapses this to a single row: the g
 | `Other_Votes` | Top 3 alternatives with their vote fractions |
 
 !!! example "Reading a confidence score"
-    A `Confidence` of `0.95` means 95% of the trees agreed on the call; a `Confidence_Margin` of `0.40` means the winner drew 40% more votes than the runner-up. High values on both signal a clean, unambiguous prediction.
+    A `Confidence` of `0.95` means 95% of the trees agreed on the call; a `Confidence_Margin` of `0.40` means the winner drew 40% of the whole ensemble more than the runner-up (e.g. 60% of trees vs 20%). High values on both signal a clean, unambiguous prediction.
 
 !!! tip "Excel everywhere"
     Every command above used `--excel`, so each `.tsv` has a side-by-side `.xlsx`. Drop the flag for TSV-only output.

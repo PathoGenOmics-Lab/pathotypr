@@ -32,7 +32,7 @@ For each marker in the TSV (position, REF, ALT):
 
 3. Index k-mers for fast lookup:
    - **Encoded index** (`MarkerIndex::Encoded`): For k ≤ 32, marker k-mers are 2-bit encoded into `u64` keys with a hand-rolled `encode_kmer_2bit` (needletail's `bit_kmers` is used to generate the *query* k-mers during genome scanning). Lookup is a single hash table query.
-   - **Text index** (`MarkerIndex::Text`): Used when k > 32, or when a marker k-mer contains a non-ACGT base that cannot be 2-bit encoded. K-mers are stored as strings.
+   - **Text index** (`MarkerIndex::Text`): Used when a marker k-mer contains a non-ACGT base that cannot be 2-bit encoded; k-mers are stored as strings. (The code also falls back for k > 32, but `validate_kmer_size` caps k at 31, so that branch is unreachable in practice.)
 
 ### Index structure
 
@@ -105,7 +105,7 @@ Two modes:
 ## Step 5: Output
 
 ### Summary TSV (`{prefix}_summary.tsv`)
-Per genome, three columns: `genome`, `lineage:count` (the tally of matched markers for each lineage in the genome), and `major_lineage` (the final lineage call).
+Per genome, three columns: `genome`, `lineage:count` (marker tallies at **every** hierarchical level — each ancestor path prefix is counted separately, space-separated), and `major_lineage` (the final call).
 
 ### Detailed TSV (`{prefix}.tsv`)
 One row per matched marker per genome, with columns: `genome`, `k-mer`, `k-merPOS`, `SNPgenome`, `SNPreference`, `REF`, `ALT`, `lineage`, `Gene`, `Gene_Start`, `Gene_End`, `AA_Pos`, `AA_Change`.

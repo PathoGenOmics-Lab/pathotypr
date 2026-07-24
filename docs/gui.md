@@ -90,7 +90,7 @@ just use it.*
 cargo tauri dev
 ```
 
-Opens the app in development mode with hot-reload for the frontend.
+Opens the app in development mode. The frontend is plain static files with no dev server, so front-end edits need a webview reload rather than arriving by hot reload.
 
 !!! note "First build is slow"
     The initial `cargo tauri dev` compiles the full Rust dependency tree and can
@@ -154,7 +154,7 @@ frontend/
 
 1. Frontend collects form parameters and sends them to Tauri via `invoke()`
 2. `commands.rs` deserializes parameters and calls `pathotypr_core` functions
-3. Core library runs the workflow, emitting progress events back to the frontend
+3. Core library runs the workflow while `commands.rs` emits progress events back to the frontend
 4. Results are displayed in interactive tables and summary cards
 5. Cancellation token allows stopping any running workflow via the UI
 

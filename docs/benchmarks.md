@@ -14,7 +14,7 @@ Synthetic benchmarks measuring training and prediction speed, throughput, model 
 ![speed benchmark](assets/benchmarks/speed.png#only-light)
 ![speed benchmark](assets/benchmarks/speed-dark.png#only-dark)
 
-| Genomes | Train time | Predict time | Speedup vs predict |
+| Genomes | Train time | Predict time | Predict speedup vs train |
 |---:|---:|---:|---:|
 | 30 | 0.032 s | 0.027 s | — |
 | 90 | 0.037 s | 0.026 s | — |

@@ -116,7 +116,7 @@ Available on every subcommand:
 | `model.pathotypr.importance.coords.tsv` | Per-occurrence genomic coordinates of the discriminant k-mers behind those top buckets. |
 
 !!! note "Accuracy is reported to the terminal, not written to a file"
-    The single-split (or cross-validated) accuracy and the out-of-bag accuracy are logged during the run. Increase verbosity with `-v` to see per-fold detail.
+    The single-split (or cross-validated) accuracy and the out-of-bag accuracy are logged during the run. Per-fold accuracies print at the default verbosity; `-v` adds further debug detail.
 
 ### `*.importance.tsv` columns
 
