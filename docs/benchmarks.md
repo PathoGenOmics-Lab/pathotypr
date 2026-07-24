@@ -38,7 +38,7 @@ Prediction throughput reaches **85,000+ genomes/second** at scale. Training thro
 ![model size benchmark](assets/benchmarks/model_size.png#only-light)
 ![model size benchmark](assets/benchmarks/model_size-dark.png#only-dark)
 
-Models are compressed with zstd and stay remarkably small — **under 3 KB** for all test configurations. Real-world models with full bacterial genomes (4–6 Mb) are typically 5–50 MB compressed.
+Models are compressed with zstd and stay remarkably small — **under 3 KB** for all test configurations. Real-world models with full bacterial genomes (4–6 Mb) stay small too — 13–35 KB for the 10- and 50-genome MTB models measured below.
 
 ## Peak Memory
 
@@ -152,8 +152,8 @@ Both tools correctly identified the major lineage. pathotypr is consistently ~2�
 ### Scaling expectations for real data
 
 With real bacterial genomes (~4.4 Mb, k=21):
-- Training 500 genomes: ~30–60 seconds
-- Prediction 500 genomes: ~2–5 seconds
-- Model size: 10–50 MB compressed
+- Training 500 genomes: ~10 minutes (extrapolated from 55 s for 50 genomes)
+- Prediction 500 genomes: ~25 seconds (at the measured ~50 ms/genome)
+- Model size: tens of KB (13–35 KB measured for 10–50 real MTB genomes)
 
 These benchmarks use small synthetic sequences to isolate algorithmic scaling from I/O. Real-world performance depends on genome size, k-mer size, disk speed, and available cores.

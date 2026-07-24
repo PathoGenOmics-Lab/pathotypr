@@ -49,9 +49,9 @@ Each entry stores the marker metadata: position, alleles, lineage, gene name, an
 
 For each query genome (parallelized across genomes with rayon):
 
-1. Read the genome sequence with needletail
-2. Extract every k-mer of the same size k used for the marker k-mers
-3. Look up each k-mer in the `MarkerIndex`
+1. Read every record (contig) of the genome with needletail
+2. Scan each contig on **both strands** — the forward sequence and its reverse complement — because contig orientation in a draft assembly is arbitrary
+3. Extract every k-mer of the same size k used for the marker k-mers and look it up in the `MarkerIndex`; a marker seen on several contigs, or on both strands, counts once
 4. Because only the ALT (variant) k-mer is indexed, any hit means the genome carries the variant allele; the entry's flank lengths then locate the exact variant-spanning bases
 
 ### Match result
@@ -91,9 +91,9 @@ Supports:
 Two modes:
 
 ### Simple (default)
-- Each marker votes for its deepest lineage level
-- The lineage with the most ALT-supporting markers wins
-- Resolves nested lineages by walking the lineage hierarchy
+- Each matched marker increments the count of its full lineage path **and of every ancestor prefix** (`L4`, `L4;L4.9`, `L4;L4.9;L4.9.1`)
+- The path with the highest count wins, which is normally the shallowest level
+- Ties are broken deterministically by lineage name
 
 ### Nested (`--nested-classification`)
 - Hierarchical classification: first resolves major lineage, then sub-lineage
@@ -111,13 +111,13 @@ Per genome, three columns: `genome`, `lineage:count` (the tally of matched marke
 One row per matched marker per genome, with columns: `genome`, `k-mer`, `k-merPOS`, `SNPgenome`, `SNPreference`, `REF`, `ALT`, `lineage`, `Gene`, `Gene_Start`, `Gene_End`, `AA_Pos`, `AA_Change`.
 
 ### Masked FASTA (optional, `--output-masked-fasta`)
-Query sequences with marker positions replaced by `N`.
+Query sequences with marker positions replaced by `N`, written as `<input-stem>_masked.fasta`. Only produced for sequences in reference coordinates (records whose length matches the reference).
 
 !!! tip "Masked output"
     Useful for downstream phylogenetic analysis where marker sites should be excluded — for example, removing sites under selection before building neutral phylogenies.
 
 ### Excel (optional, `--excel`)
-Same data as the TSV outputs, with conditional formatting for confidence metrics.
+Same data as the TSV outputs, with a frozen header row and an autofilter. No conditional formatting is applied — classify has no confidence column.
 
 ## Key differences from FASTQ mode (`split-fastq`)
 

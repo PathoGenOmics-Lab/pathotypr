@@ -43,7 +43,7 @@ pathotypr --help
 
 ## 2. Get the MTBC panel, model, and reference
 
-The marker panel and pre-trained model live on Zenodo ([record 19210044](https://zenodo.org/records/19210044), DOI [10.5281/zenodo.19210044](https://doi.org/10.5281/zenodo.19210044)). The marker positions are defined against the **H37Rv** reference genome (`GCF_000195955.2`), which you fetch from NCBI.
+The marker panel and pre-trained model live on Zenodo ([record 19210044](https://zenodo.org/records/19210044), DOI [10.5281/zenodo.19210044](https://doi.org/10.5281/zenodo.19210044)). The marker positions are numbered in **H37Rv coordinates** (`NC_000962.3`), but the reference sequence you pass to `-r` must be the **MTBC ancestor** genome the panel was built against — the same file the desktop app downloads.
 
 === "curl"
 
@@ -60,10 +60,9 @@ The marker panel and pre-trained model live on Zenodo ([record 19210044](https:/
     curl -L -o pathotypr_rf_model_v1.0.0.pathotypr \
       "https://zenodo.org/records/19210044/files/pathotypr_rf_model_v1.0.0.pathotypr?download=1"
 
-    # H37Rv reference genome (single-record)
-    curl -L -o h37rv.fasta.gz \
-      "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/195/955/GCF_000195955.2_ASM19595v2/GCF_000195955.2_ASM19595v2_genomic.fna.gz"
-    gunzip h37rv.fasta.gz
+    # Reference the panel was built against (single-record)
+    curl -L -o MTB_ancestor_reference.fasta \
+      "https://zenodo.org/records/3497110/files/MTB_ancestor_reference.fasta?download=1"
     ```
 
 === "wget"
@@ -81,16 +80,15 @@ The marker panel and pre-trained model live on Zenodo ([record 19210044](https:/
     wget -O pathotypr_rf_model_v1.0.0.pathotypr \
       "https://zenodo.org/records/19210044/files/pathotypr_rf_model_v1.0.0.pathotypr?download=1"
 
-    # H37Rv reference genome (single-record)
-    wget -O h37rv.fasta.gz \
-      "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/195/955/GCF_000195955.2_ASM19595v2/GCF_000195955.2_ASM19595v2_genomic.fna.gz"
-    gunzip h37rv.fasta.gz
+    # Reference the panel was built against (single-record)
+    wget -O MTB_ancestor_reference.fasta \
+      "https://zenodo.org/records/3497110/files/MTB_ancestor_reference.fasta?download=1"
     ```
 
-!!! info "Why H37Rv?"
-    `classify` and `split-fastq` need a **single-record** reference FASTA whose coordinates match the marker positions. H37Rv (`GCF_000195955.2`, chromosome `NC_000962.3`) is a single contig with no plasmids, so it satisfies this directly. The model in `pathotypr_rf_model_v1.0.0.pathotypr` is self-contained and does **not** need the reference.
+!!! warning "Use the ancestor reference, not H37Rv"
+    `classify` and `split-fastq` splice each marker's allele into flanking bases taken from whatever you pass to `-r`, so the reference must be the one the panel was built against. That is `MTB_ancestor_reference.fasta` — the file `pathotypr` itself downloads (see `defaults.rs`). It is single-record and shares H37Rv's coordinates, but carries ancestral alleles, so substituting the H37Rv sequence silently produces different diagnostic k-mers and markers may stop matching. The model in `pathotypr_rf_model_v1.0.0.pathotypr` is self-contained and does **not** need a reference.
 
-After this step your working directory holds the three Zenodo assets plus `h37rv.fasta`. You'll also need your own sample(s): an **assembled genome** (`sample.fasta`) and, for the reads route, a **FASTQ pair** (`sample_R1.fastq.gz`, `sample_R2.fastq.gz`). See [Input formats](input-formats.md) for the exact specs.
+After this step your working directory holds the three Zenodo assets plus `MTB_ancestor_reference.fasta`. You'll also need your own sample(s): an **assembled genome** (`sample.fasta`) and, for the reads route, a **FASTQ pair** (`sample_R1.fastq.gz`, `sample_R2.fastq.gz`). See [Input formats](input-formats.md) for the exact specs.
 
 ---
 
@@ -103,7 +101,7 @@ Call the known lineage SNPs in an assembled genome. `--nested-classification` tu
     ```bash
     pathotypr classify \
       -m pathotypr_lineage_markers_v1.0.0.tsv \
-      -r h37rv.fasta \
+      -r MTB_ancestor_reference.fasta \
       -i sample.fasta \
       -o sample_lineage \
       --nested-classification \
@@ -116,16 +114,16 @@ Call the known lineage SNPs in an assembled genome. `--nested-classification` tu
     # Same command, swap in the DR panel to scan for resistance mutations
     pathotypr classify \
       -m pathotypr_dr_markers_v1.0.0.tsv \
-      -r h37rv.fasta \
+      -r MTB_ancestor_reference.fasta \
       -i sample.fasta \
       -o sample_dr \
       --excel
     ```
 
-This writes `sample_lineage.tsv` (one row per marker hit), `sample_lineage_summary.tsv` (one row for the genome with its major lineage), and — because of `--excel` — the matching `.xlsx` files.
+This writes `sample_lineage.tsv` (one row per marker hit), `sample_lineage_summary.tsv` (columns `genome`, `lineage:count`, `major_lineage`) — one row per genome; with `-i` each FASTA record counts as its own genome, and — because of `--excel` — the matching `.xlsx` files.
 
 !!! tip "Gene and amino-acid change columns"
-    Pass a GFF3 annotation with `--gff` (for `-i`) to populate the `Gene`, `Gene_Start`, `Gene_End`, `AA_Pos`, and `AA_Change` columns — especially useful with the DR panel to name the affected gene and mutation. Without a GFF those columns stay empty. See [`classify`](classify.md) for GFF handling.
+    Pass a GFF3 annotation with `--gff` (for `-i`) to populate the `Gene`, `Gene_Start`, `Gene_End`, `AA_Pos`, and `AA_Change` columns — especially useful with the DR panel to name the affected gene and mutation. Without a GFF, `Gene_Start`, `Gene_End` and `AA_Pos` stay empty; `Gene` and `AA_Change` fall back to the marker TSV's own gene and mutation columns when the panel provides them. See [`classify`](classify.md) for GFF handling.
 
 !!! note "Many genomes at once"
     Swap `-i sample.fasta` for `-l genomes.tsv` (a `sample_name<TAB>fasta_path[<TAB>gff_path]` list) or `--input-files a.fasta b.fasta …` to run a whole batch under one output prefix.
@@ -139,7 +137,7 @@ No assembly? Genotype straight from FASTQ. `split-fastq` counts REF vs ALT diagn
 ```bash
 pathotypr split-fastq \
   -m pathotypr_lineage_markers_v1.0.0.tsv \
-  -r h37rv.fasta \
+  -r MTB_ancestor_reference.fasta \
   -i sample_R1.fastq.gz -i sample_R2.fastq.gz \
   --paired \
   -o sample_genotype \
@@ -187,8 +185,8 @@ This writes `sample_prediction.tsv` (plus `sample_prediction.xlsx`) with one row
 | `genome` | Sample / contig the hit came from |
 | `k-mer` | Diagnostic k-mer that matched |
 | `k-merPOS` | Position of the match within the genome |
-| `SNPgenome` | Allele observed in the genome |
-| `SNPreference` | Allele in the reference |
+| `SNPgenome` | 1-based position of the variant allele in the query |
+| `SNPreference` | 1-based marker position in the reference genome |
 | `REF` / `ALT` | Marker reference and alternate alleles |
 | `lineage` | Lineage label carried by the marker |
 | `Gene`, `Gene_Start`, `Gene_End` | Gene context (populated only with `--gff`) |
@@ -202,7 +200,7 @@ The companion `sample_lineage_summary.tsv` collapses this to a single row: the g
 
 ### `predict` — predictions TSV
 
-`sample_prediction.tsv` has one row per input sequence:
+`sample_prediction.tsv` has one row per input sequence — except sequences shorter than the model's k-mer size, which are skipped with a warning:
 
 | Column | Meaning |
 |---|---|

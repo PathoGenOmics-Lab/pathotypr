@@ -52,6 +52,11 @@ pathotypr --help
 
 === "Desktop GUI"
 
+    !!! tip "Most people should download the app instead"
+        Ready-built installers are published for every release — see
+        [Desktop GUI (pre-built)](#desktop-gui-pre-built) above. Build from
+        source only if you are modifying pathotypr itself.
+
     ```bash
     # Development build with hot reload
     cargo tauri dev

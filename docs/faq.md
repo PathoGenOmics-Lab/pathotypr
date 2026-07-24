@@ -169,6 +169,18 @@ Defaults and flags differ per command:
 
     Download links and checksums are on the [Installation](installation.md#mtbc-marker-files-pre-trained-model) page. Pass the marker TSV to `-m` (for `classify`/`split-fastq`) and the model to `-m/--model` (for `predict`).
 
+!!! question "Can I use pathotypr for an organism other than *M. tuberculosis*?"
+    Technically yes — nothing is hard-coded to one species. The marker panel and
+    reference you supply define the organism, and `train` builds a model from
+    whatever labelled genomes you give it.
+
+    But pathotypr has **only been developed and validated on the MTBC**. The
+    published panels, the pre-trained model and every benchmark on this site are
+    MTBC, and no other species has been tested. If you point it at another
+    organism, treat the output as exploratory: validate the calls against a
+    truth set you trust before using them for anything that matters. See the
+    [marker format](marker_format.md) reference for how to write your own panel.
+
 ## Seeing more detail (`-v` / `-vv`)
 
 !!! question "How do I make a run print more about what it's doing?"
@@ -186,7 +198,7 @@ Defaults and flags differ per command:
     pathotypr split-fastq -m markers.tsv -r reference.fasta -i reads.fq.gz -o run -vv
     ```
 
-    Debug and trace surface per-sample, per-batch, and (for `train`) per-fold detail that is otherwise hidden. `-h/--help` and `-V/--version` are likewise available on every subcommand.
+    Debug and trace surface per-sample, per-batch, and (for `train`) per-fold detail that is otherwise hidden. `-h/--help` is available on every subcommand; `-V/--version` works only on the top-level command (`pathotypr --version`).
 
 ## See also
 

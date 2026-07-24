@@ -2,11 +2,25 @@
 
 pathotypr includes a native desktop application built with [Tauri](https://tauri.app/). It wraps the same `pathotypr-core` engine as the CLI, so every workflow produces identical results — just with drag-and-drop, live progress, and interactive tables.
 
-!!! tip "You probably don't need to build this"
-    Signed-format installers for macOS, Linux, and Windows are published for
-    every release. Grab one from the [Installation](installation.md) page and
-    skip straight to using the app — the steps below are only for building from
-    source.
+## Get the app
+
+**Download a ready-built installer — you do not need to compile anything.**
+Installers for macOS, Linux and Windows are published with every release:
+
+| Platform | Download |
+|---|---|
+| :material-apple: macOS (Apple Silicon) | [**Pathotypr_1.0.0_aarch64.dmg**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr_1.0.0_aarch64.dmg) |
+| :material-apple: macOS (Intel) | [**Pathotypr_1.0.0_x64.dmg**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr_1.0.0_x64.dmg) |
+| :material-linux: Linux (.deb / .rpm / AppImage) | [**Releases page**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest) |
+| :material-microsoft-windows: Windows | [**Pathotypr_1.0.0_x64-setup.exe**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr_1.0.0_x64-setup.exe) |
+
+See [Installation](installation.md) for every bundle, and for the first-launch
+note on macOS and Windows.
+
+!!! info "Building is only for developers"
+    Everything below describes building the app from source. You only need it if
+    you are modifying pathotypr itself — to *use* the app, download an installer
+    above.
 
 ## Features
 
@@ -15,12 +29,16 @@ pathotypr includes a native desktop application built with [Tauri](https://tauri
 - Interactive result tables with sorting and filtering
 - Real-time progress bars with cancellation support
 - Training summary card (accuracy, OOB, CV metrics, model size)
+- Genotyping views: resistance matrix, lineage composition, depth-vs-allele-fraction scatter
 - Live CPU/RAM usage indicator
 - Light and dark themes
-- Excel export toggle per workflow
+- Excel export written alongside the TSV output
 - Configurable parameters with sensible defaults and reset buttons
 
-## Building
+## Building from source
+
+*Only needed to modify pathotypr itself — see [Get the app](#get-the-app) to
+just use it.*
 
 ### Prerequisites
 
@@ -85,16 +103,16 @@ cargo tauri build
 ```
 
 With `targets: "all"` (set in `tauri.conf.json`), this produces distributable
-installers under `src-tauri/target/release/bundle/`:
+installers under `target/release/bundle/` (the workspace-root `target/`, not `src-tauri/target/`):
 
 - **macOS**: `.dmg` in `bundle/dmg/` (and the `.app` in `bundle/macos/`)
 - **Linux**: `.deb` in `bundle/deb/`, `.rpm` in `bundle/rpm/`, and `.AppImage` in `bundle/appimage/`
 - **Windows**: `.msi` in `bundle/msi/` and the NSIS `.exe` in `bundle/nsis/`
 
-!!! warning "Self-built apps are unsigned"
-    Binaries you build yourself are not signed with a paid developer
-    certificate, so macOS Gatekeeper and Windows SmartScreen will warn you the
-    first time you open them. See the
+!!! warning "Builds are unsigned"
+    Neither the published installers nor binaries you build yourself are signed
+    with a paid developer certificate, so macOS Gatekeeper and Windows
+    SmartScreen will warn you the first time you open them. See the
     [first-launch notes](installation.md#desktop-gui-pre-built) on the
     Installation page for how to get past the warning.
 
@@ -105,15 +123,15 @@ src-tauri/
 ├── src/
 │   ├── main.rs       # Tauri app setup
 │   ├── commands.rs   # Tauri command handlers (bridge GUI → core)
-│   ├── state.rs      # Task state management + cancellation
-│   └── util.rs       # Progress events + helpers
+│   ├── state.rs      # Task state, cancellation + progress events
+│   └── util.rs       # Path validation, SSRF guard, system usage
 ├── Cargo.toml
 └── tauri.conf.json
 
 frontend/
 ├── index.html        # Main page layout
 ├── styles.css        # Styling
-├── app.js            # App bootstrap
+├── app.js            # Legacy, unused (the entry point is js/main.js)
 └── js/
     ├── main.js       # Initialization
     ├── forms.js      # Form submission handlers
@@ -127,7 +145,9 @@ frontend/
     ├── console.js    # Log console drawer
     ├── tauri.js      # Tauri API wrappers
     ├── theme.js      # Light/dark theme toggle
-    └── utils.js      # Shared utilities
+    ├── utils.js      # Shared utilities
+    ├── dr-insights.js      # Resistance profile, lineage levels, allele fractions
+    └── genotype-charts.js  # Resistance matrix, lineage composition, QC scatter
 ```
 
 ## How it works

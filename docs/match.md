@@ -108,7 +108,7 @@ Query_Files	Best_Match_Reference	Shared_Kmer_Fraction
 | Column | Description |
 |---|---|
 | `Query_Files` | Comma-separated list of the input FASTQ file paths that were pooled into the query. |
-| `Best_Match_Reference` | Identifier (first whitespace-delimited token of the FASTA header) of the highest-scoring reference. |
+| `Best_Match_Reference` | FASTA header line of the highest-scoring reference, including any description after the first space. |
 | `Shared_Kmer_Fraction` | Weighted k-mer containment score between `0` and `1`, printed to four decimal places. Higher means more of the query's k-mer content is present in the matched reference. |
 
 Example:
@@ -118,7 +118,7 @@ Query_Files	Best_Match_Reference	Shared_Kmer_Fraction
 reads_R1.fastq.gz,reads_R2.fastq.gz	NC_000962.3	0.9873
 ```
 
-If no matching reference is found, the header is still written and a message is logged; no data row is emitted.
+If no reference shares any k-mers with the query, the first reference is still reported with a `Shared_Kmer_Fraction` of `0.0000` — read a near-zero score as "no usable match". Only an empty reference FASTA yields a header-only report.
 
 ### Excel report (optional)
 

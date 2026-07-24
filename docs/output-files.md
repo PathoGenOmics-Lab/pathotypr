@@ -9,7 +9,7 @@ Every `pathotypr` subcommand writes tab-separated (TSV) result files, and most c
     - Numeric precision is fixed per column (e.g. `0.9800`) — see each table.
 
 !!! note "Global flags do not change file contents"
-    `-v, --verbose` (repeatable: `-v` = debug, `-vv` = trace), `-h, --help`, and `-V, --version` are available on every subcommand. Verbosity only affects **terminal logging** (progress bars, resolved output paths, accuracy figures) — it never alters the files described below.
+    `-v, --verbose` (repeatable: `-v` = debug, `-vv` = trace), `-h, --help` are available on every subcommand (`-V, --version` only on the top-level `pathotypr` command). Verbosity only affects **terminal logging** (progress bars, resolved output paths, accuracy figures) — it never alters the files described below.
 
 ## At a glance
 
@@ -155,14 +155,14 @@ Marker-based variant calling on assemblies. Writes a detailed per-marker table a
     genome	k-mer	k-merPOS	SNPgenome	SNPreference	REF	ALT	lineage	Gene	Gene_Start	Gene_End	AA_Pos	AA_Change
     sampleA	ACGT…GTCA	1523	1533	745	C	T	L2;L2.2	rv0667	759807	763325	450	S450L
     sampleA	TTGA…CCAG	9021	9031	7362	G	A	L2	katG	2153889	2156111	315	
-    sampleB												
+    sampleB		Unclassified										
     ```
 
 === "Summary"
 
     ```text
     genome	lineage:count	major_lineage
-    sampleA	L2:2 L2.2:1	L2.2
+    sampleA	L2:2 L2;L2.2:1	L2
     sampleB		
     ```
 
@@ -243,7 +243,7 @@ reads_R1.fastq.gz,reads_R2.fastq.gz	NC_000962.3 H37Rv	0.9873
 ```
 
 !!! note "No match, no data row"
-    If no reference shares any k-mers with the query, only the header row is written and a message is logged. Because the Excel writer needs the resolved output path, `--excel` produces a file **only when `-o` is also set** — with stdout output, no `.xlsx` is created.
+    If no reference shares any k-mers with the query, the first reference is still reported with a `Shared_Kmer_Fraction` of `0.0000` — read a near-zero score as "no usable match". Only an empty reference FASTA yields a header-only report. Because the Excel writer needs the resolved output path, `--excel` produces a file **only when `-o` is also set** — with stdout output, no `.xlsx` is created.
 
 See also: [Reference matching](algorithms/reference-matching.md).
 

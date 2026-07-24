@@ -35,7 +35,7 @@ These are available on every `pathotypr` subcommand:
 ## How it works
 
 1. **Load** the model bundle and decompress it (zstd).
-2. **Validate** the model format version; the run stops if the bundle is incompatible with the current `pathotypr` version.
+2. **Validate** the model bundle: the run stops only if its *format* version differs from the one this build expects. A model trained by a different `pathotypr` release with the same format loads fine, with a warning.
 3. **Stream** the input FASTA in batches of 512 records — RAM usage is proportional to the batch, not the number of sequences.
 4. **Vectorize** each batch with the exact feature hasher stored in the model.
 5. **Predict** in parallel: every tree in the forest votes, and the majority class becomes the call.

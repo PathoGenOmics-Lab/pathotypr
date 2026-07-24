@@ -10,6 +10,12 @@ Both read the file column-for-column in the same order; the few behavioural diff
 !!! note "One file, two engines"
     A single marker TSV works for both subcommands. Write it once in the portable form described here and it will classify assemblies **and** raw reads identically.
 
+!!! warning "Panels for other organisms are untested"
+    The format carries no assumption about species — the panel you write defines
+    the organism. But pathotypr has only been validated on the *M. tuberculosis*
+    complex, so a panel for another organism should be checked against a truth
+    set you trust before you rely on its calls.
+
 ## Column layout
 
 Fields are separated by a single **tab** (`\t`). Positions are **1-based** relative to the reference genome. Rows are read left-to-right:

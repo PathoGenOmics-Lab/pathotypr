@@ -118,7 +118,7 @@ The `classify_split_fastq` module takes the raw `[ref_count, alt_count]` per mar
 
 1. For each marker, determine the called allele (REF or ALT) based on count ratios
 2. Walk the hierarchical lineage columns (e.g., L4 → L4.9 → L4.9.1)
-3. Report the deepest resolved lineage
+3. Report the most abundant lineage by default (every ancestor prefix is counted, so this is usually the top level); with `--nested-classification`, report the deepest fully supported path
 
 ### Marker TSV format
 

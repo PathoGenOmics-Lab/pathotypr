@@ -41,7 +41,7 @@ Labels parsed above: `L4`, `L2`.
 
 !!! tip "Query FASTA for `predict` and `classify`"
 
-    [`predict`](predict.md) and [`classify`](classify.md) read the **same FASTA format** but do **not** parse a label from the header — the full header is carried through to the output. Multi-record FASTA files (e.g. multi-contig assemblies) are fully supported for these query inputs.
+    [`predict`](predict.md) and [`classify`](classify.md) read the **same FASTA format** but do **not** parse a label from the header — the full header is carried through to the output. Multi-record FASTA is accepted. With `-i, --input` and `--input-files`, `classify` treats **each record as its own genome** (one output row per contig); with `-l, --input-list` every contig of a sample is aggregated under its sample name.
 
 ---
 
@@ -199,7 +199,7 @@ NC_000962.3	RefSeq	CDS	2153889	2156111	.	-	0	ID=cds-KatG;gene=katG;locus_tag=Rv1
 ```
 
 - **Only `CDS` features are used**; all other feature types are ignored.
-- **Gene name** is taken from the attributes column in this priority order, using the first present:
+- **Gene name** is taken from the attributes column: `gene=` always wins when present; otherwise the **first** of `locus_tag=`, `Name=` or `ID=` **in the order they appear on the line** is used:
 
     1. `gene=…`
     2. `locus_tag=…`

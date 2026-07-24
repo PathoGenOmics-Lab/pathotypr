@@ -18,7 +18,7 @@ pathotypr classify \
   [OPTIONS]
 ```
 
-Exactly one input source is required: a single FASTA (`-i`), a TSV list of samples (`-l`), or several FASTA files (`--input-files`).
+Exactly one input source is required: a single FASTA (`-i`), a TSV list of samples (`-l`), or several FASTA files (`--input-files`). With `-i` and `--input-files` each FASTA **record** is treated as its own genome, so a multi-contig assembly yields one row per contig; `-l` aggregates every contig of a sample under its sample name.
 
 ## Options
 
@@ -32,7 +32,7 @@ Exactly one input source is required: a single FASTA (`-i`), a TSV list of sampl
 | `--gff <FILE>` | — | no | GFF annotation for `--input` (adds gene + amino-acid change columns). Requires `--input`. |
 | `--gff-files <FILE>...` | — | no | Multiple GFFs matched by filename, for `--input-files`. |
 | `-o, --output-prefix <PREFIX>` | — | yes | Prefix for all output files. |
-| `--kmer-size <N>` | `31` | no | Marker k-mer size. |
+| `--kmer-size <N>` | `31` | no | Marker k-mer size (1–31; 31 is both the default and the maximum). |
 | `-t, --threads <N>` | all cores | no | Number of CPU threads. |
 | `--nested-classification` | `false` | no | Enable hierarchical (nested) lineage calling using multi-level marker columns. |
 | `--min-flank-bases <N>` | `10` | no | Minimum flanking bases on each side of the allele in a marker k-mer. |
@@ -54,7 +54,7 @@ Available on every subcommand:
 ## How it works
 
 1. The reference FASTA and marker TSV are loaded, and one diagnostic k-mer is built per marker: the ALT allele flanked on both sides by reference context (at least `--min-flank-bases` bases per side, total length `--kmer-size`).
-2. Every contig of every query genome is scanned for exact matches to those marker k-mers.
+2. Every contig of every query genome is scanned on **both strands** — the contig and its reverse complement — because contig orientation in a draft assembly is arbitrary. A marker found more than once (on several contigs, or on both strands) counts as one observation.
 3. If a GFF is supplied for a sample, each match is annotated with the overlapping gene and the resulting amino-acid change.
 4. Per genome, the observed markers are tallied per lineage and a `major_lineage` is called. With `--nested-classification`, multi-level marker columns are used to validate the hierarchical lineage path; without it, the most abundant lineage is reported directly.
 5. Results are streamed to a detailed per-marker TSV and a per-genome summary TSV (plus optional `.xlsx` and masked FASTA outputs).
@@ -138,7 +138,7 @@ All files share the `-o/--output-prefix` value. Given `-o classify_run`:
     detailed and summary tables are unaffected.
 
 !!! note
-    If the output prefix already ends in `.tsv`, the detailed file uses it as-is and the summary is derived from the trimmed base name. Genomes with no marker hits still appear in the detailed TSV as a single row with empty match columns, so every input is accounted for.
+    If the output prefix already ends in `.tsv`, the detailed file uses it as-is and the summary is derived from the trimmed base name. Genomes with no marker hits still appear in the detailed TSV as a single row with empty match columns, and in the summary with an empty `lineage:count` and `Unclassified` as the major lineage — so every input is accounted for.
 
 ### Detailed TSV columns
 
@@ -148,7 +148,7 @@ Header: `genome	k-mer	k-merPOS	SNPgenome	SNPreference	REF	ALT	lineage	Gene	Gene_
 |---|---|
 | `genome` | Sample/genome name. |
 | `k-mer` | The matched marker k-mer sequence. |
-| `k-merPOS` | 1-based start position of the k-mer within the query genome. |
+| `k-merPOS` | 1-based start position of the k-mer on the strand that produced the match (reverse-strand hits are numbered on the reverse complement). |
 | `SNPgenome` | 1-based position of the allele within the query genome. |
 | `SNPreference` | Position the marker refers to in the reference. |
 | `REF` | Reference allele of the marker. |
