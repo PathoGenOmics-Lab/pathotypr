@@ -230,7 +230,11 @@ fn save_model_bundle(bundle: &ModelBundle, output_path: &str) -> AppResult<usize
     let counting = CountingWriter::new(file);
     let mut encoder = zstd::Encoder::new(counting, 3).map_err(AppError::Io)?;
     bincode::serialize_into(&mut encoder, bundle).map_err(AppError::Serialization)?;
-    let counting = encoder.finish().map_err(AppError::Io)?;
+    let mut counting = encoder.finish().map_err(AppError::Io)?;
+    // Explicitly flush the buffered writer so a failure on the final buffered
+    // chunk (e.g. ENOSPC) surfaces as an error instead of being swallowed by
+    // BufWriter's Drop, which would leave a silently truncated model file.
+    counting.flush().map_err(AppError::Io)?;
     let compressed_size = counting.bytes_written();
     info!(
         "  Model bundle saved successfully ({:.2} MB).",
@@ -675,6 +679,10 @@ pub fn run(args: Args) -> AppResult<TrainReport> {
                 .unwrap_or_default();
             writeln!(out, "{}\t{}\t{}\t{:.4}\t{}", rank + 1, feat, count, pct, kmers_str)?;
         }
+        // Flush explicitly: BufWriter's Drop ignores the result, so a failure on
+        // the final buffered chunk would be swallowed and a truncated report
+        // reported as written.
+        out.flush()?;
     }
     info!(
         "  Feature importance written to {} ({} top features).",
@@ -727,6 +735,8 @@ pub fn run(args: Args) -> AppResult<TrainReport> {
                 rank, hit.bucket, splits, pct, hit.kmer, header, lineage, hit.position
             )?;
         }
+        // See above: an unflushed BufWriter can silently truncate the report.
+        out.flush()?;
     }
     info!(
         "  Genomic coordinates written to {} ({} hits).",

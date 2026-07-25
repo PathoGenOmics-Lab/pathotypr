@@ -1,13 +1,10 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Pathotypr",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "identifier": "es.csic.pathogenomics.pathotypr",
   "build": {
-    "frontendDist": "../frontend",
-    "devUrl": "http://localhost:1420",
-    "beforeDevCommand": "",
-    "beforeBuildCommand": ""
+    "frontendDist": "../frontend"
   },
   "app": {
     "withGlobalTauri": true,

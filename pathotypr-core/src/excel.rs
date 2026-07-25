@@ -10,9 +10,16 @@ use rust_xlsxwriter::{
 // Path helpers
 // ---------------------------------------------------------------------------
 
-fn excel_path_from_tsv(tsv_path: &str) -> String {
-    if tsv_path.ends_with(".tsv") {
-        tsv_path.replace(".tsv", ".xlsx")
+/// Derives the `.xlsx` path that the Excel writers use for a given TSV path.
+///
+/// Cleanup routines must use this too: deriving the path differently (e.g. with
+/// `Path::with_extension`) makes them delete the wrong file when the output does
+/// not end in `.tsv`, leaving the real partial file behind.
+pub(crate) fn excel_path_from_tsv(tsv_path: &str) -> String {
+    // Replace only the trailing ".tsv" extension, not every occurrence in the
+    // path (a directory name or sample name may legitimately contain ".tsv").
+    if let Some(stem) = tsv_path.strip_suffix(".tsv") {
+        format!("{}.xlsx", stem)
     } else {
         format!("{}.xlsx", tsv_path)
     }
@@ -155,7 +162,17 @@ impl ExcelStreamWriter {
             }
         }
 
-        self.workbook.save(&self.xlsx_path)?;
+        // A failed save can leave a partially written workbook behind. Callers
+        // only warn on failure, so without this the run would be reported as
+        // successful next to a corrupt .xlsx.
+        if let Err(e) = self.workbook.save(&self.xlsx_path) {
+            if let Err(rm) = std::fs::remove_file(&self.xlsx_path) {
+                if rm.kind() != std::io::ErrorKind::NotFound {
+                    log::warn!("Failed to remove partial Excel file {}: {}", self.xlsx_path, rm);
+                }
+            }
+            return Err(e.into());
+        }
         Ok(self.xlsx_path)
     }
 }

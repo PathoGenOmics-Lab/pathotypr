@@ -1291,6 +1291,11 @@ export function resetInlineResults(panelId) {
     viewer.classList.remove('fullscreen');
     delete viewer.dataset.outputPath;
 
+    // Drop the multi-marker-set tab bar. It is only rebuilt on multi-marker
+    // runs, so leaving it in place made a later single-marker run show stale
+    // tabs pointing at the previous run's output sets.
+    viewer.querySelector('.result-tabs')?.remove();
+
     const pathEl = viewer.querySelector('.results-viewer-path');
     if (pathEl) {
       pathEl.textContent = '';

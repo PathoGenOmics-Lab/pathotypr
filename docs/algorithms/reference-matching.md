@@ -1,16 +1,16 @@
-# Reference Matching (K-mer Containment)
+# Reference matching (k-mer containment)
 
-## Overview
+**How pathotypr picks the closest reference genome for a read set using weighted k-mer containment scoring.**
 
 The `match` command finds the closest reference genome for a set of FASTQ reads. It uses **k-mer containment scoring** — measuring what fraction of the query's k-mers are present in each reference genome.
 
-## Algorithm
-
-```
+```text
 FASTQ reads ──→ Count query k-mers ──→ Filter noise ──→ Score references (streaming) ──→ Best match
 ```
 
-### Step 1: Query K-mer Counting
+## Algorithm
+
+### Step 1: Query k-mer counting
 
 All FASTQ files are processed in parallel (one rayon task per file):
 
@@ -19,7 +19,7 @@ All FASTQ files are processed in parallel (one rayon task per file):
 3. Count occurrences in a thread-local `FxHashMap<u64, u32>`
 4. Merge thread-local maps via parallel reduction
 
-### Step 2: Noise Filtering
+### Step 2: Noise filtering
 
 Singleton k-mers (count=1) are likely sequencing errors:
 
@@ -28,11 +28,11 @@ Singleton k-mers (count=1) are likely sequencing errors:
 - Typical reduction: ~90-93% of unique k-mers removed
 - Effect: faster scoring and fewer false matches
 
-### Step 3: Streaming Reference Scoring
+### Step 3: Streaming reference scoring
 
 References are read from a multi-FASTA file in **adaptive batches** (batch_size = num_threads, clamped to 4–64):
 
-```
+```text
 Multi-FASTA ──→ Read batch of N refs ──→ Score batch in parallel ──→ Update best
                                               │                         │
                                               └── Free batch memory ────┘
@@ -40,9 +40,10 @@ Multi-FASTA ──→ Read batch of N refs ──→ Score batch in parallel ─
                 ──→ Read next batch ──────────────────────────────────────┘
 ```
 
-**Why streaming?** With 500 reference genomes of ~4.4 Mb each, loading all references would require ~2.2 GB for sequences alone, plus ~17 GB for k-mer sets. Streaming processes `num_threads` references at a time, keeping memory bounded.
+!!! info "Why streaming?"
+    With 500 reference genomes of ~4.4 Mb each, loading all references would require ~2.2 GB for sequences alone, plus ~17 GB for k-mer sets. Streaming processes `num_threads` references at a time, keeping memory bounded.
 
-### Scoring a Single Reference
+### Scoring a single reference
 
 For each reference in the batch (parallelized with rayon):
 
@@ -51,17 +52,18 @@ For each reference in the batch (parallelized with rayon):
 3. For each unique reference k-mer, look it up in the query k-mer map
 4. If found, add the **query count** to `shared_kmer_count`
 
-### Score Calculation
+### Score calculation
 
-```
+```text
 Shared_Kmer_Fraction = Σ(query_count for shared k-mers) / Σ(all query k-mer counts)
 ```
 
 This is a **weighted containment score**: k-mers that appear more frequently in the reads contribute more. A perfect match (all query k-mers present in the reference) gives a score of 1.0.
 
-Using weighted counts (instead of just presence/absence) makes the score robust to coverage variation — highly covered regions contribute proportionally.
+!!! tip "Weighted, not just presence/absence"
+    Using weighted counts (instead of just presence/absence) makes the score robust to coverage variation — highly covered regions contribute proportionally.
 
-## Memory Model
+## Memory model
 
 | Component | Memory | Notes |
 |---|---|---|
@@ -76,21 +78,25 @@ Using weighted counts (instead of just presence/absence) makes the score robust 
 |---|---|---|
 | `--kmer-size` | 31 | Longer k = more specific matching |
 | `--min-kmer-count` | 2 | Noise filter threshold |
-| `--early-stop-confidence` | 0.0 (disabled) | Stop scoring early if leader is clear |
-| `--early-stop-min-kmers` | 1,000,000 | Minimum k-mers scored before early stop |
-| `--strict-percentages` | true | Use weighted query counts for score |
+| `--early-stop-confidence` | 0.0 | Reserved; not read in the current release (no effect) |
+| `--early-stop-min-kmers` | 1,000,000 | Reserved; not read in the current release (no effect) |
+| `--strict-percentages` | true | Reserved; scoring always uses weighted query counts |
 
 ## Output
 
-```
-Query_Files              Best_Match_Reference    Shared_Kmer_Fraction
-reads_R1.fastq.gz,...    GCF_000253355.1         0.5440
+```tsv
+Query_Files	Best_Match_Reference	Shared_Kmer_Fraction
+reads_R1.fastq.gz,...	GCF_000253355.1	0.5440
 ```
 
 Only the single best match is reported. The score represents the fraction of query sequencing depth attributable to k-mers shared with that reference.
 
-## Use Cases
+## Use cases
 
 1. **Pre-mapping reference selection**: Find the closest reference before read alignment to maximize mapping quality
 2. **Lineage verification**: Cross-check ML-predicted lineage against known reference genomes
 3. **Contamination detection**: Low scores may indicate mixed samples or wrong species
+
+## See also
+
+- [match](../match.md)

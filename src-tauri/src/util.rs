@@ -1,7 +1,8 @@
 //! Utility functions: file path validation, SSRF protection, and system usage.
 
+use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use serde::Serialize;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, ToSocketAddrs};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, ToSocketAddrs};
 use std::path::PathBuf;
 use std::process::Command;
 use tauri::{AppHandle, Manager};
@@ -78,11 +79,29 @@ fn is_disallowed_ipv4(ip: Ipv4Addr) -> bool {
 }
 
 fn is_disallowed_ipv6(ip: Ipv6Addr) -> bool {
-    ip.is_loopback()
+    // IPv4-mapped addresses (::ffff:a.b.c.d) route to the embedded IPv4 on
+    // dual-stack hosts, so an internal IPv4 target (e.g. ::ffff:169.254.169.254
+    // or ::ffff:127.0.0.1) could otherwise slip past the IPv4 rules. Apply the
+    // IPv4 rules to the mapped address. `to_ipv4_mapped` returns None for ::1
+    // and ::, so those still fall through to the loopback/unspecified checks.
+    if let Some(v4) = ip.to_ipv4_mapped() {
+        return is_disallowed_ipv4(v4);
+    }
+    if ip.is_loopback()
         || ip.is_unspecified()
         || ip.is_unique_local()
         || ip.is_unicast_link_local()
         || ip.is_multicast()
+    {
+        return true;
+    }
+    // Deprecated IPv4-compatible addresses (::a.b.c.d) likewise embed an IPv4;
+    // loopback/unspecified are already handled above, so this only reaches
+    // genuine embedded IPv4 targets.
+    if let Some(v4) = ip.to_ipv4() {
+        return is_disallowed_ipv4(v4);
+    }
+    false
 }
 
 fn is_disallowed_ip(ip: IpAddr) -> bool {
@@ -139,6 +158,45 @@ pub fn validate_download_url(url: &reqwest::Url) -> Result<(), String> {
         .port_or_known_default()
         .ok_or_else(|| "URL has an unknown port".to_string())?;
     validate_host_resolution(&host, port)
+}
+
+/// A reqwest DNS resolver that rejects any resolution containing a
+/// local/reserved address. Because reqwest uses this resolver for the actual
+/// connection (and for every redirect it follows), validation happens on the
+/// same address the request connects to, closing the validate-then-connect
+/// (DNS-rebinding) TOCTOU gap that a separate up-front check leaves open. All
+/// resolved public addresses are returned unchanged, so CDN failover still
+/// works.
+#[derive(Debug, Default)]
+pub struct SsrfGuardResolver;
+
+impl Resolve for SsrfGuardResolver {
+    fn resolve(&self, name: Name) -> Resolving {
+        Box::pin(async move {
+            let host = name.as_str().to_string();
+            let lookup_host = host.clone();
+            let resolved: Vec<SocketAddr> = tauri::async_runtime::spawn_blocking(move || {
+                (lookup_host.as_str(), 0u16)
+                    .to_socket_addrs()
+                    .map(|iter| iter.collect::<Vec<SocketAddr>>())
+            })
+            .await
+            .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> {
+                format!("DNS resolution task failed: {e}").into()
+            })?
+            .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { Box::new(e) })?;
+
+            if resolved.is_empty() {
+                return Err::<Addrs, Box<dyn std::error::Error + Send + Sync>>(
+                    format!("Could not resolve host '{host}'").into(),
+                );
+            }
+            if resolved.iter().any(|addr| is_disallowed_ip(addr.ip())) {
+                return Err("Cannot download from local/reserved addresses".into());
+            }
+            Ok(Box::new(resolved.into_iter()) as Addrs)
+        })
+    }
 }
 
 // ---------------------------------------------------------------------------

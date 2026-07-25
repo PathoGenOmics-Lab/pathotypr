@@ -1,18 +1,19 @@
 <p align="center">
-  <img src="logo/pathotypr.png" alt="pathotypr logo" width="750" />
+  <img src="logo/pathotypr.svg" alt="pathotypr logo" width="750" />
 </p>
 
 <div align="center">
 
+[![Documentation](https://img.shields.io/badge/docs-pathotypr-%23b01000?style=flat-square)](https://pathogenomics-lab.github.io/pathotypr/)
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL%20v3-%23af64d1?style=flat-square)](LICENSE)
+[![Bioconda](https://img.shields.io/conda/vn/bioconda/pathotypr?style=flat-square&color=%23009E73&label=bioconda)](https://anaconda.org/bioconda/pathotypr)
+[![Bioconda downloads](https://img.shields.io/conda/dn/bioconda/pathotypr?style=flat-square&color=%23009E73&label=downloads)](https://anaconda.org/bioconda/pathotypr)
 [![Preprint](https://img.shields.io/badge/preprint-bioRxiv-%23b31b1b?style=flat-square)](https://doi.org/10.64898/2026.03.24.714002)
 [![Markers](https://img.shields.io/badge/markers-Zenodo%2019210044-%230072B2?style=flat-square)](https://zenodo.org/records/19210044)
 
 **Lineage classification and marker-driven genotyping — from assemblies or raw reads.**
 
-[Quick Start](#quick-start) · [Commands](#commands) · [GUI](#gui) · [Docs](docs/) · [Citation](#citation)
-
-</div>
+[Quick Start](#quick-start) · [Commands](#commands) · [GUI](#gui) · [Documentation](https://pathogenomics-lab.github.io/pathotypr/) · [Citation](#citation)
 
 </div>
 
@@ -29,9 +30,9 @@ pathotypr is a Rust toolkit that classifies microbial genomes into lineages and 
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="frontend/pathotypr_scheme-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="frontend/pathotypr_scheme.svg">
-    <img src="frontend/pathotypr_scheme.svg" alt="pathotypr workflow schema" width="1200" />
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/scheme-dark.webp">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/scheme.svg">
+    <img src="docs/assets/scheme.svg" alt="pathotypr workflow schema" width="1200" />
   </picture>
 </p>
 
@@ -55,24 +56,24 @@ pathotypr is a Rust toolkit that classifies microbial genomes into lineages and 
 
 ### Desktop GUI (pre-built)
 
-Download the latest release for your platform:
+**[⬇ Download the latest release](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest)**, then pick the file for your platform:
 
-| Platform | Download | Notes |
+| Platform | File | Notes |
 |---|---|---|
-| 🍎 macOS (Apple Silicon) | [**Pathotypr_1.0.0_aarch64.dmg**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr_1.0.0_aarch64.dmg) | M1 / M2 / M3 / M4 Macs |
-| 🍎 macOS (Intel) | [**Pathotypr_1.0.0_x64.dmg**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr_1.0.0_x64.dmg) | Pre-2020 Macs |
-| 🐧 Linux (.deb) | [**Pathotypr_1.0.0_amd64.deb**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr_1.0.0_amd64.deb) | Debian / Ubuntu |
-| 🐧 Linux (.rpm) | [**Pathotypr-1.0.0-1.x86_64.rpm**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr-1.0.0-1.x86_64.rpm) | Fedora / RHEL |
-| 🐧 Linux (AppImage) | [**Pathotypr_1.0.0_amd64.AppImage**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr_1.0.0_amd64.AppImage) | Any distro, no install needed |
-| 🪟 Windows (installer) | [**Pathotypr_1.0.0_x64-setup.exe**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr_1.0.0_x64-setup.exe) | Windows 10+ |
-| 🪟 Windows (.msi) | [**Pathotypr_1.0.0_x64_en-US.msi**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr_1.0.0_x64_en-US.msi) | Windows 10+ (MSI) |
+| 🍎 macOS (Apple Silicon) | `Pathotypr_<version>_aarch64.dmg` | M1 / M2 / M3 / M4 Macs |
+| 🍎 macOS (Intel) | `Pathotypr_<version>_x64.dmg` | Pre-2020 Macs |
+| 🐧 Linux (.deb) | `Pathotypr_<version>_amd64.deb` | Debian / Ubuntu |
+| 🐧 Linux (.rpm) | `Pathotypr-<version>-1.x86_64.rpm` | Fedora / RHEL |
+| 🐧 Linux (AppImage) | `Pathotypr_<version>_amd64.AppImage` | Any distro, no install needed |
+| 🪟 Windows (installer) | `Pathotypr_<version>_x64-setup.exe` | Windows 10+ |
+| 🪟 Windows (.msi) | `Pathotypr_<version>_x64_en-US.msi` | Windows 10+ (MSI) |
 
 > [!NOTE]
 > **macOS users**: The app is not signed with an Apple Developer certificate. On first launch, right-click the app → **Open** → click **Open** in the dialog. See [Apple support](https://support.apple.com/en-us/HT202491) for details.
 >
 > **Windows users**: Windows SmartScreen may show a warning for unrecognized apps. Click **More info** → **Run anyway** to proceed.
 
-All releases: [**Releases page**](https://github.com/PathoGenOmics-Lab/pathotypr/releases)
+Older versions are on the [releases page](https://github.com/PathoGenOmics-Lab/pathotypr/releases).
 
 ### CLI (Bioconda)
 
@@ -93,7 +94,7 @@ cargo build --release -p pathotypr-core --bin pathotypr
 
 ### GUI (from source)
 
-See [docs/gui.md](docs/gui.md) for building the Tauri desktop app from source.
+See [docs/gui.md](https://pathogenomics-lab.github.io/pathotypr/gui/) for building the Tauri desktop app from source.
 
 ## MTBC Marker Files & Pre-trained Model
 
@@ -102,7 +103,7 @@ Ready-to-use marker panels and a pre-trained Random Forest model for *Mycobacter
 | File | Description | Download |
 |---|---|---|
 | `pathotypr_lineage_markers_v1.0.0.tsv` | 3,707 lineage SNPs (L1–L10, A1–A4) | [⬇ Download](https://zenodo.org/records/19210044/files/pathotypr_lineage_markers_v1.0.0.tsv?download=1) |
-| `pathotypr_dr_markers_v1.0.0.tsv` | 102,213 DR mutations (WHO catalogue 2021) | [⬇ Download](https://zenodo.org/records/19210044/files/pathotypr_dr_markers_v1.0.0.tsv?download=1) |
+| `pathotypr_dr_markers_v1.0.0.tsv` | 102,213 DR mutations (WHO catalogue v2, 2023) | [⬇ Download](https://zenodo.org/records/19210044/files/pathotypr_dr_markers_v1.0.0.tsv?download=1) |
 | `pathotypr_rf_model_v1.0.0.pathotypr` | Pre-trained RF model (k=31, 100 trees) | [⬇ Download](https://zenodo.org/records/19210044/files/pathotypr_rf_model_v1.0.0.pathotypr?download=1) |
 
 > **DOI:** [10.5281/zenodo.19210044](https://zenodo.org/records/19210044)
@@ -136,27 +137,27 @@ Each command has its own detailed documentation:
 
 | Command | Docs | Summary |
 |---|---|---|
-| `train` | [docs/train.md](docs/train.md) | Random Forest on k-mer feature-hashed vectors |
-| `predict` | [docs/predict.md](docs/predict.md) | Streaming batch prediction with confidence scores |
-| `classify` | [docs/classify.md](docs/classify.md) | Marker k-mer matching + GFF annotation + masked FASTA |
-| `split-fastq` | [docs/split-fastq.md](docs/split-fastq.md) | Alignment-free genotyping with Bloom filter acceleration |
-| `match` | [docs/match.md](docs/match.md) | K-mer containment scoring against reference databases |
+| `train` | [docs/train.md](https://pathogenomics-lab.github.io/pathotypr/train/) | Random Forest on k-mer feature-hashed vectors |
+| `predict` | [docs/predict.md](https://pathogenomics-lab.github.io/pathotypr/predict/) | Streaming batch prediction with confidence scores |
+| `classify` | [docs/classify.md](https://pathogenomics-lab.github.io/pathotypr/classify/) | Marker k-mer matching + GFF annotation + masked FASTA |
+| `split-fastq` | [docs/split-fastq.md](https://pathogenomics-lab.github.io/pathotypr/split-fastq/) | Alignment-free genotyping with Bloom filter acceleration |
+| `match` | [docs/match.md](https://pathogenomics-lab.github.io/pathotypr/match/) | K-mer containment scoring against reference databases |
 
 Run `pathotypr <command> --help` for all options.
 
 ### Algorithm Details
 
-For in-depth descriptions of the algorithms, data structures, and design decisions behind each module, see [docs/algorithms/](docs/algorithms/):
+For in-depth descriptions of the algorithms, data structures, and design decisions behind each module, see [docs/algorithms/](https://pathogenomics-lab.github.io/pathotypr/algorithms/):
 
 | Document | Topic |
 |---|---|
-| [Feature Hashing](docs/algorithms/feature-hashing.md) | The hashing trick: k-mers → fixed-size sparse vectors |
-| [Random Forest](docs/algorithms/random-forest.md) | Sparse CART trees with bootstrap aggregation |
-| [Training Pipeline](docs/algorithms/training.md) | Vectorize → evaluate → train → OOB → export |
-| [Prediction](docs/algorithms/prediction.md) | Streaming batch prediction with majority voting |
-| [Marker Genotyping](docs/algorithms/marker-genotyping.md) | Diagnostic k-mers + Bloom filter for FASTQ scanning |
-| [Reference Matching](docs/algorithms/reference-matching.md) | K-mer containment scoring with streaming batches |
-| [Assembly Classification](docs/algorithms/assembly-classification.md) | Marker calling on FASTA with GFF annotation |
+| [Feature Hashing](https://pathogenomics-lab.github.io/pathotypr/algorithms/feature-hashing/) | The hashing trick: k-mers → fixed-size sparse vectors |
+| [Random Forest](https://pathogenomics-lab.github.io/pathotypr/algorithms/random-forest/) | Sparse CART trees with bootstrap aggregation |
+| [Training Pipeline](https://pathogenomics-lab.github.io/pathotypr/algorithms/training/) | Vectorize → evaluate → train → OOB → export |
+| [Prediction](https://pathogenomics-lab.github.io/pathotypr/algorithms/prediction/) | Streaming batch prediction with majority voting |
+| [Marker Genotyping](https://pathogenomics-lab.github.io/pathotypr/algorithms/marker-genotyping/) | Diagnostic k-mers + Bloom filter for FASTQ scanning |
+| [Reference Matching](https://pathogenomics-lab.github.io/pathotypr/algorithms/reference-matching/) | K-mer containment scoring with streaming batches |
+| [Assembly Classification](https://pathogenomics-lab.github.io/pathotypr/algorithms/assembly-classification/) | Marker calling on FASTA with GFF annotation |
 
 ## Input Formats
 
@@ -183,7 +184,7 @@ Tab-separated: `position  REF  ALT  level1  [level2  ...]`
 
 Lineage columns are read until the first empty cell. Columns after the empty cell are treated as annotations.
 
-> See [docs/input-formats.md](docs/input-formats.md) for full format specifications.
+> See [docs/input-formats.md](https://pathogenomics-lab.github.io/pathotypr/input-formats/) for full format specifications.
 
 ## GUI
 
@@ -197,7 +198,7 @@ cargo tauri dev
 cargo tauri build
 ```
 
-> See [docs/gui.md](docs/gui.md) for system dependencies and build instructions.
+> See [docs/gui.md](https://pathogenomics-lab.github.io/pathotypr/gui/) for system dependencies and build instructions.
 
 ## Performance
 
@@ -224,7 +225,7 @@ Benchmarked on real *M. tuberculosis* genomes (~4.4 Mb, k=21), Mac mini M4, 4 th
 - **Streaming** I/O — split-fastq holds 26 MB regardless of input size
 - **85,000+ genomes/second** prediction throughput (synthetic benchmarks)
 
-> See [docs/benchmarks.md](docs/benchmarks.md) for detailed charts, scaling plots, and pathotypr vs fastlin comparison.
+> See [docs/benchmarks.md](https://pathogenomics-lab.github.io/pathotypr/benchmarks/) for detailed charts, scaling plots, and pathotypr vs fastlin comparison.
 
 ## Comparison
 
@@ -296,10 +297,12 @@ If you use pathotypr, please cite:
 ## License
 
 [GNU Affero General Public License v3.0](LICENSE)
+
 ---
+
 <h2 id="contributors" align="center">
 
-✨ [Contributors]((https://github.com/PathoGenOmics-Lab/AMAP/graphs/contributors))
+✨ [Contributors](https://github.com/PathoGenOmics-Lab/pathotypr/graphs/contributors)
 </h2>
 
 <!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->

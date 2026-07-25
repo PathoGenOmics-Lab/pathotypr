@@ -81,7 +81,10 @@ export async function readFastaRange(path, start, end, recordName = null) {
       path,
       start: Math.max(1, Number.parseInt(start, 10) || 1),
       end: Math.max(1, Number.parseInt(end, 10) || 1),
-      record_name: recordName || null
+      // Tauri v2 maps camelCase keys from JS onto the command's snake_case
+      // parameters. Sending `record_name` left the parameter absent, so the
+      // Option silently deserialised to None and the wrong record was read.
+      recordName: recordName || null
     });
   } catch (err) {
     console.warn('[readFastaRange] Failed:', path, recordName, start, end, err);

@@ -347,6 +347,7 @@ pub fn run(args: Args) -> AppResult<()> {
         fastq_files_to_process.join(", ")
     );
 
+    crate::common::validate_kmer_size(args.kmer_size as usize)?;
     let kmer_size = args.kmer_size;
 
     check_cancelled(cancel_token)?;

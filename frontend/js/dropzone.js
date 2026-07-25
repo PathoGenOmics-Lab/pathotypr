@@ -152,6 +152,10 @@ export async function setDropzoneFile(dropzone, targetId, filePath) {
 
   if (input) {
     input.value = filePath;
+    // Drop any multi-file selection left over from a previous run: the form
+    // builders prefer dataset.files over input.value, so a stale list would
+    // silently override the single file the user just picked.
+    delete input.dataset.files;
     input.dispatchEvent(new CustomEvent('change', { detail: { path: filePath } }));
   }
 
@@ -340,16 +344,35 @@ async function smartRouteFiles(paths) {
   const routeMap = new Map(); // dropzone → [paths]
   const unrouted = [];
 
+  // A dropzone the user has already filled before this drop.
+  const isPreFilled = (dz) => {
+    const input = document.getElementById(dz.dataset.target);
+    return Boolean(
+      String(input?.value || '').trim() ||
+      (input?.dataset?.files && input.dataset.files !== '[]')
+    );
+  };
+  // A single-file dropzone can only take one file from this drop.
+  const canAccept = (dz) => dz.dataset.multiple === 'true' || !routeMap.has(dz);
+
   for (const filePath of paths) {
     let matched = false;
-    for (const dz of dropzones) {
-      const extensions = dz.dataset.extensions?.split(',') || [];
-      if (extensions.length > 0 && validateFileExtension(filePath, extensions)) {
+    // Two passes: prefer a dropzone that is still empty, so dropping a second
+    // file of the same type does not overwrite an input the user already
+    // filled (e.g. landing a sample FASTA on top of the reference). Only if no
+    // empty dropzone matches do we fall back to any matching one.
+    for (const preferEmpty of [true, false]) {
+      for (const dz of dropzones) {
+        const extensions = dz.dataset.extensions?.split(',') || [];
+        if (extensions.length === 0 || !validateFileExtension(filePath, extensions)) continue;
+        if (!canAccept(dz)) continue;
+        if (preferEmpty && isPreFilled(dz)) continue;
         if (!routeMap.has(dz)) routeMap.set(dz, []);
         routeMap.get(dz).push(filePath);
         matched = true;
-        break; // First matching dropzone wins
+        break;
       }
+      if (matched) break;
     }
     if (!matched) unrouted.push(filePath);
   }

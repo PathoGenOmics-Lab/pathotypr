@@ -6789,3 +6789,624 @@ body.track-expanded-open {
 /* ---- Low-confidence row highlighting (predict results) ---- */
 .row-low-confidence { background-color: rgba(255, 193, 7, 0.08); }
 .row-very-low-confidence { background-color: rgba(220, 53, 69, 0.08); }
+
+/* ==========================================================================
+   Drug-resistance profile, lineage levels and allele-fraction distribution
+   ========================================================================== */
+
+.viz-dr-profile,
+.viz-lineage-levels,
+.viz-allele-fraction {
+  margin: 16px 0 4px;
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.viz-dr-profile h4,
+.viz-lineage-levels h4,
+.viz-allele-fraction h4 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.viz-dr-headline {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.viz-dr-note,
+.af-note {
+  margin: 10px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.viz-dr-note code,
+.af-note code {
+  padding: 1px 4px;
+  font-size: 10.5px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+/* --- Per-drug cards --- */
+
+.dr-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dr-card {
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: var(--bg-input);
+  overflow: hidden;
+}
+
+.dr-card-head {
+  display: grid;
+  grid-template-columns: 82px 122px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  list-style: none;
+}
+
+.dr-card-head::-webkit-details-marker { display: none; }
+.dr-card-head:hover { background: var(--bg-sidebar-item-hover); }
+
+.dr-drug {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+}
+
+.dr-verdict {
+  font-size: 11px;
+  white-space: nowrap;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dr-top {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dr-more {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Verdict colours: resistance is the only alarming state. */
+.dr-card--resistant  { border-left-color: var(--error); }
+.dr-card--resistant  .dr-verdict { color: var(--error); }
+.dr-card--uncertain  { border-left-color: var(--warning); }
+.dr-card--uncertain  .dr-verdict { color: var(--warning); }
+.dr-card--not_assoc  { border-left-color: var(--success); }
+.dr-card--not_assoc  .dr-verdict { color: var(--success); }
+.dr-card--ungraded   { border-left-color: var(--text-muted); }
+.dr-card--ungraded   .dr-verdict { color: var(--text-muted); }
+
+.dr-card-body {
+  padding: 0 12px 10px;
+  border-top: 1px solid var(--border);
+}
+
+.dr-mut-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+
+.dr-mut-table th {
+  padding: 7px 6px 5px;
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.dr-mut-table td {
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-secondary);
+}
+
+.dr-mut-gene,
+.dr-mut-change {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: var(--text-primary);
+}
+
+.dr-mut-depth,
+.dr-mut-frac {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.dr-mut--resistant .dr-mut-grade { color: var(--error); font-weight: 600; }
+.dr-mut--uncertain .dr-mut-grade { color: var(--warning); }
+.dr-mut--not_assoc .dr-mut-grade { color: var(--success); }
+
+/* --- Lineage levels --- */
+
+.lvl-tree,
+.lvl-children {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lvl-children {
+  margin-left: 14px;
+  padding-left: 10px;
+  border-left: 1px solid var(--border);
+}
+
+.lvl-node {
+  padding: 3px 0;
+  font-size: 12px;
+}
+
+.lvl-name {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: var(--text-primary);
+}
+
+.lvl-depth-1 > .lvl-name { font-weight: 650; }
+
+.lvl-count {
+  margin-left: 8px;
+  padding: 1px 6px;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  background: var(--bg-sidebar-item);
+  border-radius: 999px;
+}
+
+/* --- Allele fraction histogram --- */
+
+.af-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 96px;
+  padding: 6px 2px 0;
+}
+
+.af-bin {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.af-bar {
+  width: 100%;
+  min-height: 2px;
+  background: var(--accent);
+  border-radius: 3px 3px 0 0;
+  opacity: 0.85;
+}
+
+/* The 20-80% band is where a mixed infection shows up. */
+.af-bin--intermediate .af-bar { background: var(--warning); }
+
+.af-tick {
+  margin-top: 4px;
+  font-size: 9.5px;
+  text-align: center;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.af-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+/* --- Mixed infection: support per lineage branch --- */
+
+.viz-mixed-lineages {
+  margin: 16px 0 4px;
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.viz-mixed-lineages h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.mx-verdict {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.mx-verdict--mixed  { color: var(--warning); }
+.mx-verdict--clonal { color: var(--success); }
+
+.mx-branches {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mx-branch-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.mx-branch-name {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.mx-branch-share {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.mx-bar {
+  margin: 4px 0 3px;
+  height: 8px;
+  background: var(--bg-sidebar-item);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.mx-bar-fill {
+  height: 100%;
+  background: var(--warning);
+  border-radius: 999px;
+}
+
+/* A single branch is not a mixture — show it in the reassuring colour. */
+.mx-branch--single .mx-bar-fill { background: var(--success); }
+
+.mx-branch-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.mx-branch-total { color: var(--text-muted); }
+
+.mx-note {
+  margin: 12px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.mx-more {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding-top: 2px;
+}
+
+/* ==========================================================================
+   Batch charts — resistance matrix and lineage composition
+   Palettes are the validated data-viz defaults, checked against this app's
+   own surfaces (#ffffff light, #192734 dark). Categorical slots 1-3 pass in
+   both modes; the status roles are used as documented, with a glyph + label
+   so colour never carries meaning alone.
+   ========================================================================== */
+
+.viz-chart {
+  /* status roles (fixed, never themed) */
+  --st-critical: #d03b3b;
+  --st-warning:  #fab219;
+  --st-good:     #0ca30c;
+  --st-neutral:  #c3c2b7;
+  /* categorical slots, light steps */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-other: #898781;
+  /* chrome */
+  --viz-grid: #e1e0d9;
+  --viz-axis: #c3c2b7;
+
+  margin: 16px 0 4px;
+  padding: 16px 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+[data-theme="dark"] .viz-chart {
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --viz-grid: #2c2c2a;
+  --viz-axis: #383835;
+  --st-neutral: #383835;
+}
+
+.viz-chart-head h4 {
+  margin: 0 0 2px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.viz-chart-sub {
+  margin: 0 0 14px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+/* --- Legend (always present) --- */
+
+.viz-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.rm-key,
+.lc-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.lc-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+/* --- Table view (the WCAG-clean twin) --- */
+
+.viz-table-view {
+  margin-top: 12px;
+  font-size: 11.5px;
+}
+
+.viz-table-view summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.viz-data-table {
+  width: 100%;
+  margin-top: 8px;
+  border-collapse: collapse;
+}
+
+.viz-data-table th {
+  text-align: left;
+  padding: 6px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--viz-grid);
+}
+
+.viz-data-table td {
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--viz-grid);
+  color: var(--text-secondary);
+}
+
+/* --- Resistance matrix --- */
+
+.rm-scroll { overflow-x: auto; }
+
+.rm-grid {
+  border-collapse: separate;
+  border-spacing: 2px;      /* the 2px surface gap between cells */
+  font-size: 11px;
+}
+
+.rm-grid thead th {
+  padding: 0 0 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  text-align: center;
+  min-width: 34px;
+}
+
+.rm-corner { min-width: 132px; }
+
+.rm-sample {
+  padding-right: 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.rm-cell {
+  width: 34px;
+  height: 26px;             /* hit target stays comfortably above a pinpoint */
+  border-radius: 4px;
+  text-align: center;
+  background: var(--st-neutral);
+  opacity: 0.35;
+  cursor: default;
+}
+
+.rm-cell--resistant { background: var(--st-critical); opacity: 1; }
+.rm-cell--uncertain { background: var(--st-warning);  opacity: 1; }
+.rm-cell--notassoc  { background: var(--st-good);     opacity: 1; }
+.rm-cell--ungraded  { background: var(--st-neutral);  opacity: 0.8; }
+
+.rm-cell:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 1px;
+}
+
+.rm-glyph {
+  font-size: 11px;
+  line-height: 1;
+  color: #ffffff;
+}
+
+.rm-cell--uncertain .rm-glyph { color: #3b2c00; }  /* warning is light: dark ink */
+.rm-cell--none .rm-glyph,
+.rm-cell:not([class*="rm-cell--"]) .rm-glyph { color: var(--text-muted); }
+
+.rm-key .rm-glyph { color: inherit; }
+.rm-key--resistant { color: var(--st-critical); }
+.rm-key--uncertain { color: #8a6100; }
+.rm-key--notassoc  { color: var(--st-good); }
+.rm-key--none      { color: var(--text-muted); }
+
+/* --- Lineage composition --- */
+
+.lc-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lc-row {
+  display: grid;
+  grid-template-columns: 132px 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.lc-name {
+  font-size: 11.5px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lc-bar {
+  display: flex;
+  gap: 2px;                 /* the 2px surface gap between segments */
+  height: 22px;
+}
+
+.lc-seg {
+  min-width: 3px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  overflow: hidden;
+}
+
+/* rounded data-ends, anchored to the baseline */
+.lc-seg:first-child { border-radius: 4px 2px 2px 4px; }
+.lc-seg:last-child  { border-radius: 2px 4px 4px 2px; }
+
+.lc-seg--1 { background: var(--series-1); }
+.lc-seg--2 { background: var(--series-2); }
+.lc-seg--3 { background: var(--series-3); }
+.lc-seg--0 { background: var(--series-other); }
+
+.lc-seg-label {
+  font-size: 10px;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lc-seg:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 1px;
+}
+
+/* --- Depth vs allele fraction (QC scatter) --- */
+
+.qc-svg {
+  width: 100%;
+  height: auto;          /* grows with the axis band; never clips the labels */
+  display: block;
+  margin-top: 4px;
+}
+
+.qc-grid,
+.qc-axis {
+  stroke: var(--viz-grid);
+  stroke-width: 1;       /* hairline, solid — never dashed */
+}
+
+.qc-axis { stroke: var(--viz-axis); }
+
+.qc-tick {
+  font-size: 10px;
+  fill: var(--text-muted);
+  text-anchor: middle;
+  font-variant-numeric: tabular-nums;
+}
+
+.qc-tick--y { text-anchor: end; }
+
+.qc-axis-title {
+  font-size: 10.5px;
+  fill: var(--text-secondary);
+}
+
+/* Context band, not a series: the zone where a mixture shows up. */
+.qc-band { fill: var(--st-warning); opacity: 0.10; }
+
+.qc-band-label {
+  font-size: 9.5px;
+  fill: var(--text-muted);
+}
+
+.qc-dot {
+  fill: var(--series-1);
+  fill-opacity: 0.75;
+  stroke: var(--bg-card);   /* 2px surface ring so overlapping marks stay countable */
+  stroke-width: 2;
+}
+
+.qc-dot:hover { fill-opacity: 1; }

@@ -1,0 +1,49 @@
+/* pathotypr brand palette — tuned to the red-and-black logo.
+   Light: white header, logo-red links & accents (the logo reads cleanly).
+   Dark:  charcoal header, a brighter red so links stay legible on dark. */
+
+:root {
+  --pt-red:        #b01000; /* logo brick red — links/accents on light backgrounds */
+  --pt-red-hover:  #d21e0c; /* slightly brighter on hover */
+  --pt-red-bright: #ff5a4d; /* legible red on dark backgrounds */
+}
+
+/* ---- Light scheme ---- */
+[data-md-color-scheme="default"] {
+  --md-accent-fg-color:      var(--pt-red-hover);
+  --md-typeset-a-color:      var(--pt-red) !important;
+}
+
+/* ---- Dark scheme (slate sets its own link colour, so override wins with !important) ---- */
+[data-md-color-scheme="slate"] {
+  --md-accent-fg-color:      var(--pt-red-bright);
+  --md-typeset-a-color:      var(--pt-red-bright) !important;
+}
+
+/* Active/hover navigation and TOC use the accent — keep them on-brand */
+[data-md-color-scheme] .md-nav__link--active,
+[data-md-color-scheme] .md-nav__link:focus,
+[data-md-color-scheme] .md-nav__link:hover {
+  color: var(--md-accent-fg-color);
+}
+
+/* Brand-red rule closing the header block. On wide screens the sticky tabs bar
+   is the bottom edge and carries it; below Material's tabs breakpoint that bar
+   is hidden, so the header itself carries it and the accent never disappears. */
+[data-md-color-scheme="default"] .md-tabs {
+  border-bottom: 2px solid var(--pt-red);
+}
+
+[data-md-color-scheme="slate"] .md-tabs {
+  border-bottom: 2px solid var(--pt-red-bright);
+}
+
+@media screen and (max-width: 76.1875em) {
+  [data-md-color-scheme="default"] .md-header {
+    border-bottom: 2px solid var(--pt-red);
+  }
+
+  [data-md-color-scheme="slate"] .md-header {
+    border-bottom: 2px solid var(--pt-red-bright);
+  }
+}

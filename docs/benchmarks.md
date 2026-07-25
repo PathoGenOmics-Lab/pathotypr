@@ -6,25 +6,15 @@ Synthetic benchmarks measuring training and prediction speed, throughput, model 
 
 ## Dashboard
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../benchmarks/figures/dashboard-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="../benchmarks/figures/dashboard.png">
-    <img src="../benchmarks/figures/dashboard.png" alt="benchmark dashboard" width="900" />
-  </picture>
-</p>
+![benchmark dashboard](assets/benchmarks/dashboard.png#only-light)
+![benchmark dashboard](assets/benchmarks/dashboard-dark.png#only-dark)
 
 ## Training & Prediction Speed
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../benchmarks/figures/speed-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="../benchmarks/figures/speed.png">
-    <img src="../benchmarks/figures/speed.png" alt="speed benchmark" width="700" />
-  </picture>
-</p>
+![speed benchmark](assets/benchmarks/speed.png#only-light)
+![speed benchmark](assets/benchmarks/speed-dark.png#only-dark)
 
-| Genomes | Train time | Predict time | Speedup vs predict |
+| Genomes | Train time | Predict time | Predict speedup vs train |
 |---:|---:|---:|---:|
 | 30 | 0.032 s | 0.027 s | — |
 | 90 | 0.037 s | 0.026 s | — |
@@ -38,37 +28,22 @@ Training scales with dataset size (vectorization + 100 trees). Prediction is nea
 
 ## Throughput
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../benchmarks/figures/throughput-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="../benchmarks/figures/throughput.png">
-    <img src="../benchmarks/figures/throughput.png" alt="throughput benchmark" width="700" />
-  </picture>
-</p>
+![throughput benchmark](assets/benchmarks/throughput.png#only-light)
+![throughput benchmark](assets/benchmarks/throughput-dark.png#only-dark)
 
 Prediction throughput reaches **85,000+ genomes/second** at scale. Training throughput remains above 1,500 genomes/second even at 4,000 samples.
 
 ## Model Size
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../benchmarks/figures/model_size-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="../benchmarks/figures/model_size.png">
-    <img src="../benchmarks/figures/model_size.png" alt="model size benchmark" width="700" />
-  </picture>
-</p>
+![model size benchmark](assets/benchmarks/model_size.png#only-light)
+![model size benchmark](assets/benchmarks/model_size-dark.png#only-dark)
 
-Models are compressed with zstd and stay remarkably small — **under 3 KB** for all test configurations. Real-world models with full bacterial genomes (4–6 Mb) are typically 5–50 MB compressed.
+Models are compressed with zstd and stay remarkably small — **under 3 KB** for all test configurations. Real-world models with full bacterial genomes (4–6 Mb) stay small too — 13–35 KB for the 10- and 50-genome MTB models measured below.
 
 ## Peak Memory
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../benchmarks/figures/memory-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="../benchmarks/figures/memory.png">
-    <img src="../benchmarks/figures/memory.png" alt="memory benchmark" width="700" />
-  </picture>
-</p>
+![memory benchmark](assets/benchmarks/memory.png#only-light)
+![memory benchmark](assets/benchmarks/memory-dark.png#only-dark)
 
 Memory usage grows linearly with training data but remains modest. Prediction memory is dominated by the model size and stays nearly flat.
 
@@ -76,13 +51,8 @@ Memory usage grows linearly with training data but remains modest. Prediction me
 
 End-to-end benchmarks using real MTB genomes (~4.4 Mb each, k=21) on a Mac mini M4 (4 threads).
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../benchmarks/figures/all_modules-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="../benchmarks/figures/all_modules.png">
-    <img src="../benchmarks/figures/all_modules.png" alt="all modules benchmark" width="900" />
-  </picture>
-</p>
+![all modules benchmark](assets/benchmarks/all_modules.png#only-light)
+![all modules benchmark](assets/benchmarks/all_modules-dark.png#only-dark)
 
 ### Train
 
@@ -93,13 +63,8 @@ End-to-end benchmarks using real MTB genomes (~4.4 Mb each, k=21) on a Mac mini 
 
 Training time scales with dataset size due to vectorization (4.4M k-mers per genome) and tree construction.
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../benchmarks/figures/train_scaling_real-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="../benchmarks/figures/train_scaling_real.png">
-    <img src="../benchmarks/figures/train_scaling_real.png" alt="train scaling" width="600" />
-  </picture>
-</p>
+![train scaling](assets/benchmarks/train_scaling_real.png#only-light)
+![train scaling](assets/benchmarks/train_scaling_real-dark.png#only-dark)
 
 ### Predict
 
@@ -127,13 +92,8 @@ Assembly marker calling is extremely fast (~20 ms/genome) — k-mer matching on 
 
 Constant 26 MB memory regardless of input size — Bloom filter + streaming reads. Speed scales linearly with read count.
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../benchmarks/figures/split_fastq_scaling-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="../benchmarks/figures/split_fastq_scaling.png">
-    <img src="../benchmarks/figures/split_fastq_scaling.png" alt="split-fastq scaling" width="600" />
-  </picture>
-</p>
+![split-fastq scaling](assets/benchmarks/split_fastq_scaling.png#only-light)
+![split-fastq scaling](assets/benchmarks/split_fastq_scaling-dark.png#only-dark)
 
 ### Match (Reference Matching)
 
@@ -159,13 +119,8 @@ Match is the most memory-intensive module: each reference batch loads ~4.4 Mb ge
 
 Head-to-head comparison using real *Mycobacterium tuberculosis* FASTQ samples from the European Nucleotide Archive.
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../benchmarks/figures/comparison-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="../benchmarks/figures/comparison.png">
-    <img src="../benchmarks/figures/comparison.png" alt="pathotypr vs fastlin" width="800" />
-  </picture>
-</p>
+![pathotypr vs fastlin](assets/benchmarks/comparison.png#only-light)
+![pathotypr vs fastlin](assets/benchmarks/comparison-dark.png#only-dark)
 
 | Sample | FASTQ size | pathotypr | fastlin | Speedup |
 |---|---|---|---|---|
@@ -197,8 +152,8 @@ Both tools correctly identified the major lineage. pathotypr is consistently ~2�
 ### Scaling expectations for real data
 
 With real bacterial genomes (~4.4 Mb, k=21):
-- Training 500 genomes: ~30–60 seconds
-- Prediction 500 genomes: ~2–5 seconds
-- Model size: 10–50 MB compressed
+- Training 500 genomes: ~10 minutes (extrapolated from 55 s for 50 genomes)
+- Prediction 500 genomes: ~25 seconds (at the measured ~50 ms/genome)
+- Model size: tens of KB (13–35 KB measured for 10–50 real MTB genomes)
 
 These benchmarks use small synthetic sequences to isolate algorithmic scaling from I/O. Real-world performance depends on genome size, k-mer size, disk speed, and available cores.

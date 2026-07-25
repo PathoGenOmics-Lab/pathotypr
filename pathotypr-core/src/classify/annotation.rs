@@ -141,7 +141,7 @@ pub fn parse_gff_and_build_tree(gff_file: &str) -> AppResult<Lapper<usize, Gene>
             strand,
         };
         intervals.push(Interval {
-            start: start - 1,
+            start: start.saturating_sub(1),
             stop: end,
             val: gene,
         });

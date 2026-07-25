@@ -7,6 +7,28 @@ import { getPanelResultsData, initToolCharts, setToolChart, destroyToolCharts, g
 import { logMessage } from './console.js';
 import { escapeHtml } from './utils.js';
 import { readFastaRange, readTextFile } from './tauri.js';
+import {
+  isDrPanel,
+  buildDrProfile,
+  buildLineageLevels,
+  buildLineageBranches,
+  detectMixedLineages,
+  buildAlleleHistogram,
+  renderDrProfileHtml,
+  renderLineageLevelsHtml,
+  renderMixedLineagesHtml,
+  renderAlleleHistogramHtml,
+  summariseDrProfile,
+  drCallLabel
+} from './dr-insights.js';
+import {
+  buildResistanceMatrix,
+  renderResistanceMatrixHtml,
+  buildLineageComposition,
+  renderLineageCompositionHtml,
+  buildDepthFractionModel,
+  renderDepthFractionHtml
+} from './genotype-charts.js';
 
 // Store which tools have active visualizations and their column names
 const activeVisualizations = {};
@@ -494,7 +516,11 @@ function parseSplitFastqLineageCounts(rawValue) {
   if (!text) return [];
 
   const counts = new Map();
-  text.split(/[\s,;]+/).forEach(entry => {
+  // Entries are separated by whitespace (both backends join with " ").
+  // ';' must NOT be treated as a separator: it is the delimiter *inside* a
+  // nested lineage path (e.g. "L2;L2.2:5"), so splitting on it shredded the
+  // path and mislabelled the lineage.
+  text.split(/[\s,]+/).forEach(entry => {
     const part = String(entry || '').trim();
     if (!part) return;
 
@@ -1439,6 +1465,7 @@ function scheduleSplitfqTrackRender(toolId, data, primaryColumn) {
     const breakdownEl = document.getElementById(`${toolId}-viz-outcome-breakdown`);
     if (!breakdownEl) return;
     renderSplitFastqLightweightInsights(toolId, data, primaryColumn, breakdownEl);
+    renderClassifyGenotypingInsights(toolId, data, breakdownEl);
   });
 }
 
@@ -1700,6 +1727,138 @@ function renderPredictConfidenceInsights(toolId, data, breakdownEl) {
   }
 }
 
+/**
+ * Build the resistance / lineage-level / allele-fraction panels straight from
+ * the loaded table, so they do not depend on the insight model's internal shape.
+ *
+ * The same output format carries both lineage and drug-resistance panels: the
+ * marker's trailing columns are joined into `lineage_path`. For the WHO
+ * resistance catalogue that path is drug;resistance;marker;grade;gene;mutation,
+ * which is detected and rendered as a clinical profile instead of a lineage.
+ */
+function buildGenotypingInsightSections(data) {
+  const headers = Array.isArray(data?.headers) ? data.headers : [];
+  const rows = Array.isArray(data?.rows) ? data.rows : [];
+  if (headers.length === 0 || rows.length === 0) return '';
+
+  const lineageIdx = findHeaderIndexByTokens(headers, ['lineage_path', 'lineage', 'major_lineage']);
+  const lineageCountIdx = findHeaderIndexByTokens(headers, ['lineage:count', 'lineage_count']);
+  const fracIdx = findHeaderIndexByTokens(headers, ['alt_fraction', 'alt_percent', 'alt_pct', 'vaf', 'allele_fraction']);
+  const refIdx = findHeaderIndexByTokens(headers, ['ref_count', 'reference_count', 'ref_reads']);
+  const altIdx = findHeaderIndexByTokens(headers, ['alt_count', 'alternate_count', 'alt_reads', 'mut_count']);
+
+  // Summary tables carry no per-marker evidence, only the lineage:count cell.
+  if (lineageIdx === -1 && lineageCountIdx === -1) return '';
+
+  const sampleIdx = findSampleColumnIndex(headers, lineageIdx);
+  const records = [];
+  const fractions = [];
+  if (lineageIdx !== -1) {
+    rows.forEach(row => {
+      const lineagePath = normalizeValue(row[lineageIdx]);
+      if (!lineagePath) return;
+      const sample = sampleIdx !== -1 ? (normalizeValue(row[sampleIdx]) || 'Sample') : 'Sample';
+      const refCount = refIdx !== -1 ? parseNumericValue(row[refIdx]) : null;
+      const altCount = altIdx !== -1 ? parseNumericValue(row[altIdx]) : null;
+      const coverage = (refCount || 0) + (altCount || 0);
+      let altFraction = fracIdx !== -1 ? parseNumericValue(row[fracIdx]) : null;
+      if (altFraction === null && coverage > 0 && altCount !== null) {
+        altFraction = (altCount / coverage) * 100;
+      }
+      records.push({ sample, lineagePath, altFraction, coverage: coverage > 0 ? coverage : null });
+      if (Number.isFinite(altFraction)) fractions.push(altFraction);
+    });
+  }
+
+  let html = '';
+
+  if (records.length > 0 && isDrPanel(records.map(r => r.lineagePath))) {
+    // With several samples a matrix reads far better than a list of cards, and
+    // the cards would silently merge every sample's mutations into one profile.
+    // buildResistanceMatrix returns null for a single sample, where the cards
+    // are the right form and a one-row grid would not be.
+    const matrix = buildResistanceMatrix(records);
+    if (matrix) {
+      html += renderResistanceMatrixHtml(matrix);
+    } else {
+      html += renderDrProfileHtml(buildDrProfile(records));
+    }
+  } else {
+    // Genuine lineage panel: rebuild the hierarchy the flat paths describe.
+    const counts = new Map();
+    if (records.length > 0) {
+      records.forEach(r => counts.set(r.lineagePath, (counts.get(r.lineagePath) || 0) + 1));
+    } else if (lineageCountIdx !== -1) {
+      rows.forEach(row => {
+        parseSplitFastqLineageCounts(row[lineageCountIdx]).forEach(entry => {
+          counts.set(entry.lineage, (counts.get(entry.lineage) || 0) + entry.count);
+        });
+      });
+    }
+    if (records.length > 0) {
+      const bySample = new Map();
+      records.forEach(r => {
+        if (!bySample.has(r.sample)) bySample.set(r.sample, new Map());
+        const m = bySample.get(r.sample);
+        m.set(r.lineagePath, (m.get(r.lineagePath) || 0) + 1);
+      });
+      const multiSample = bySample.size > 1;
+      if (multiSample) {
+        const perSample = buildLineageComposition(
+          new Map([...bySample].map(([sample, m]) =>
+            [sample, [...m].map(([lineage, count]) => ({ lineage, count }))]))
+        );
+        html += renderLineageCompositionHtml(perSample);
+      }
+    }
+    if (counts.size > 0) {
+      const entries = [...counts].map(([lineage, count]) => ({ lineage, count }));
+      // The mixed-infection verdict describes a single sample; pooling a batch
+      // would count every sample's lineage as a co-infecting strain. For a
+      // batch the composition chart above already carries that story.
+      if (!(records.length > 0 && new Set(records.map(r => r.sample)).size > 1)) {
+        html += renderMixedLineagesHtml(detectMixedLineages(buildLineageBranches(entries)));
+      }
+      html += renderLineageLevelsHtml(buildLineageLevels(entries));
+    }
+  }
+
+  // Quality control: only read-based runs carry depth, so this is absent for
+  // assemblies, where every call has no coverage behind it.
+  html += renderDepthFractionHtml(buildDepthFractionModel(records));
+
+  if (fractions.length > 0) {
+    // The core only writes variants at or above --min-alt-percent, so the
+    // lowest fraction present tells us where the data was truncated.
+    const observedMin = fractions.reduce((m, v) => Math.min(m, v), Infinity);
+    html += renderAlleleHistogramHtml(buildAlleleHistogram(fractions, 10), {
+      minAltPercent: Number.isFinite(observedMin) ? observedMin : null
+    });
+  }
+
+  return html;
+}
+
+/**
+ * Classify runs the very same marker panels as split-fastq — including the WHO
+ * resistance catalogue — so it gets the same resistance and lineage panels.
+ * Assembly output carries no read depth, so the allele-fraction panel simply
+ * does not appear for it.
+ */
+function renderClassifyGenotypingInsights(toolId, data, breakdownEl) {
+  if (toolId !== 'classify' || !breakdownEl) return;
+  const existing = breakdownEl.querySelector('.viz-classify-genotyping');
+  const html = buildGenotypingInsightSections(data);
+  if (!html) {
+    existing?.remove();
+    return;
+  }
+  const section = existing || document.createElement('section');
+  section.className = 'viz-classify-genotyping';
+  section.innerHTML = html;
+  if (!existing) breakdownEl.appendChild(section);
+}
+
 function renderSplitFastqLightweightInsights(toolId, data, primaryColumn, breakdownEl) {
   if (toolId !== 'splitfq' || !breakdownEl) return;
   const model = buildSplitFastqInsightModel(data, primaryColumn);
@@ -1770,6 +1929,8 @@ function renderSplitFastqLightweightInsights(toolId, data, primaryColumn, breakd
       ? 'X-axis: input row number from the loaded results table (1-based, stable after sorting/filtering).'
       : 'X-axis: marker index (1-based, order in result rows).');
 
+  const genotypingSections = buildGenotypingInsightSections(data);
+
   const section = existingSection || document.createElement('section');
   section.className = 'viz-splitfq-lightweight';
   section.innerHTML = `
@@ -1777,6 +1938,7 @@ function renderSplitFastqLightweightInsights(toolId, data, primaryColumn, breakd
       <h5>${escapeHtml(model.heading || 'Split FASTQ Evidence')}</h5>
       <span>${escapeHtml(model.caption || '')}</span>
     </div>
+    ${genotypingSections}
     <div class="viz-splitfq-kpis">
       ${(model.kpis || []).map(kpi => `
         <article class="viz-splitfq-kpi">
@@ -2103,14 +2265,18 @@ function matchTrackSearchStatus(state) {
   return `${index}/${matches} match${matches === 1 ? '' : 'es'}`;
 }
 
-function matchTrackDomainValueFromEvent(event, svgEl, state) {
+function matchTrackDomainValueFromEvent(event, svgEl, state, useOverview = false) {
   if (!svgEl) return (state.windowStart + state.windowEnd) / 2;
   const viewWidth = Number(svgEl.dataset.viewWidth || 980);
   const plotLeft = Number(svgEl.dataset.plotLeft || 0);
   const plotWidth = Number(svgEl.dataset.plotWidth || 1);
   const x = getSvgViewXFromClient(svgEl, event.clientX, viewWidth / 2);
   const rel = Math.max(0, Math.min(1, (x - plotLeft) / Math.max(1, plotWidth)));
-  return state.windowStart + rel * (state.windowEnd - state.windowStart);
+  // The overview strip spans the full domain (same plot geometry), so a click
+  // on it must map through the full domain, not the current zoom window.
+  const domainStart = useOverview ? state.domainStart : state.windowStart;
+  const domainEnd = useOverview ? state.domainEnd : state.windowEnd;
+  return domainStart + rel * (domainEnd - domainStart);
 }
 
 function matchTrackFocusItem(state, point, domainStart, domainEnd, zoom = true) {
@@ -2553,7 +2719,7 @@ function attachMatchTrackInteractions(toolId, data, primaryColumn, model, state,
       return;
     }
     if (event.target.closest('.viz-match-overview-hit')) {
-      const center = matchTrackDomainValueFromEvent(event, svgEl, state);
+      const center = matchTrackDomainValueFromEvent(event, svgEl, state, true);
       const span = Math.max(1, state.windowEnd - state.windowStart);
       matchTrackSetWindow(state, center - span / 2, center + span / 2, domain.start, domain.end);
       scheduleMatchTrackRender(toolId, data, primaryColumn);
@@ -2840,7 +3006,13 @@ function renderToolInsights(toolId, data, counts, primaryColumn) {
 
   const labelColIdx = resolvePrimaryColumnIndex(headers, primaryColumn);
   const sampleCount = estimateSampleCount(data, labelColIdx);
-  const assignedCount = Object.values(counts).reduce((acc, value) => acc + value, 0);
+  // On a resistance panel one sample contributes a count per drug, so summing
+  // the tally would exceed the number of samples ("600% assigned"). What is
+  // assigned there is the sample itself: it carries at least one marker.
+  const drCalls = buildDrCallSummary(data, primaryColumn);
+  const assignedCount = drCalls
+    ? drCalls.sampleSummaries.size
+    : Object.values(counts).reduce((acc, value) => acc + value, 0);
   const unknownCount = Math.max(sampleCount - assignedCount, 0);
   const distinctCount = Object.keys(counts).length;
   const topEntry = Object.entries(counts)
@@ -2916,6 +3088,7 @@ function renderToolInsights(toolId, data, counts, primaryColumn) {
     `;
     renderMatchRefTrackInsights(toolId, data, primaryColumn, breakdownEl);
     renderSplitFastqLightweightInsights(toolId, data, primaryColumn, breakdownEl);
+    renderClassifyGenotypingInsights(toolId, data, breakdownEl);
     return;
   }
 
@@ -2955,6 +3128,7 @@ function renderToolInsights(toolId, data, counts, primaryColumn) {
 
   renderMatchRefTrackInsights(toolId, data, primaryColumn, breakdownEl);
   renderSplitFastqLightweightInsights(toolId, data, primaryColumn, breakdownEl);
+  renderClassifyGenotypingInsights(toolId, data, breakdownEl);
   renderPredictConfidenceInsights(toolId, data, breakdownEl);
 }
 
@@ -3164,13 +3338,11 @@ function parseMutationTrackData(data) {
   }
 
   const genomePosHeader = genomePosIdx >= 0 ? normalizedHeaders[genomePosIdx] : '';
-  const genomePosUsesSnpGenome = genomePosHeader === 'snpgenome';
   const genomePosUsesKmerPos = (
     genomePosHeader === 'k_merpos' ||
     genomePosHeader === 'kmer_pos' ||
     genomePosHeader === 'kmerpos'
   );
-  const genomePosOneBasedOffset = (genomePosUsesSnpGenome || genomePosUsesKmerPos) ? 1 : 0;
 
   const sampleIdx = findHeaderIndexByTokens(headers, [
     'genome',
@@ -3228,6 +3400,9 @@ function parseMutationTrackData(data) {
     let altAlleleSource = altAllele ? 'column' : 'unknown';
     const kmer = kmerIdx >= 0 ? normalizeValue(row[kmerIdx]) : '';
 
+    // SNPgenome and k-merPOS already arrive 1-based from classify
+    // (format_marker_match emits genome_position + 1 / variant_start + 1), so
+    // no extra offset is applied here.
     let normalizedGenomePosRaw = resolvedGenomePosRaw;
     if (genomePosRaw !== null && genomePosUsesKmerPos && kmer) {
       const center = Math.floor(kmer.length / 2);
@@ -3235,7 +3410,6 @@ function parseMutationTrackData(data) {
         normalizedGenomePosRaw += center;
       }
     }
-    normalizedGenomePosRaw += genomePosOneBasedOffset;
 
     if (!altAllele && kmer) {
       const center = Math.floor(kmer.length / 2);
@@ -4141,15 +4315,17 @@ function getTrackRecordGeneLabel(record) {
 }
 
 function getTrackRecordGeneStart(record) {
-  const value = Number(record?.displayGeneStart);
-  if (Number.isFinite(value)) return value;
-  return Number.isFinite(record?.geneStart) ? Number(record.geneStart) : null;
+  // Test finiteness on the raw value: Number(null) and Number('') are 0, which
+  // would defeat the null guard and read a missing gene start as position 0.
+  const raw = record?.displayGeneStart;
+  if (Number.isFinite(raw)) return raw;
+  return Number.isFinite(record?.geneStart) ? record.geneStart : null;
 }
 
 function getTrackRecordGeneEnd(record) {
-  const value = Number(record?.displayGeneEnd);
-  if (Number.isFinite(value)) return value;
-  return Number.isFinite(record?.geneEnd) ? Number(record.geneEnd) : null;
+  const raw = record?.displayGeneEnd;
+  if (Number.isFinite(raw)) return raw;
+  return Number.isFinite(record?.geneEnd) ? record.geneEnd : null;
 }
 
 function getTrackRecordGeneStrand(record) {
@@ -6544,7 +6720,7 @@ function setupToolVisualization(toolId, title, columnName) {
 
   // Initialize charts storage
   initToolCharts(toolId);
-  activeVisualizations[toolId] = { columnName, visible: false };
+  activeVisualizations[toolId] = { columnName, visible: false, defaultTitle: title };
 
   if (vizBtn) {
     vizBtn.addEventListener('click', () => {
@@ -6655,7 +6831,11 @@ function showToolVisualization(toolId, columnName) {
   }
 
   // Store active visualization info for theme refresh
-  activeVisualizations[toolId] = { columnName, visible: true };
+  activeVisualizations[toolId] = {
+    ...activeVisualizations[toolId],
+    columnName,
+    visible: true
+  };
 
   vizBtn?.classList.add('hidden');
   vizPanel.classList.remove('hidden');
@@ -6739,12 +6919,82 @@ function parseToolData(data, primaryColumn) {
   return counts;
 }
 
+/**
+ * Re-tally a WHO resistance run by drug.
+ *
+ * For a resistance panel the label column holds the whole marker path
+ * (drug;resistance;marker;grade;gene;mutation), so the generic tally produces a
+ * distribution over raw paths and the KPI header ends up presenting one of them
+ * as the sample's "call". Group by sample instead and describe each sample by
+ * the drugs it carries markers for, which is what the cards, the chart and the
+ * single-sample outcome should all be about.
+ *
+ * Returns `null` for a genuine lineage panel, leaving the normal tally alone.
+ */
+function buildDrCallSummary(data, primaryColumn) {
+  const headers = Array.isArray(data?.headers) ? data.headers : [];
+  const rows = Array.isArray(data?.rows) ? data.rows : [];
+  if (headers.length === 0 || rows.length === 0) return null;
+
+  const labelColIdx = resolvePrimaryColumnIndex(headers, primaryColumn);
+  if (labelColIdx === -1) return null;
+
+  const paths = rows.map(row => normalizeValue(row[labelColIdx])).filter(Boolean);
+  if (!isDrPanel(paths)) return null;
+
+  const sampleColIdx = findSampleColumnIndex(headers, labelColIdx);
+  const bySample = new Map();
+  rows.forEach(row => {
+    const lineagePath = normalizeValue(row[labelColIdx]);
+    if (!lineagePath) return;
+    const sample = sampleColIdx !== -1
+      ? (normalizeValue(row[sampleColIdx]) || 'Sample')
+      : 'Sample';
+    if (!bySample.has(sample)) bySample.set(sample, []);
+    bySample.get(sample).push({ lineagePath });
+  });
+  if (bySample.size === 0) return null;
+
+  const counts = {};
+  const sampleSummaries = new Map();
+  for (const [sample, records] of bySample) {
+    const profile = buildDrProfile(records);
+    sampleSummaries.set(sample, summariseDrProfile(profile));
+    // One count per sample per drug, so a multi-sample run answers
+    // "how many samples carry markers for this drug".
+    profile.forEach(entry => {
+      const label = drCallLabel(entry);
+      counts[label] = (counts[label] || 0) + 1;
+    });
+  }
+
+  return { counts, sampleSummaries };
+}
+
+/** Retitle the panel: "Lineage Distribution" is wrong for a resistance run. */
+function setVisualizationTitle(toolId, title) {
+  const heading = document.querySelector(`#${toolId}-visualization .visualization-title h3`);
+  if (!heading) return;
+  const next = title || activeVisualizations[toolId]?.defaultTitle;
+  if (next && heading.textContent !== next) heading.textContent = next;
+}
+
 function renderVisualization(toolId, columnName) {
   const data = getPanelResultsData(`${toolId}-results`);
   if (!data) return;
 
-  const counts = parseToolData(data, columnName);
+  const drCalls = buildDrCallSummary(data, columnName);
+  const counts = drCalls ? drCalls.counts : parseToolData(data, columnName);
+  setVisualizationTitle(toolId, drCalls ? 'Resistance profile' : null);
+
   const singleSampleSummary = buildSingleSampleVisualizationSummary(toolId, data, counts, columnName);
+  if (singleSampleSummary && drCalls) {
+    // Describe the sample by its resistance verdict rather than by whichever
+    // marker path happened to sort first.
+    singleSampleSummary.outcomeLabel =
+      drCalls.sampleSummaries.get(singleSampleSummary.sampleName)
+      || summariseDrProfile([]);
+  }
   renderSingleSampleSummary(toolId, singleSampleSummary);
 
   if (singleSampleSummary) {
@@ -7189,6 +7439,9 @@ export function resetVisualizationForTool(toolId) {
     vizPanel.classList.add('hidden');
     vizPanel.classList.remove('fullscreen');
     vizPanel.classList.remove('single-sample-mode');
+    // See resetInlineResults: the tab bar is only rebuilt on multi-marker runs,
+    // so it must be torn down here or a later run shows stale tabs.
+    vizPanel.querySelector('.result-tabs')?.remove();
     const chartContainer = vizPanel.querySelector('.chart-container');
     chartContainer?.classList.remove('hidden');
   }

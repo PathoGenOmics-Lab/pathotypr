@@ -48,7 +48,14 @@ pub struct Args {
     pub ref_fasta: String,
 
     /// Path to a TSV file listing samples. Format: sample_name\tfasta_path[\tgff_path].
-    #[arg(short = 'l', long = "input-list", required_unless_present = "fasta_genomes")]
+    // `--input-files` is a full input source too, so it must satisfy this
+    // requirement as well; listing only `--input` made `--input-files` on its
+    // own fail with "the following required arguments were not provided".
+    #[arg(
+        short = 'l',
+        long = "input-list",
+        required_unless_present_any = ["fasta_genomes", "fasta_files"]
+    )]
     pub tsv_genomes: Option<String>,
 
     /// Single FASTA file to analyze.
@@ -56,7 +63,11 @@ pub struct Args {
     pub fasta_genomes: Option<String>,
 
     /// Multiple FASTA files to analyze (for GUI batch mode).
-    #[arg(long = "input-files", required_unless_present_any = ["tsv_genomes", "fasta_genomes"])]
+    #[arg(
+        long = "input-files",
+        num_args = 1..,
+        required_unless_present_any = ["tsv_genomes", "fasta_genomes"]
+    )]
     pub fasta_files: Option<Vec<String>>,
 
     /// Optional GFF file for annotation when using --input.
@@ -64,7 +75,7 @@ pub struct Args {
     pub gff_file: Option<String>,
 
     /// Multiple GFF files for annotation when using --input-files (matched by filename).
-    #[arg(long = "gff-files")]
+    #[arg(long = "gff-files", num_args = 1..)]
     pub gff_files: Option<Vec<String>>,
 
     /// Prefix for the output files.
@@ -256,7 +267,16 @@ fn analyze_genome(
         )));
     }
     info!("Analyzing genome {} ({})", genome_name, fasta_path);
-    let genome_seq = get_ref(fasta_path)?;
+    // Read every record so multi-contig draft assemblies (the common case for
+    // bacterial WGS) are supported. `get_ref` is reserved for the single-record
+    // reference genome; sample assemblies routinely contain several contigs.
+    let contigs = get_genomes_from_fasta(fasta_path)?;
+    if contigs.is_empty() {
+        return Err(AppError::NotEnoughData(format!(
+            "No records found in FASTA '{}'.",
+            fasta_path
+        )));
+    }
 
     let owned_annotations;
     let annotations: Option<&Lapper<usize, Gene>> = if shared_annotations.is_some() {
@@ -268,17 +288,61 @@ fn analyze_genome(
         None
     };
 
-    let matched_markers = find_markers(&genome_seq, marker_index, k);
+    Ok(collect_marker_lines(
+        genome_name,
+        contigs.iter().map(|(_, seq)| seq.as_str()),
+        marker_index,
+        &annotations,
+        k,
+        ref_seq,
+        ref_seq_rc,
+    ))
+}
+
+/// Collects the detail lines for one genome, scanning every contig on **both
+/// strands** and reporting each marker only once.
+///
+/// Contig orientation in a draft assembly is arbitrary, so a marker sitting on
+/// a reverse-oriented contig only matches the reverse complement; scanning the
+/// forward strand alone silently loses it (the FASTQ path already indexes both
+/// orientations). Matches are deduplicated by marker k-mer, so a marker seen on
+/// several contigs — or on both strands of one contig — counts as a single
+/// observation rather than inflating the lineage tally.
+fn collect_marker_lines<'a>(
+    genome_name: &str,
+    contigs: impl Iterator<Item = &'a str>,
+    marker_index: &MarkerIndex,
+    annotations: &Option<&Lapper<usize, Gene>>,
+    k: usize,
+    ref_seq: &str,
+    ref_seq_rc: &str,
+) -> Vec<String> {
     let mut result = Vec::new();
-    if matched_markers.is_empty() {
-        result.push(format!("{}\t\t\t\t\t\t\t\t\t\t\t\t\n", genome_name));
-    } else {
-        for m in &matched_markers {
-            let lines = format_marker_match(genome_name, m, &annotations, &genome_seq, ref_seq, ref_seq_rc);
-            result.extend(lines);
+    let mut seen: HashSet<String> = HashSet::new();
+    for contig_seq in contigs {
+        let contig_rc = reverse_complement_sequence(contig_seq);
+        for seq in [contig_seq, contig_rc.as_str()] {
+            for m in find_markers(seq, marker_index, k) {
+                if !seen.insert(m.kmer.clone()) {
+                    continue;
+                }
+                // `seq` is the strand that produced the match, so the positions
+                // and the ALT bases sliced out of it stay self-consistent.
+                result.extend(format_marker_match(
+                    genome_name,
+                    &m,
+                    annotations,
+                    seq,
+                    ref_seq,
+                    ref_seq_rc,
+                ));
+            }
         }
     }
-    Ok(result)
+    if result.is_empty() {
+        result.push(format!("{}\t\t\t\t\t\t\t\t\t\t\t\t\n", genome_name));
+    }
+    result
 }
 
 pub fn analyze_genome_seq(
@@ -292,17 +356,15 @@ pub fn analyze_genome_seq(
 ) -> Vec<String> {
     info!("Analyzing genome {} (from provided sequence)", genome_name);
     let ann_ref: Option<&Lapper<usize, Gene>> = annotations.as_ref();
-    let matched_markers = find_markers(genome_seq, marker_index, k);
-    let mut result = Vec::new();
-    if matched_markers.is_empty() {
-        result.push(format!("{}\t\t\t\t\t\t\t\t\t\t\t\t\n", genome_name));
-    } else {
-        for m in &matched_markers {
-            let lines = format_marker_match(genome_name, m, &ann_ref, genome_seq, ref_seq, ref_seq_rc);
-            result.extend(lines);
-        }
-    }
-    result
+    collect_marker_lines(
+        genome_name,
+        std::iter::once(genome_seq),
+        marker_index,
+        &ann_ref,
+        k,
+        ref_seq,
+        ref_seq_rc,
+    )
 }
 
 fn format_marker_match(
@@ -597,11 +659,15 @@ fn update_summary_from_detail_line(
         _ => return,
     };
     for _ in 0..6 { if fields.next().is_none() { return; } }
+    // Register the genome before inspecting the lineage field: a genome with no
+    // marker hits emits a detail row with empty columns, and returning early
+    // here would drop it from the summary entirely, leaving the user with fewer
+    // summary rows than input genomes and no clue which ones were missing.
+    let genome_entry = lineage_count_map.entry(genome_name.to_string()).or_default();
     let lineage_path = match fields.next() {
         Some(value) if !value.is_empty() => value,
         _ => return,
     };
-    let genome_entry = lineage_count_map.entry(genome_name.to_string()).or_default();
     let mut current_path_part = String::with_capacity(lineage_path.len());
     for (i, component) in lineage_path.split(';').enumerate() {
         if i > 0 { current_path_part.push(';'); }
@@ -635,11 +701,13 @@ fn cleanup_generated_outputs(paths: &[String]) {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
             Err(e) => warn!("Failed to remove partial output {}: {}", out_path, e),
         }
-        let xlsx_path = Path::new(out_path).with_extension("xlsx");
+        // Must match the writer's derivation exactly, or cleanup deletes the
+        // wrong file and leaves the real partial .xlsx behind.
+        let xlsx_path = crate::excel::excel_path_from_tsv(out_path);
         match std::fs::remove_file(&xlsx_path) {
             Ok(_) => {}
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(e) => warn!("Failed to remove partial output {}: {}", xlsx_path.display(), e),
+            Err(e) => warn!("Failed to remove partial output {}: {}", xlsx_path, e),
         }
     }
 }
@@ -665,8 +733,27 @@ pub fn run(args: Args) -> AppResult<()> {
     let marker_variants = get_positions(&args.tsv_pos)?;
     debug!("Found {} marker entries.", marker_variants.len());
 
+    // A k-mer needs room for the allele between the two flanks; otherwise every
+    // marker is skipped and the run silently reports every genome as
+    // Unclassified instead of failing.
+    if 2 * args.min_flank_bases >= k {
+        return Err(AppError::Generic(format!(
+            "--min-flank-bases {} leaves no room for an allele in a {}-mer; use a value below {}.",
+            args.min_flank_bases,
+            k,
+            (k + 1) / 2
+        )));
+    }
+
     info!("Generating marker k-mers...");
     let marker_index = generate_markerkmer(&marker_variants, &ref_seq, k, args.min_flank_bases);
+    if marker_index.len() == 0 {
+        return Err(AppError::NotEnoughData(format!(
+            "No usable marker k-mers could be built from '{}' (k={}, --min-flank-bases={}). \
+             Every marker was skipped, so no genome could be classified.",
+            args.tsv_pos, k, args.min_flank_bases
+        )));
+    }
     debug!("Generated {} unique marker k-mers using {} index storage.", marker_index.len(), marker_index.storage_name());
     check_cancelled(cancel_token)?;
 
@@ -701,8 +788,12 @@ pub fn run(args: Args) -> AppResult<()> {
         emitted_lines += 1;
         if emitted_lines % 2048 == 0 { check_cancelled(cancel_token)?; }
         write!(outfile, "{}", line).map_err(AppError::Io)?;
-        let trimmed = line.trim_end();
-        if !trimmed.is_empty() {
+        // Trim the newline only, not the trailing tabs: a genome with no marker
+        // hits emits a row of empty columns, and trimming those away leaves a
+        // bare name that the summary parser rejects as malformed — which is how
+        // such genomes used to vanish from the summary entirely.
+        let trimmed = line.trim_end_matches(['\n', '\r']);
+        if !trimmed.trim().is_empty() {
             update_summary_from_detail_line(&mut lineage_count_map, trimmed);
         }
         let mut disable_detail_excel = false;
@@ -769,9 +860,14 @@ pub fn run(args: Args) -> AppResult<()> {
                 drop(summary_out); cleanup_generated_outputs(&generated_outputs); return Err(e);
             }
         }
-        let lineage_counts_str: String = lineage_map.iter()
+        // Match the TSV exactly: sorted by count (then name) and space-joined.
+        // Iterating the HashMap directly made the Excel column disagree with
+        // its own TSV and vary between otherwise identical runs.
+        let mut sorted_lineages: Vec<(&String, &usize)> = lineage_map.iter().collect();
+        sorted_lineages.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
+        let lineage_counts_str: String = sorted_lineages.iter()
             .map(|(lin, count)| format!("{}:{}", lin, count))
-            .collect::<Vec<_>>().join(", ");
+            .collect::<Vec<_>>().join(" ");
         let major_lineage = determine_major_lineage(&lineage_map, args.nested_classification);
 
         let mut disable_summary_excel = false;
@@ -819,14 +915,41 @@ pub fn run(args: Args) -> AppResult<()> {
             Vec::new()
         };
 
+        let mut used_masked_names: HashSet<String> = HashSet::new();
         for fasta_path in &fasta_sources {
-            check_cancelled(cancel_token)?;
+            if let Err(e) = check_cancelled(cancel_token) {
+                cleanup_generated_outputs(&generated_outputs);
+                return Err(e);
+            }
             let stem = Path::new(fasta_path).file_stem().unwrap_or_default().to_string_lossy();
             let out_dir = Path::new(&base_name).parent().unwrap_or(Path::new("."));
-            let masked_path = out_dir.join(format!("{}_masked.fasta", stem));
+            // Inputs from different folders routinely share a file stem (the
+            // usual `<sample>/assembly.fasta` layout). Without disambiguation
+            // the second masked FASTA silently overwrote the first.
+            let mut name = format!("{}_masked.fasta", stem);
+            let mut n = 2;
+            while !used_masked_names.insert(name.clone()) {
+                name = format!("{}_{}_masked.fasta", stem, n);
+                n += 1;
+            }
+            let masked_path = out_dir.join(&name);
             let masked_path_str = masked_path.to_string_lossy().to_string();
-            write_masked_fasta(fasta_path, &masked_path_str, &mask_ranges)?;
-            generated_outputs.push(masked_path_str);
+            // Register the path before writing so a partially written file is
+            // cleaned up if the write fails or the run is cancelled.
+            generated_outputs.push(masked_path_str.clone());
+            match write_masked_fasta(fasta_path, &masked_path_str, &mask_ranges, ref_seq.len()) {
+                Ok(true) => {}
+                // Not in reference coordinates: nothing was written (the reason
+                // is logged), so drop the reservation and free the name again.
+                Ok(false) => {
+                    generated_outputs.pop();
+                    used_masked_names.remove(&name);
+                }
+                Err(e) => {
+                    cleanup_generated_outputs(&generated_outputs);
+                    return Err(e);
+                }
+            }
         }
     }
 
@@ -875,4 +998,95 @@ mod tests {
         counts.insert("L1;A".to_string(), 2usize);
         assert_eq!(get_final_lineage_call(&counts), "L1;A");
     }
+
+    #[test]
+    fn markers_are_found_on_reverse_oriented_contigs() {
+        use crate::classify::markers::{generate_markerkmer, MarkerVariant};
+        use crate::classify::{analyze_genome_seq, reverse_complement_sequence};
+
+        // 60 bp reference; the marker sits at 1-based position 30.
+        let ref_seq = concat!(
+            "ACGTTGCAAG", "GCTTAACCGG", "ATCGATTCAG", "CTAGCCATGG", "TACGTTAACG", "GCATTGCAGT",
+        );
+        assert_eq!(ref_seq.len(), 60);
+        assert_eq!(&ref_seq[29..30], "G", "reference allele at the marker position");
+
+        let markers = vec![MarkerVariant {
+            pos: 30,
+            ref_allele: "G".to_string(),
+            alt_allele: "A".to_string(),
+            lineage: "L9.9".to_string(),
+            gene: None,
+            mutation: None,
+        }];
+        let k = 11;
+        let index = generate_markerkmer(&markers, ref_seq, k, 5);
+        let ref_rc = reverse_complement_sequence(ref_seq);
+
+        // A genome carrying the ALT allele, in the same orientation as the reference.
+        let mut forward = ref_seq.to_string();
+        forward.replace_range(29..30, "A");
+        let hit_fwd = analyze_genome_seq("fwd", &forward, &index, &None, k, ref_seq, &ref_rc);
+        assert!(
+            hit_fwd.iter().any(|l| l.contains("L9.9")),
+            "marker must be found on a forward-oriented contig"
+        );
+
+        // The very same contig stored in the opposite orientation, which is
+        // arbitrary in a draft assembly, must yield the same call.
+        let reverse = reverse_complement_sequence(&forward);
+        let hit_rev = analyze_genome_seq("rev", &reverse, &index, &None, k, ref_seq, &ref_rc);
+        assert!(
+            hit_rev.iter().any(|l| l.contains("L9.9")),
+            "marker must also be found when the contig is reverse-oriented"
+        );
+    }
+
+    #[test]
+    fn a_marker_present_on_several_contigs_is_counted_once() {
+        use crate::classify::markers::{generate_markerkmer, MarkerVariant};
+        use crate::classify::{analyze_genome_seq, reverse_complement_sequence};
+
+        let ref_seq = concat!(
+            "ACGTTGCAAG", "GCTTAACCGG", "ATCGATTCAG", "CTAGCCATGG", "TACGTTAACG", "GCATTGCAGT",
+        );
+        let markers = vec![MarkerVariant {
+            pos: 30,
+            ref_allele: "G".to_string(),
+            alt_allele: "A".to_string(),
+            lineage: "L9.9".to_string(),
+            gene: None,
+            mutation: None,
+        }];
+        let k = 11;
+        let index = generate_markerkmer(&markers, ref_seq, k, 5);
+        let ref_rc = reverse_complement_sequence(ref_seq);
+
+        let mut forward = ref_seq.to_string();
+        forward.replace_range(29..30, "A");
+        // Same sequence twice over: the marker is one observation, not two.
+        let doubled = format!("{}{}", forward, forward);
+        let lines = analyze_genome_seq("dup", &doubled, &index, &None, k, ref_seq, &ref_rc);
+        let hits = lines.iter().filter(|l| l.contains("L9.9")).count();
+        assert_eq!(hits, 1, "a repeated marker must not inflate the lineage tally");
+    }
+
+
+    #[test]
+    fn a_genome_with_no_markers_still_reaches_the_summary() {
+        use std::collections::HashMap;
+        // The exact row analyze_genome emits when nothing matched: the name
+        // followed by empty columns. It must register the genome, or the sample
+        // silently disappears from the summary.
+        let line = format!("{}\t\t\t\t\t\t\t\t\t\t\t\t", "sampleX");
+        let mut map: HashMap<String, HashMap<String, usize>> = HashMap::new();
+        super::update_summary_from_detail_line(&mut map, &line);
+        assert!(map.contains_key("sampleX"), "the genome must appear in the summary");
+        assert!(map["sampleX"].is_empty(), "with no lineage counts");
+        assert_eq!(
+            crate::lineage::determine_major_lineage(&map["sampleX"], false),
+            "Unclassified"
+        );
+    }
+
 }

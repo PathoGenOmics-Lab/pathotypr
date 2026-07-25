@@ -1,0 +1,152 @@
+site_name: pathotypr
+site_description: Lineage classification and marker-driven genotyping — from assemblies or raw reads.
+site_author: Paula Ruiz-Rodriguez
+site_url: https://pathogenomics-lab.github.io/pathotypr/
+
+repo_name: PathoGenOmics-Lab/pathotypr
+repo_url: https://github.com/PathoGenOmics-Lab/pathotypr
+edit_uri: edit/main/docs/
+copyright: >-
+  Copyright &copy; 2026 Paula Ruiz-Rodriguez &amp; Mireia Coscollá —
+  I²SysBio (CSIC–University of Valencia)
+
+theme:
+  name: material
+  language: en
+  logo: assets/logo.png
+  favicon: assets/favicon.png
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: white
+      accent: red
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: red
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - content.action.edit
+    - content.action.view
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Installation: installation.md
+  - Commands:
+      - train: train.md
+      - predict: predict.md
+      - classify: classify.md
+      - split-fastq: split-fastq.md
+      - match: match.md
+  - Reference:
+      - Input formats: input-formats.md
+      - Marker format: marker_format.md
+      - Output files: output-files.md
+  - Desktop GUI: gui.md
+  - Benchmarks: benchmarks.md
+  - Citation: citation.md
+  - Algorithms:
+      - Overview: algorithms/README.md
+      - Feature hashing: algorithms/feature-hashing.md
+      - Random forest: algorithms/random-forest.md
+      - Training pipeline: algorithms/training.md
+      - Prediction: algorithms/prediction.md
+      - Marker genotyping: algorithms/marker-genotyping.md
+      - Reference matching: algorithms/reference-matching.md
+      - Assembly classification: algorithms/assembly-classification.md
+  - FAQ: faq.md
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.betterem
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tilde
+
+exclude_docs: |
+  requirements.txt
+
+plugins:
+  - search
+  # Cards for link previews on social platforms and chat apps. Generating them
+  # needs cairo/pango, so it only runs in CI; local builds skip it.
+  - social:
+      enabled: !ENV [CI, false]
+      cards_layout_options:
+        background_color: "#b01000"
+        color: "#ffffff"
+        # The header wordmark is 2.7:1 and gets cropped in the card's square
+        # logo slot, so the card uses the square mark instead.
+        logo: docs/assets/favicon.png
+  - git-revision-date-localized:
+      type: date
+      enable_creation_date: false
+      fallback_to_build_date: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/PathoGenOmics-Lab/pathotypr
+      name: pathotypr on GitHub
+    - icon: material/file-document-outline
+      link: https://doi.org/10.64898/2026.03.24.714002
+      name: bioRxiv preprint
+    - icon: material/database-outline
+      link: https://zenodo.org/records/19210044
+      name: Markers & model on Zenodo

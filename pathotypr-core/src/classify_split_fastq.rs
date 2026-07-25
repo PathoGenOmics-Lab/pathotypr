@@ -295,13 +295,15 @@ fn cleanup_generated_outputs(paths: &[String]) {
             Err(e) => warn!("Failed to remove partial output {}: {}", out_path, e),
         }
 
-        let xlsx_path = Path::new(out_path).with_extension("xlsx");
+        // Must match the writer's derivation exactly, or cleanup deletes the
+        // wrong file and leaves the real partial .xlsx behind.
+        let xlsx_path = crate::excel::excel_path_from_tsv(out_path);
         match fs::remove_file(&xlsx_path) {
             Ok(_) => {}
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
             Err(e) => warn!(
                 "Failed to remove partial output {}: {}",
-                xlsx_path.display(),
+                xlsx_path,
                 e
             ),
         }
@@ -332,6 +334,7 @@ pub fn run(args: SplitFastqArgs) -> AppResult<()> {
 
     configure_thread_pool(args.threads);
 
+    crate::common::validate_kmer_size(args.kmer_size)?;
     let kmer_len = args.kmer_size;
     info!("Using k-mer size: {}", kmer_len);
 

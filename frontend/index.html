@@ -18,7 +18,9 @@
     <aside class="sidebar" id="sidebar">
       <div class="logo">
         <img src="logo.png" alt="Pathotypr" id="app-logo">
-        <span class="version" id="app-version">v0.2.0</span>
+        <!-- Replaced at startup by the version the backend reports; this
+             literal is only the fallback shown if that call fails. -->
+        <span class="version" id="app-version">v1.0.1</span>
       </div>
 
       <nav class="nav-menu">
@@ -288,7 +290,7 @@
 
             <!-- Pathotypr Workflow Scheme -->
             <div class="home-scheme">
-              <img src="pathotypr_scheme.png" alt="Pathotypr Workflow Scheme" class="scheme-clickable" id="scheme-img" title="Click to enlarge">
+              <img src="pathotypr_scheme.webp" alt="Pathotypr Workflow Scheme" class="scheme-clickable" id="scheme-img" title="Click to enlarge">
             </div>
 
             <div class="home-info">
@@ -1220,7 +1222,7 @@
                   <div class="params-grid">
                     <div class="form-group">
                       <label>K-mer Size <span class="help-tooltip">?<span class="tooltip-content">Length of k-mers used for marker matching. Default: 21.</span></span></label>
-                      <input type="number" id="splitfq-kmer" value="21" min="11" max="31">
+                      <input type="number" id="splitfq-kmer" value="31" min="11" max="31">
                     </div>
                     <div class="form-group">
                       <label>Min Depth <span class="help-tooltip">?<span class="tooltip-content">Min reads to call variant. Default: 10</span></span></label>
@@ -1553,7 +1555,7 @@
                     </div>
                     <div class="form-group">
                       <label>K-mer Size <span class="help-tooltip">?<span class="tooltip-content">Length of k-mers used for read-to-reference comparison. Typical range is 21-31.</span></span></label>
-                      <input type="number" id="match-kmer" value="21" min="11" max="51">
+                      <input type="number" id="match-kmer" value="31" min="11" max="31">
                     </div>
                     <div class="form-group">
                       <label>Threads <span class="help-tooltip">?<span class="tooltip-content">Number of CPU threads for matching. Leave empty to use automatic thread selection.</span></span></label>
@@ -1838,7 +1840,7 @@
   <!-- Scheme Lightbox -->
   <div class="scheme-lightbox hidden" id="scheme-lightbox">
     <div class="scheme-lightbox-backdrop"></div>
-    <img src="pathotypr_scheme.png" alt="Pathotypr Workflow Scheme" class="scheme-lightbox-img">
+    <img src="pathotypr_scheme.webp" alt="Pathotypr Workflow Scheme" class="scheme-lightbox-img">
     <button class="scheme-lightbox-close">&times;</button>
   </div>
 

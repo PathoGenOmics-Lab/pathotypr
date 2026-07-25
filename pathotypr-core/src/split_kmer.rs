@@ -214,7 +214,7 @@ pub fn build_markers(
         if !header_validated {
             let lower = line_str.to_lowercase();
             if lower.contains("pos") || lower.contains("lineage") || lower.contains("ref") {
-                info!("  Detected header row, skipping: {}", &line_str[..line_str.len().min(80)]);
+                info!("  Detected header row, skipping: {}", line_str.chars().take(80).collect::<String>());
                 header_validated = true;
                 continue;
             }
