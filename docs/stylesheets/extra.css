@@ -27,7 +27,23 @@
   color: var(--md-accent-fg-color);
 }
 
-/* Subtle brand-red underline accent on the sticky tabs bar (light header) */
+/* Brand-red rule closing the header block. On wide screens the sticky tabs bar
+   is the bottom edge and carries it; below Material's tabs breakpoint that bar
+   is hidden, so the header itself carries it and the accent never disappears. */
 [data-md-color-scheme="default"] .md-tabs {
   border-bottom: 2px solid var(--pt-red);
+}
+
+[data-md-color-scheme="slate"] .md-tabs {
+  border-bottom: 2px solid var(--pt-red-bright);
+}
+
+@media screen and (max-width: 76.1875em) {
+  [data-md-color-scheme="default"] .md-header {
+    border-bottom: 2px solid var(--pt-red);
+  }
+
+  [data-md-color-scheme="slate"] .md-header {
+    border-bottom: 2px solid var(--pt-red-bright);
+  }
 }
