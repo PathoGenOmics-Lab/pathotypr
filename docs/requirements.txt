@@ -1,4 +1,9 @@
 # Documentation build dependencies (MkDocs + Material theme).
 # Install with:  pip install -r docs/requirements.txt
-mkdocs-material>=9.5,<10
+#
+# The [imaging] extra pulls in cairosvg/pillow for the social-card plugin, which
+# also needs the cairo and pango system libraries. The docs workflow installs
+# those; local builds skip card generation, so they are optional there.
+mkdocs-material[imaging]>=9.5,<10
 pymdown-extensions>=10.0
+mkdocs-git-revision-date-localized-plugin>=1.2

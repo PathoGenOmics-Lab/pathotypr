@@ -8,7 +8,7 @@ genomes (FASTA) and raw sequencing reads (FASTQ), runs on a single laptop, and
 ships with a native desktop GUI.
 
 ![pathotypr workflow](assets/scheme.svg#only-light){ width="900" }
-![pathotypr workflow](assets/scheme-dark.png#only-dark){ width="900" }
+![pathotypr workflow](assets/scheme-dark.webp#only-dark){ width="900" }
 
 !!! warning "Validated for *M. tuberculosis* only"
     Nothing is hard-coded to one organism, so any species works in principle.
@@ -133,6 +133,5 @@ If you use pathotypr, please cite:
 > and resistance-associated variant detection for genomic surveillance.**
 > *bioRxiv* (2026). doi: [10.64898/2026.03.24.714002](https://doi.org/10.64898/2026.03.24.714002)
 
-Software & markers DOI: [10.5281/zenodo.19210044](https://doi.org/10.5281/zenodo.19210044)
-
-pathotypr is released under the [GNU Affero General Public License v3.0](https://github.com/PathoGenOmics-Lab/pathotypr/blob/main/LICENSE).
+See [Citation](citation.md) for BibTeX and RIS entries, the software and marker
+DOI, and the licence.

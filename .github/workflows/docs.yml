@@ -34,9 +34,18 @@ jobs:
           restore-keys: |
             mkdocs-material-
 
+      # Cairo and pango are what the social-card plugin renders through.
+      - name: Install image libraries for social cards
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libcairo2-dev libfreetype6-dev libffi-dev \
+            libjpeg-dev libpng-dev libz-dev
+
       - name: Install dependencies
         run: pip install -r docs/requirements.txt
 
+      # CI is set by GitHub Actions, which is what switches social cards on.
       - name: Build (strict)
         run: mkdocs build --strict
 

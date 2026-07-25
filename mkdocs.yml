@@ -14,7 +14,7 @@ theme:
   name: material
   language: en
   logo: assets/logo.png
-  favicon: assets/logo.png
+  favicon: assets/favicon.png
   icon:
     repo: fontawesome/brands/github
   palette:
@@ -52,6 +52,8 @@ theme:
     - content.code.copy
     - content.code.annotate
     - content.tabs.link
+    - content.action.edit
+    - content.action.view
 
 nav:
   - Home: index.md
@@ -69,6 +71,7 @@ nav:
       - Output files: output-files.md
   - Desktop GUI: gui.md
   - Benchmarks: benchmarks.md
+  - Citation: citation.md
   - Algorithms:
       - Overview: algorithms/README.md
       - Feature hashing: algorithms/feature-hashing.md
@@ -121,6 +124,20 @@ exclude_docs: |
 
 plugins:
   - search
+  # Cards for link previews on social platforms and chat apps. Generating them
+  # needs cairo/pango, so it only runs in CI; local builds skip it.
+  - social:
+      enabled: !ENV [CI, false]
+      cards_layout_options:
+        background_color: "#b01000"
+        color: "#ffffff"
+        # The header wordmark is 2.7:1 and gets cropped in the card's square
+        # logo slot, so the card uses the square mark instead.
+        logo: docs/assets/favicon.png
+  - git-revision-date-localized:
+      type: date
+      enable_creation_date: false
+      fallback_to_build_date: true
 
 extra:
   social:
