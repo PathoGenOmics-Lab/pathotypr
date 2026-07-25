@@ -19,6 +19,41 @@ ACGTACGT...        →  label = "L2.2.1"
 ACGTACGT...        →  label = "L4.3.4.2"
 ```
 
+## Inputs
+
+`train` needs exactly one file.
+
+| What | Flag | Format |
+|---|---|---|
+| Labeled genomes | `-i, --input` | [Training FASTA](input-formats.md#training-fasta-train), plain or gzipped |
+
+### Requirements
+
+The run **fails** unless all of these hold:
+
+- [x] At least **two distinct labels**. One class cannot be trained against nothing.
+- [x] At least **two records**, so the train/test split leaves a non-empty training set. With `--test-split 0` a single record is accepted, but the accuracy estimate is then meaningless.
+- [x] `-k` between **1 and 31**.
+
+These are tolerated, with a warning in the log:
+
+- Records with an **empty sequence** are skipped.
+- Extra header text after the label is ignored.
+
+!!! tip "How many genomes per class"
+    Nothing enforces a minimum per class, but a class represented by one or two
+    genomes contributes almost nothing the forest can generalise from. Aim for
+    **10 or more per class**, and check the per-class metrics the run prints
+    before trusting a model built on fewer.
+
+!!! warning "Labels are taken verbatim"
+    `L4` and `L4 ` (trailing space aside) are one label, but `L4` and `L4.1` are
+    two unrelated classes: `train` sees flat strings and knows nothing about the
+    hierarchy in the name. If you want a model that separates sublineages, label
+    the records at the depth you want predicted. For hierarchical calls from
+    marker panels instead, use [`classify`](classify.md) or
+    [`split-fastq`](split-fastq.md).
+
 ## Options
 
 | Option | Default | Required | Description |

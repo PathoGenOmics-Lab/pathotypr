@@ -15,6 +15,58 @@ pathotypr split-fastq -m <markers.tsv> -r <reference.fasta> (-i <reads.fq> ... |
 
 You must supply markers (`-m`), a reference (`-r`), and exactly one input source: one or more files with `-i/--input`, **or** a sample list with `-l/--input-list`.
 
+## Inputs
+
+| What | Flag | Format |
+|---|---|---|
+| Marker panel | `-m, --markers` | [Marker TSV](marker_format.md), tab-separated |
+| Reference genome | `-r, --reference` | **Single-record** FASTA the marker positions are numbered against |
+| Reads | `-i, --input` or `-l, --input-list` | FASTQ, plain or gzipped |
+
+`-i` takes one or more files that together form **one** sample. `-l` takes a
+[sample list](input-formats.md#sample-list-tsv-split-fastq-and-match-input-list)
+where each row is an **independent** sample with its own report: `sample_name`
+followed by one or more FASTQ paths.
+
+### Requirements
+
+The run **fails** unless all of these hold:
+
+- [x] The reference is a **single record**, same rule as [`classify`](classify.md).
+- [x] Marker positions are **1-based on that exact reference**.
+- [x] `-k` between **1 and 31**.
+- [x] Sample names in `-l` are **unique**; a duplicate aborts the run.
+- [x] Every FASTQ path exists, checked before scanning starts.
+
+!!! warning "Indel markers are skipped here"
+    Any marker whose REF and ALT differ in length is dropped, and the count is
+    logged as `indels skipped`. Short reads across repetitive regions (PE/PPE
+    families, IS elements) give unreliable k-mer matches for insertions and
+    deletions. If your panel leans on indels, type assemblies with
+    [`classify`](classify.md) instead, which has full-length context.
+
+!!! warning "Use plain ACGT alleles"
+    Marker k-mers are 2-bit encoded. A marker containing an ambiguity code or
+    any other non-ACGT character is **never indexed**, so it silently becomes
+    unmatchable rather than raising an error.
+
+### Depth and allele fraction
+
+Two thresholds decide whether a marker is called, and they are the ones worth thinking about before a run:
+
+| Option | Default | What it means |
+|---|---|---|
+| `--min-depth` | `10` | REF + ALT k-mer hits needed at a position before it is called at all |
+| `--min-alt-percent` | `95` | Share of those hits that must carry the ALT allele |
+
+!!! info "The default is deliberately strict about mixtures"
+    At `95`, a position sitting at 60% ALT is **not called**, so intermediate
+    frequencies never reach the output. That is what you want for a clean
+    consensus call, and it is why mixed infections surface as **fixed markers on
+    incompatible lineage branches** rather than as intermediate fractions. Lower
+    it only if you intend to inspect within-sample frequencies, and expect
+    sequencing noise to come with them.
+
 ## How it works
 
 The marker database is built once and cached in memory, then reused for every sample in the run.

@@ -2,6 +2,13 @@
 
 pathotypr reads a small set of plain-text formats. Every file is **UTF-8**; every tabular file is **tab-separated** (`\t`) with **no spaces around the delimiters**. This page is the authoritative reference for each one — which command consumes it, the exact column semantics, and the parsing rules the tools apply.
 
+!!! tip "Looking for one command's inputs?"
+    This page is organised by **format**. Each command page also carries an
+    **Inputs** section listing exactly what that command needs and what it
+    rejects: [train](train.md#inputs) · [predict](predict.md#inputs) ·
+    [classify](classify.md#inputs) · [split-fastq](split-fastq.md#inputs) ·
+    [match](match.md#inputs).
+
 !!! abstract "Formats at a glance"
 
     | Format | Consumed by | Flag |

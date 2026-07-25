@@ -15,6 +15,34 @@ pathotypr match -r <references.fasta> (-i <reads.fq> ... | -l <list.tsv>) [-o <r
 
 You must supply exactly one input source (`-i/--input` or `-l/--input-list`) and a reference database (`-r/--references`).
 
+## Inputs
+
+| What | Flag | Format |
+|---|---|---|
+| Reference database | `-r, --references` | **Multi-record** FASTA: one record per candidate genome |
+| Reads | `-i, --input` or `-l, --input-list` | FASTQ, plain or gzipped |
+
+!!! danger "`match` pools everything into a single query"
+    This is the one place where a sample list does **not** mean one result per
+    row. `match` reads every FASTQ from every row, merges them into **one**
+    k-mer set, and reports **one** best-matching reference. The sample-name
+    column is read but ignored for grouping.
+
+    List only the reads belonging to the single query you want matched. To match
+    several samples, run `match` once per sample.
+
+### Requirements
+
+- [x] The reference FASTA is **multi-record**, the opposite of what [`classify`](classify.md) and [`split-fastq`](split-fastq.md) want. Each record is one candidate genome, and its header is what gets reported.
+- [x] `-k` between **1 and 31**.
+- [x] Every FASTQ path exists, checked before counting starts.
+
+!!! info "No markers and no reference coordinates"
+    `match` compares raw k-mer content, so it needs no marker panel, no GFF and
+    no shared coordinate system. That is what lets it answer "which of these
+    genomes is my sample closest to" for an unknown organism, before you have a
+    panel to type it with.
+
 ## How it works
 
 1. **Count** k-mers across every input FASTQ file in parallel, tallying occurrence counts.

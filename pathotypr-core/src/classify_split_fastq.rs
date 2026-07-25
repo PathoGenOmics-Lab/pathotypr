@@ -73,7 +73,8 @@ pub struct SplitFastqArgs {
     #[arg(long)]
     pub nested_classification: bool,
 
-    /// Size of diagnostic k-mers (must be odd, between 11 and 31). Default: 31.
+    /// Size of diagnostic k-mers (1-31). An odd value centres the variant in the
+    /// k-mer, so 31 or 21 are the usual choices. Default: 31.
     #[arg(short = 'k', long, default_value_t = split_kmer::DEFAULT_MARKER_KMER_LEN)]
     pub kmer_size: usize,
 

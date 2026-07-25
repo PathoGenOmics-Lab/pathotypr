@@ -20,6 +20,51 @@ pathotypr classify \
 
 Exactly one input source is required: a single FASTA (`-i`), a TSV list of samples (`-l`), or several FASTA files (`--input-files`). With `-i` and `--input-files` each FASTA **record** is treated as its own genome, so a multi-contig assembly yields one row per contig; `-l` aggregates every contig of a sample under its sample name.
 
+## Inputs
+
+`classify` needs three things, plus an optional annotation.
+
+| What | Flag | Format |
+|---|---|---|
+| Marker panel | `-m, --markers` | [Marker TSV](marker_format.md), tab-separated |
+| Reference genome | `-r, --reference` | **Single-record** FASTA that the marker positions are numbered against |
+| Genomes to type | one of `-i` / `-l` / `--input-files` | FASTA, plain or gzipped |
+| Annotation *(optional)* | `--gff` / `--gff-files` / list column 3 | [GFF3](input-formats.md#gff3-annotation-classify); adds gene and amino-acid columns |
+
+### Choosing the input source
+
+The three sources are **not** interchangeable, and the difference decides how your results are grouped:
+
+| Source | One row per | Use when |
+|---|---|---|
+| `-i, --input` | FASTA **record** | A single genome, or you want per-contig results |
+| `--input-files` | FASTA **record**, named `[file] record` | Several assemblies, per-contig results |
+| `-l, --input-list` | **sample** | Draft assemblies: every contig of a sample is aggregated under one name |
+
+!!! warning "Draft assemblies belong in `--input-list`"
+    With `-i` or `--input-files`, a 200-contig draft produces **200 rows**, each
+    typed on the handful of markers that happen to fall on that contig, and none
+    of them representing the isolate. Use `-l` and give the sample a name, so its
+    contigs are counted together.
+
+### Requirements
+
+The run **fails** unless all of these hold:
+
+- [x] The reference is a **single record**. A multi-FASTA is rejected with `contains multiple records; provide a single-record FASTA`.
+- [x] Marker positions are **1-based coordinates on that exact reference**. Nothing cross-checks this, so a panel built against a different assembly produces silently wrong calls.
+- [x] `--kmer-size` between **1 and 31**.
+- [x] `--min-flank-bases` below **half** of `--kmer-size`, or no marker k-mer can be built.
+- [x] Sample names in `-l` are **unique**; a duplicate aborts the run.
+- [x] Every path in the list exists, checked before any work starts.
+
+Rows in the marker TSV are skipped, with a log message, when they have fewer than 4 columns, a non-numeric position, an empty REF/ALT/lineage, or an allele too long for the k-mer window (`max(len(REF), len(ALT)) ≤ kmer_size − 2 × min_flank_bases`, so **11 bp** at defaults).
+
+!!! tip "Both strands are scanned"
+    Contig orientation in a draft assembly is arbitrary, so each contig is
+    scanned forward and reverse-complemented. A marker found on several contigs,
+    or on both strands, still counts **once**.
+
 ## Options
 
 | Option | Default | Required | Description |
