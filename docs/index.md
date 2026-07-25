@@ -7,19 +7,13 @@ genotypes them against user-defined marker panels. It works with both assembled
 genomes (FASTA) and raw sequencing reads (FASTQ), runs on a single laptop, and
 ships with a native desktop GUI.
 
-!!! warning "Validated for *M. tuberculosis* only"
-    Nothing in pathotypr is hard-coded to one organism — the marker panel you
-    supply defines what is being typed, so in principle any species works.
-
-    In practice it has **only been developed and validated on the
-    *Mycobacterium tuberculosis* complex (MTBC)**. The published marker panels,
-    the pre-trained model and every benchmark on this site are MTBC. Using
-    pathotypr for another organism is expected to work but is **untested**:
-    treat the results as exploratory and validate them against a truth set you
-    trust before relying on them.
-
 ![pathotypr workflow](assets/scheme.svg#only-light){ width="900" }
 ![pathotypr workflow](assets/scheme-dark.png#only-dark){ width="900" }
+
+!!! warning "Validated for *M. tuberculosis* only"
+    Nothing is hard-coded to one organism, so any species works in principle.
+    In practice pathotypr has only been validated on the MTBC: treat other
+    organisms as exploratory and check them against a truth set you trust.
 
 ## Five commands, one binary
 
