@@ -29,9 +29,9 @@ pathotypr is a Rust toolkit that classifies microbial genomes into lineages and 
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="frontend/pathotypr_scheme-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="frontend/pathotypr_scheme.svg">
-    <img src="frontend/pathotypr_scheme.svg" alt="pathotypr workflow schema" width="1200" />
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/scheme-dark.webp">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/scheme.svg">
+    <img src="docs/assets/scheme.svg" alt="pathotypr workflow schema" width="1200" />
   </picture>
 </p>
 

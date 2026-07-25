@@ -4,8 +4,8 @@
 
 import { refreshChartsForTheme } from './visualization.js';
 
-const SCHEME_LIGHT_SRC = 'pathotypr_scheme.png';
-const SCHEME_DARK_SRC = 'pathotypr_scheme-dark.png';
+const SCHEME_LIGHT_SRC = 'pathotypr_scheme.webp';
+const SCHEME_DARK_SRC = 'pathotypr_scheme-dark.webp';
 
 /**
  * Setup theme toggle button
