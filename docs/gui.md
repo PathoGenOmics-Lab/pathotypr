@@ -129,9 +129,8 @@ src-tauri/
 └── tauri.conf.json
 
 frontend/
-├── index.html        # Main page layout
+├── index.html        # Main page layout (loads js/main.js as a module)
 ├── styles.css        # Styling
-├── app.js            # Legacy, unused (the entry point is js/main.js)
 └── js/
     ├── main.js       # Initialization
     ├── forms.js      # Form submission handlers
