@@ -10,6 +10,34 @@
 pathotypr predict -i <query.fasta> -m <model.pathotypr.zst> -o <predictions.tsv> [OPTIONS]
 ```
 
+## Inputs
+
+`predict` needs two files.
+
+| What | Flag | Format |
+|---|---|---|
+| Genomes to classify | `-i, --input` | FASTA, plain or gzipped. Multi-record is fine, and **each record is classified separately** |
+| Trained model | `-m, --model` | A `.pathotypr.zst` bundle written by [`train`](train.md) |
+
+### Requirements
+
+- [x] The model must be a **current-format bundle**. An incompatible format version is a hard error and the model has to be retrained. A bundle written by a different pathotypr version only warns.
+- [x] Records **shorter than the model's k** are skipped with a warning: no k-mer can be extracted from them.
+- [x] No labels are needed or read. The **full header** is carried through to the output.
+
+!!! warning "The model dictates k, not you"
+    `predict` has no `-k`. The k-mer size is whatever `train` used and is stored
+    in the bundle, so a model trained at `k=21` always vectorises queries at
+    `k=21`. This is also why the minimum usable sequence length depends on the
+    model rather than on the query file.
+
+!!! info "Every record gets a call"
+    There is no "unknown" class and no confidence threshold. A query from a
+    lineage absent from the training set still receives the closest label the
+    forest can find, distinguishable only by a **low confidence and margin**.
+    Read those two columns before acting on a call: see
+    [Output](#predictionstsv-always-written) for what they mean.
+
 ## Options
 
 | Option | Default | Required | Description |
