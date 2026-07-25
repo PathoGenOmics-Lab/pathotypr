@@ -5,19 +5,21 @@ pathotypr ships as a **native desktop app**, a **command-line binary**, and as
 
 ## Desktop GUI (pre-built)
 
-Download the latest release for your platform:
+[:material-download: **Download the latest release**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest){ .md-button .md-button--primary }
 
-| Platform | Download | Notes |
+Then pick the file for your platform:
+
+| Platform | File | Notes |
 |---|---|---|
-| :material-apple: macOS (Apple Silicon) | [**Pathotypr_1.0.0_aarch64.dmg**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr_1.0.0_aarch64.dmg) | M1 / M2 / M3 / M4 Macs |
-| :material-apple: macOS (Intel) | [**Pathotypr_1.0.0_x64.dmg**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr_1.0.0_x64.dmg) | Pre-2020 Macs |
-| :material-linux: Linux (.deb) | [**Pathotypr_1.0.0_amd64.deb**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr_1.0.0_amd64.deb) | Debian / Ubuntu |
-| :material-linux: Linux (.rpm) | [**Pathotypr-1.0.0-1.x86_64.rpm**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr-1.0.0-1.x86_64.rpm) | Fedora / RHEL |
-| :material-linux: Linux (AppImage) | [**Pathotypr_1.0.0_amd64.AppImage**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr_1.0.0_amd64.AppImage) | Any distro, no install needed |
-| :material-microsoft-windows: Windows (installer) | [**Pathotypr_1.0.0_x64-setup.exe**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr_1.0.0_x64-setup.exe) | Windows 10+ |
-| :material-microsoft-windows: Windows (.msi) | [**Pathotypr_1.0.0_x64_en-US.msi**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr_1.0.0_x64_en-US.msi) | Windows 10+ (MSI) |
+| :material-apple: macOS (Apple Silicon) | `Pathotypr_<version>_aarch64.dmg` | M1 / M2 / M3 / M4 Macs |
+| :material-apple: macOS (Intel) | `Pathotypr_<version>_x64.dmg` | Pre-2020 Macs |
+| :material-linux: Linux (.deb) | `Pathotypr_<version>_amd64.deb` | Debian / Ubuntu |
+| :material-linux: Linux (.rpm) | `Pathotypr-<version>-1.x86_64.rpm` | Fedora / RHEL |
+| :material-linux: Linux (AppImage) | `Pathotypr_<version>_amd64.AppImage` | Any distro, no install needed |
+| :material-microsoft-windows: Windows (installer) | `Pathotypr_<version>_x64-setup.exe` | Windows 10+ |
+| :material-microsoft-windows: Windows (.msi) | `Pathotypr_<version>_x64_en-US.msi` | Windows 10+ (MSI) |
 
-All builds are on the [**Releases page**](https://github.com/PathoGenOmics-Lab/pathotypr/releases).
+Older versions are on the [releases page](https://github.com/PathoGenOmics-Lab/pathotypr/releases).
 
 !!! warning "First launch on macOS and Windows"
     The app is **not** signed with a paid developer certificate, so the OS may
@@ -76,7 +78,7 @@ Ready-to-use marker panels and a pre-trained Random Forest model for
 | File | Description | Download |
 |---|---|---|
 | `pathotypr_lineage_markers_v1.0.0.tsv` | 3,707 lineage SNPs (L1–L10, A1–A4) | [:material-download: Download](https://zenodo.org/records/19210044/files/pathotypr_lineage_markers_v1.0.0.tsv?download=1) |
-| `pathotypr_dr_markers_v1.0.0.tsv` | 102,213 DR mutations (WHO catalogue 2021) | [:material-download: Download](https://zenodo.org/records/19210044/files/pathotypr_dr_markers_v1.0.0.tsv?download=1) |
+| `pathotypr_dr_markers_v1.0.0.tsv` | 102,213 DR mutations (WHO catalogue v2, 2023) | [:material-download: Download](https://zenodo.org/records/19210044/files/pathotypr_dr_markers_v1.0.0.tsv?download=1) |
 | `pathotypr_rf_model_v1.0.0.pathotypr` | Pre-trained RF model (k=31, 100 trees) | [:material-download: Download](https://zenodo.org/records/19210044/files/pathotypr_rf_model_v1.0.0.pathotypr?download=1) |
 
 !!! info "DOI"

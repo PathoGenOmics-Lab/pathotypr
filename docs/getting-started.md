@@ -52,7 +52,7 @@ The marker panel and pre-trained model live on Zenodo ([record 19210044](https:/
     curl -L -o pathotypr_lineage_markers_v1.0.0.tsv \
       "https://zenodo.org/records/19210044/files/pathotypr_lineage_markers_v1.0.0.tsv?download=1"
 
-    # Drug-resistance panel (WHO catalogue 2021)
+    # Drug-resistance panel (WHO catalogue v2, 2023)
     curl -L -o pathotypr_dr_markers_v1.0.0.tsv \
       "https://zenodo.org/records/19210044/files/pathotypr_dr_markers_v1.0.0.tsv?download=1"
 
@@ -72,7 +72,7 @@ The marker panel and pre-trained model live on Zenodo ([record 19210044](https:/
     wget -O pathotypr_lineage_markers_v1.0.0.tsv \
       "https://zenodo.org/records/19210044/files/pathotypr_lineage_markers_v1.0.0.tsv?download=1"
 
-    # Drug-resistance panel (WHO catalogue 2021)
+    # Drug-resistance panel (WHO catalogue v2, 2023)
     wget -O pathotypr_dr_markers_v1.0.0.tsv \
       "https://zenodo.org/records/19210044/files/pathotypr_dr_markers_v1.0.0.tsv?download=1"
 

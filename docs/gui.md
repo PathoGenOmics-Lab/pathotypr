@@ -7,12 +7,14 @@ pathotypr includes a native desktop application built with [Tauri](https://tauri
 **Download a ready-built installer — you do not need to compile anything.**
 Installers for macOS, Linux and Windows are published with every release:
 
-| Platform | Download |
+[:material-download: **Download the latest release**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest){ .md-button .md-button--primary }
+
+| Platform | File |
 |---|---|
-| :material-apple: macOS (Apple Silicon) | [**Pathotypr_1.0.0_aarch64.dmg**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr_1.0.0_aarch64.dmg) |
-| :material-apple: macOS (Intel) | [**Pathotypr_1.0.0_x64.dmg**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr_1.0.0_x64.dmg) |
-| :material-linux: Linux (.deb / .rpm / AppImage) | [**Releases page**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest) |
-| :material-microsoft-windows: Windows | [**Pathotypr_1.0.0_x64-setup.exe**](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest/download/Pathotypr_1.0.0_x64-setup.exe) |
+| :material-apple: macOS (Apple Silicon) | `Pathotypr_<version>_aarch64.dmg` |
+| :material-apple: macOS (Intel) | `Pathotypr_<version>_x64.dmg` |
+| :material-linux: Linux | `.deb`, `.rpm` or `.AppImage` |
+| :material-microsoft-windows: Windows | `Pathotypr_<version>_x64-setup.exe` |
 
 See [Installation](installation.md) for every bundle, and for the first-launch
 note on macOS and Windows.
