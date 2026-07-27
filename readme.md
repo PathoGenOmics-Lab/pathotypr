@@ -13,7 +13,9 @@
 
 **Lineage classification and marker-driven genotyping — from assemblies or raw reads.**
 
-[Quick Start](#quick-start) · [Commands](#commands) · [GUI](#gui) · [Documentation](https://pathogenomics-lab.github.io/pathotypr/) · [Citation](#citation)
+### 📖 [**Read the documentation**](https://pathogenomics-lab.github.io/pathotypr/)
+
+Tutorials, every command option, input formats, output columns and benchmarks.
 
 </div>
 
@@ -36,46 +38,20 @@ pathotypr is a Rust toolkit that classifies microbial genomes into lineages and 
   </picture>
 </p>
 
-**Five commands, one binary:**
-
-| Command | What it does | Input |
-|---|---|---|
-| **`train`** | Build a Random Forest classifier from labeled genomes | FASTA |
-| **`predict`** | Assign lineages using a trained model | FASTA + model |
-| **`classify`** | Call known SNP markers in assemblies | FASTA + markers |
-| **`split-fastq`** | Alignment-free genotyping from reads | FASTQ + markers |
-| **`match`** | Find the closest reference genome | FASTQ + references |
-
-**Key features:**
-- 🦠 **Organism-agnostic** — bring your own markers for any pathogen
-- ⚡ **Fast** — Rust + SIMD gzip + parallel k-mers (~1–2 s per sample)
-- 🖥️ **Desktop GUI** — native app via Tauri, no server required
-- 📊 **Excel + TSV** output with interactive visualizations in the GUI
-
-## Installation
-
-### Desktop GUI (pre-built)
-
-**[⬇ Download the latest release](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest)**, then pick the file for your platform:
-
-| Platform | File | Notes |
-|---|---|---|
-| 🍎 macOS (Apple Silicon) | `Pathotypr_<version>_aarch64.dmg` | M1 / M2 / M3 / M4 Macs |
-| 🍎 macOS (Intel) | `Pathotypr_<version>_x64.dmg` | Pre-2020 Macs |
-| 🐧 Linux (.deb) | `Pathotypr_<version>_amd64.deb` | Debian / Ubuntu |
-| 🐧 Linux (.rpm) | `Pathotypr-<version>-1.x86_64.rpm` | Fedora / RHEL |
-| 🐧 Linux (AppImage) | `Pathotypr_<version>_amd64.AppImage` | Any distro, no install needed |
-| 🪟 Windows (installer) | `Pathotypr_<version>_x64-setup.exe` | Windows 10+ |
-| 🪟 Windows (.msi) | `Pathotypr_<version>_x64_en-US.msi` | Windows 10+ (MSI) |
+| Command | What it does | Input | Guide |
+|---|---|---|---|
+| **`train`** | Build a Random Forest classifier from labeled genomes | FASTA | [docs](https://pathogenomics-lab.github.io/pathotypr/train/) |
+| **`predict`** | Assign lineages using a trained model | FASTA + model | [docs](https://pathogenomics-lab.github.io/pathotypr/predict/) |
+| **`classify`** | Call known SNP markers in assemblies | FASTA + markers | [docs](https://pathogenomics-lab.github.io/pathotypr/classify/) |
+| **`split-fastq`** | Alignment-free genotyping from reads | FASTQ + markers | [docs](https://pathogenomics-lab.github.io/pathotypr/split-fastq/) |
+| **`match`** | Find the closest reference genome | FASTQ + references | [docs](https://pathogenomics-lab.github.io/pathotypr/match/) |
 
 > [!NOTE]
-> **macOS users**: The app is not signed with an Apple Developer certificate. On first launch, right-click the app → **Open** → click **Open** in the dialog. See [Apple support](https://support.apple.com/en-us/HT202491) for details.
->
-> **Windows users**: Windows SmartScreen may show a warning for unrecognized apps. Click **More info** → **Run anyway** to proceed.
+> Nothing is hard-coded to one organism: the marker panel you supply defines what is typed. In practice pathotypr has only been validated on the *M. tuberculosis* complex, so treat other organisms as exploratory and check them against a truth set you trust.
 
-Older versions are on the [releases page](https://github.com/PathoGenOmics-Lab/pathotypr/releases).
+## Install
 
-### CLI (Bioconda)
+**Command line**
 
 ```bash
 conda create -n pathotypr -c bioconda pathotypr
@@ -83,197 +59,55 @@ conda activate pathotypr
 pathotypr --help
 ```
 
-### CLI (from source)
+**Desktop app**: [download an installer](https://github.com/PathoGenOmics-Lab/pathotypr/releases/latest) for macOS, Linux or Windows. No compiler needed.
+
+Building from source, system dependencies and the first-launch notes for unsigned apps are in the [installation guide](https://pathogenomics-lab.github.io/pathotypr/installation/).
+
+## Quick start
 
 ```bash
-git clone https://github.com/PathoGenOmics-Lab/pathotypr.git
-cd pathotypr
-cargo build --release -p pathotypr-core --bin pathotypr
-./target/release/pathotypr --help
-```
-
-### GUI (from source)
-
-See [docs/gui.md](https://pathogenomics-lab.github.io/pathotypr/gui/) for building the Tauri desktop app from source.
-
-## MTBC Marker Files & Pre-trained Model
-
-Ready-to-use marker panels and a pre-trained Random Forest model for *Mycobacterium tuberculosis* complex (MTBC) are available on Zenodo:
-
-| File | Description | Download |
-|---|---|---|
-| `pathotypr_lineage_markers_v1.0.0.tsv` | 3,707 lineage SNPs (L1–L10, A1–A4) | [⬇ Download](https://zenodo.org/records/19210044/files/pathotypr_lineage_markers_v1.0.0.tsv?download=1) |
-| `pathotypr_dr_markers_v1.0.0.tsv` | 102,213 DR mutations (WHO catalogue v2, 2023) | [⬇ Download](https://zenodo.org/records/19210044/files/pathotypr_dr_markers_v1.0.0.tsv?download=1) |
-| `pathotypr_rf_model_v1.0.0.pathotypr` | Pre-trained RF model (k=31, 100 trees) | [⬇ Download](https://zenodo.org/records/19210044/files/pathotypr_rf_model_v1.0.0.pathotypr?download=1) |
-
-> **DOI:** [10.5281/zenodo.19210044](https://zenodo.org/records/19210044)
-
-## Quick Start
-
-```bash
-# Train a lineage model
-pathotypr train -i labeled_genomes.fasta -o model.pathotypr.zst
-
-# Predict lineages
-pathotypr predict -i query.fasta -m model.pathotypr.zst -o predictions.tsv
-
-# Classify markers in assemblies
+# Genotype an assembly against a marker panel
 pathotypr classify -m markers.tsv -r reference.fasta -i sample.fasta -o results
 
-# Genotype from FASTQ reads
+# Genotype straight from reads
 pathotypr split-fastq -m markers.tsv -r reference.fasta \
-  -i reads_R1.fastq.gz -i reads_R2.fastq.gz --paired -o genotype
+  -i reads_R1.fastq.gz -i reads_R2.fastq.gz -o genotype
 
-# Find best reference match
-pathotypr match -i reads_R1.fastq.gz reads_R2.fastq.gz \
-  -r references.fasta -o match.tsv
+# Train a model, then apply it
+pathotypr train   -i labeled_genomes.fasta -o model.pathotypr.zst
+pathotypr predict -i query.fasta -m model.pathotypr.zst -o predictions.tsv
 ```
 
-Add `--excel` to any command to also generate `.xlsx` files.
+Add `--excel` to any command to also write `.xlsx`. The
+[getting started tutorial](https://pathogenomics-lab.github.io/pathotypr/getting-started/)
+walks through a full MTBC run, from install to reading the output.
 
-## Commands
+## Ready-to-use MTBC data
 
-Each command has its own detailed documentation:
+Marker panels and a pre-trained model for the *M. tuberculosis* complex are published on Zenodo, DOI [10.5281/zenodo.19210044](https://doi.org/10.5281/zenodo.19210044):
 
-| Command | Docs | Summary |
-|---|---|---|
-| `train` | [docs/train.md](https://pathogenomics-lab.github.io/pathotypr/train/) | Random Forest on k-mer feature-hashed vectors |
-| `predict` | [docs/predict.md](https://pathogenomics-lab.github.io/pathotypr/predict/) | Streaming batch prediction with confidence scores |
-| `classify` | [docs/classify.md](https://pathogenomics-lab.github.io/pathotypr/classify/) | Marker k-mer matching + GFF annotation + masked FASTA |
-| `split-fastq` | [docs/split-fastq.md](https://pathogenomics-lab.github.io/pathotypr/split-fastq/) | Alignment-free genotyping with Bloom filter acceleration |
-| `match` | [docs/match.md](https://pathogenomics-lab.github.io/pathotypr/match/) | K-mer containment scoring against reference databases |
-
-Run `pathotypr <command> --help` for all options.
-
-### Algorithm Details
-
-For in-depth descriptions of the algorithms, data structures, and design decisions behind each module, see [docs/algorithms/](https://pathogenomics-lab.github.io/pathotypr/algorithms/):
-
-| Document | Topic |
+| File | Contents |
 |---|---|
-| [Feature Hashing](https://pathogenomics-lab.github.io/pathotypr/algorithms/feature-hashing/) | The hashing trick: k-mers → fixed-size sparse vectors |
-| [Random Forest](https://pathogenomics-lab.github.io/pathotypr/algorithms/random-forest/) | Sparse CART trees with bootstrap aggregation |
-| [Training Pipeline](https://pathogenomics-lab.github.io/pathotypr/algorithms/training/) | Vectorize → evaluate → train → OOB → export |
-| [Prediction](https://pathogenomics-lab.github.io/pathotypr/algorithms/prediction/) | Streaming batch prediction with majority voting |
-| [Marker Genotyping](https://pathogenomics-lab.github.io/pathotypr/algorithms/marker-genotyping/) | Diagnostic k-mers + Bloom filter for FASTQ scanning |
-| [Reference Matching](https://pathogenomics-lab.github.io/pathotypr/algorithms/reference-matching/) | K-mer containment scoring with streaming batches |
-| [Assembly Classification](https://pathogenomics-lab.github.io/pathotypr/algorithms/assembly-classification/) | Marker calling on FASTA with GFF annotation |
+| `pathotypr_lineage_markers_v1.0.0.tsv` | 3,707 lineage SNPs (L1–L10, A1–A4) |
+| `pathotypr_dr_markers_v1.0.0.tsv` | 102,213 DR mutations (WHO catalogue v2, 2023) |
+| `pathotypr_rf_model_v1.0.0.pathotypr` | Pre-trained Random Forest (k=31, 100 trees) |
 
-## Input Formats
+Download links and usage are in the [installation guide](https://pathogenomics-lab.github.io/pathotypr/installation/#mtbc-marker-files-pre-trained-model).
 
-### Training FASTA
+## Documentation
 
-The first token in each header is the class label:
+Everything lives at **[pathogenomics-lab.github.io/pathotypr](https://pathogenomics-lab.github.io/pathotypr/)**:
 
-```
->L4 sample_0001
-ACTG...
->L2 sample_0002
-ACTG...
-```
-
-### Marker TSV
-
-Tab-separated: `position  REF  ALT  level1  [level2  ...]`
-
-```
-#pos    ref    alt    level1    level2
-761155  C      T      L4        L4.9
-2155168 G      A      L2        L2.2
-```
-
-Lineage columns are read until the first empty cell. Columns after the empty cell are treated as annotations.
-
-> See [docs/input-formats.md](https://pathogenomics-lab.github.io/pathotypr/input-formats/) for full format specifications.
-
-## GUI
-
-The desktop app includes all five workflows with drag-and-drop file selection, interactive result tables, and real-time progress indicators.
-
-```bash
-# Development
-cargo tauri dev
-
-# Production build
-cargo tauri build
-```
-
-> See [docs/gui.md](https://pathogenomics-lab.github.io/pathotypr/gui/) for system dependencies and build instructions.
-
-## Performance
-
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="benchmarks/figures/dashboard-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="benchmarks/figures/dashboard.png">
-    <img src="benchmarks/figures/dashboard.png" alt="pathotypr performance benchmarks" width="900" />
-  </picture>
-</p>
-
-Benchmarked on real *M. tuberculosis* genomes (~4.4 Mb, k=21), Mac mini M4, 4 threads:
-
-| Module | Time | Peak RAM | Key property |
-|---|---|---|---|
-| **train** (10 genomes) | 0.6 s | 302 MB | Scales with dataset size |
-| **train** (50 genomes) | 55 s | 1.4 GB | |
-| **predict** (5 genomes) | 0.25 s | 198 MB | ~50 ms/genome, constant |
-| **classify** (5 genomes) | 0.10 s | 92 MB | ~20 ms/genome |
-| **split-fastq** (65× PE) | 10.5 s | 26 MB | **Constant memory** |
-| **match** (20 refs) | 78 s | 4.6 GB | Streaming batches |
-
-- **SIMD-accelerated** gzip decompression (zlib-ng)
-- **Streaming** I/O — split-fastq holds 26 MB regardless of input size
-- **85,000+ genomes/second** prediction throughput (synthetic benchmarks)
-
-> See [docs/benchmarks.md](https://pathogenomics-lab.github.io/pathotypr/benchmarks/) for detailed charts, scaling plots, and pathotypr vs fastlin comparison.
-
-## Comparison
-
-| | pathotypr | fastlin | TB-Profiler | Mykrobe | SNP-IT | KvarQ |
-|---|---|---|---|---|---|---|
-| Alignment-free (FASTQ) | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ |
-| Assemblies (FASTA) | ✅ | ✅ | ❌ | ❌ | VCF only | ❌ |
-| Custom markers | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| ML training | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ |
-| DR prediction | ✅ | ❌ | ✅ | ✅ | ❌ | ✅ |
-| Desktop GUI | ✅ | ❌ | Web | ✅ | ❌ | ✅ |
-| Standalone binary | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Organism-agnostic | ✅ | TB only | TB only | Limited | TB only | TB only |
-| Speed (per sample) | ~1 s | <5 s | 3–10 min | ~3 min | 1–2 min | ~2 min |
-
-## Project Structure
-
-```
-pathotypr/
-├── pathotypr-core/           # Core library + CLI
-│   └── src/
-│       ├── main.rs           # CLI entry point
-│       ├── train.rs          # Random Forest training + OOB + CV
-│       ├── predict.rs        # Streaming batch prediction
-│       ├── classify/         # Assembly-based marker classification
-│       │   ├── mod.rs        #   Orchestration + genome analysis
-│       │   ├── markers.rs    #   Marker parsing + k-mer generation
-│       │   ├── annotation.rs #   GFF parsing + AA translation
-│       │   └── masking.rs    #   FASTA masking at marker sites
-│       ├── classify_split_fastq.rs  # FASTQ genotyping orchestration
-│       ├── split_kmer.rs     # Diagnostic k-mer engine + Bloom filter
-│       ├── match/            # Reference matching
-│       │   ├── mod.rs        #   Scoring + coarse-to-fine matching
-│       │   └── index.rs      #   Compact inverted index + cache
-│       ├── sparse_tree.rs    # Custom CART on sparse vectors
-│       ├── vectorizer.rs     # Feature hashing (hashing trick)
-│       ├── model.rs          # Model bundle + label encoder
-│       ├── lineage.rs        # Hierarchical lineage classification
-│       ├── fasta_io.rs       # FASTA reading (needletail)
-│       ├── paired_end.rs     # Paired-end FASTQ detection
-│       ├── excel.rs          # Streaming Excel export
-│       ├── errors.rs         # Error types + cancellation
-│       └── common.rs         # Thread pool + shared utilities
-├── src-tauri/                # Desktop app backend (Tauri)
-├── frontend/                 # GUI (HTML/CSS/JS)
-├── docs/                     # Detailed documentation
-└── logo/                     # Branding assets
-```
+| | |
+|---|---|
+| [Getting started](https://pathogenomics-lab.github.io/pathotypr/getting-started/) | End-to-end MTBC tutorial |
+| [Input formats](https://pathogenomics-lab.github.io/pathotypr/input-formats/) | What every file must look like, per command |
+| [Marker format](https://pathogenomics-lab.github.io/pathotypr/marker_format/) | Curating your own panel |
+| [Output files](https://pathogenomics-lab.github.io/pathotypr/output-files/) | Every column of every file |
+| [Desktop GUI](https://pathogenomics-lab.github.io/pathotypr/gui/) | The app, and building it |
+| [Algorithms](https://pathogenomics-lab.github.io/pathotypr/algorithms/) | How each module works |
+| [Benchmarks](https://pathogenomics-lab.github.io/pathotypr/benchmarks/) | Speed, memory and tool comparison |
+| [FAQ](https://pathogenomics-lab.github.io/pathotypr/faq/) | Common problems |
 
 ## Citation
 
@@ -281,25 +115,14 @@ If you use pathotypr, please cite:
 
 > Ruiz-Rodriguez P, Coscollá M. **Pathotypr: harmonised MTBC lineage assignment and resistance-associated variant detection for genomic surveillance.** *bioRxiv* (2026). doi: [10.64898/2026.03.24.714002](https://doi.org/10.64898/2026.03.24.714002)
 
-```bibtex
-@article{ruiz-rodriguez_pathotypr_2026,
-  title     = {Pathotypr: harmonised {MTBC} lineage assignment and resistance-associated variant detection for genomic surveillance},
-  author    = {Ruiz-Rodriguez, Paula and Coscoll{\'a}, Mireia},
-  journal   = {bioRxiv},
-  year      = {2026},
-  doi       = {10.64898/2026.03.24.714002},
-  url       = {https://www.biorxiv.org/content/10.64898/2026.03.24.714002v1}
-}
-```
-
-> Software & markers DOI: [10.5281/zenodo.19210044](https://doi.org/10.5281/zenodo.19210044)
+BibTeX, RIS and APA entries, plus the software DOI, are on the
+[citation page](https://pathogenomics-lab.github.io/pathotypr/citation/).
 
 ## License
 
 [GNU Affero General Public License v3.0](LICENSE)
 
 ---
-
 <h2 id="contributors" align="center">
 
 ✨ [Contributors](https://github.com/PathoGenOmics-Lab/pathotypr/graphs/contributors)
@@ -348,4 +171,3 @@ This project follows the [all-contributors](https://github.com/all-contributors/
 <!-- prettier-ignore-end -->
 
 <!-- ALL-CONTRIBUTORS-LIST:END -->
----
