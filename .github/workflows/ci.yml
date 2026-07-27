@@ -33,3 +33,48 @@ jobs:
 
       - name: Format check
         run: cargo fmt --check -p pathotypr-core 2>/dev/null || true
+
+  # The core job never builds the desktop backend, so nothing used to compile
+  # reqwest, the HTTP client or the TLS stack on a pull request.
+  gui:
+    name: GUI (Linux)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # cmake for pathotypr-core; the rest is the GTK and WebKit stack the
+      # Tauri backend links against, matching what release.yml installs.
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake \
+            pkg-config \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check (gui)
+        run: cargo check -p pathotypr-gui
+
+      # reqwest is pinned to rustls so the Linux build carries no OpenSSL. A
+      # dependency bump could quietly pull native-tls back in, and openssl
+      # with it, without anything else here noticing.
+      - name: Assert the Linux build carries no OpenSSL
+        shell: bash
+        run: |
+          set -euo pipefail
+          tree=$(cargo tree -p pathotypr-gui \
+            --target x86_64-unknown-linux-gnu --edges normal --prefix none)
+          if grep -qE '^(openssl|native-tls) v' <<<"$tree"; then
+            echo "::error::native-tls or openssl is back in the Linux dependency graph"
+            grep -E '^(openssl|native-tls) v' <<<"$tree" | sort -u
+            exit 1
+          fi
+          echo "No openssl and no native-tls in the Linux dependency graph."
