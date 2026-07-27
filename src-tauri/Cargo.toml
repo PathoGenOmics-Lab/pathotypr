@@ -15,7 +15,17 @@ tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
-reqwest = { version = "0.12", features = ["stream"] }
+# rustls instead of the default native-tls: on Linux native-tls binds the
+# system OpenSSL, which put a whole C TLS stack in the graph just to fetch
+# files over HTTPS. Roots come from the system store, so users behind an
+# institutional proxy with a private CA keep working.
+reqwest = { version = "0.12", default-features = false, features = [
+    "stream",
+    "rustls-tls-native-roots",
+    "charset",
+    "http2",
+    "system-proxy",
+] }
 tokio-util = { version = "0.7", features = ["io"] }
 futures-util = "0.3"
 log = "0.4"
