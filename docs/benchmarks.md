@@ -115,6 +115,27 @@ Match is the most memory-intensive module: each reference batch loads ~4.4 Mb ge
 
 ---
 
+## Feature comparison with other MTBC tools
+
+Where pathotypr sits next to the tools it is most often compared with.
+
+| | pathotypr | fastlin | TB-Profiler | Mykrobe | SNP-IT | KvarQ |
+|---|---|---|---|---|---|---|
+| Alignment-free (FASTQ) | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ |
+| Assemblies (FASTA) | ✅ | ✅ | ❌ | ❌ | VCF only | ❌ |
+| Custom markers | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| ML training | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ |
+| DR prediction | ✅ | ❌ | ✅ | ✅ | ❌ | ✅ |
+| Desktop GUI | ✅ | ❌ | Web | ✅ | ❌ | ✅ |
+| Standalone binary | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Organism-agnostic | ✅ | TB only | TB only | Limited | TB only | TB only |
+| Speed (per sample) | ~1 s | <5 s | 3–10 min | ~3 min | 1–2 min | ~2 min |
+
+Only the pathotypr and fastlin timings below were measured here; the rest of the
+table reflects each tool's documented capabilities and reported runtimes.
+
+---
+
 ## pathotypr vs fastlin — Real TB Data
 
 Head-to-head comparison using real *Mycobacterium tuberculosis* FASTQ samples from the European Nucleotide Archive.
