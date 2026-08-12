@@ -453,86 +453,85 @@ export function clearActivePanelDropzones() {
 }
 
 /**
- * Smart-route dropped files to the correct dropzone based on file extension.
- * Groups files by matching extension → dropzone, then assigns them.
- * Returns true if at least one file was routed successfully.
+ * Route dropped files by extension, but only where the extension is unambiguous.
+ *
+ * A panel can offer several fields for the same extension — classify takes .fasta for
+ * both the reference and the samples, and .tsv for both the markers and the input list.
+ * Guessing between them is worse than not routing: a reference genome silently loaded as
+ * a sample is a wrong run, not a small annoyance. So a file that matches more than one
+ * field is left alone and reported, and the user drops it on the field they mean.
+ *
+ * Returns true if at least one file was routed.
  */
 async function smartRouteFiles(paths) {
   const activePanel = document.querySelector('.panel.active');
   if (!activePanel) return false;
 
-  // Collect all visible dropzones in the active panel
   const dropzones = Array.from(activePanel.querySelectorAll('.dropzone[data-target]'))
     .filter(dz => !dz.closest('.hidden'));
-
   if (dropzones.length === 0) return false;
 
-  // Group files by which dropzone they match
-  const routeMap = new Map(); // dropzone → [paths]
-  const unrouted = [];
-
-  // A dropzone the user has already filled before this drop.
-  const isPreFilled = (dz) => {
-    const input = document.getElementById(dz.dataset.target);
-    return Boolean(
-      String(input?.value || '').trim() ||
-      (input?.dataset?.files && input.dataset.files !== '[]')
-    );
-  };
-  // A single-file dropzone can only take one file from this drop.
-  const canAccept = (dz) => dz.dataset.multiple === 'true' || !routeMap.has(dz);
+  const routeMap = new Map();      // dropzone -> [paths]
+  const ambiguous = [];            // [{ path, candidates }]
+  const unmatched = [];
+  const overflow = [];             // matched a single-file field already taken by this drop
 
   for (const filePath of paths) {
-    let matched = false;
-    // Two passes: prefer a dropzone that is still empty, so dropping a second
-    // file of the same type does not overwrite an input the user already
-    // filled (e.g. landing a sample FASTA on top of the reference). Only if no
-    // empty dropzone matches do we fall back to any matching one.
-    for (const preferEmpty of [true, false]) {
-      for (const dz of dropzones) {
-        const extensions = dz.dataset.extensions?.split(',') || [];
-        if (extensions.length === 0 || !validateFileExtension(filePath, extensions)) continue;
-        if (!canAccept(dz)) continue;
-        if (preferEmpty && isPreFilled(dz)) continue;
+    const candidates = dropzones.filter(dz => {
+      const extensions = dz.dataset.extensions?.split(',') || [];
+      return extensions.length > 0 && validateFileExtension(filePath, extensions);
+    });
+
+    if (candidates.length === 0) {
+      unmatched.push(filePath);
+    } else if (candidates.length > 1) {
+      ambiguous.push({ path: filePath, candidates });
+    } else {
+      const dz = candidates[0];
+      const isMultiple = dz.dataset.multiple === 'true';
+      if (!isMultiple && routeMap.has(dz)) {
+        overflow.push({ path: filePath, dropzone: dz });
+      } else {
         if (!routeMap.has(dz)) routeMap.set(dz, []);
         routeMap.get(dz).push(filePath);
-        matched = true;
-        break;
       }
-      if (matched) break;
     }
-    if (!matched) unrouted.push(filePath);
   }
 
-  if (routeMap.size === 0) return false;
-
-  // Assign files to their matched dropzones in parallel
-  const assignments = [...routeMap.entries()].map(([dz, filePaths]) => {
-    const targetId = dz.dataset.target;
-    const isMultiple = dz.dataset.multiple === 'true';
-
-    const promise = isMultiple
-      ? setDropzoneFiles(dz, targetId, filePaths)
-      : setDropzoneFile(dz, targetId, filePaths[0]).then(() => {
-          if (filePaths.length > 1) {
-            logMessage(`Only first file assigned to ${targetId} (single file input).`, 'warning');
-          }
-        });
-
-    dz.classList.add('drop-received');
-    setTimeout(() => dz.classList.remove('drop-received'), TIMING.DROP_FEEDBACK);
-    return promise;
-  });
-  await Promise.all(assignments);
-
-  // Report results
-  const routedCount = paths.length - unrouted.length;
-  const dzNames = [...routeMap.keys()].map(dropzoneLabel);
-  logMessage(`Auto-routed ${routedCount} file(s) to: ${dzNames.join(', ')}`, 'success');
-
-  if (unrouted.length > 0) {
-    logMessage(`${unrouted.length} file(s) could not be matched: ${unrouted.map(getFileName).join(', ')}`, 'warning');
+  if (routeMap.size > 0) {
+    const assignments = [...routeMap.entries()].map(([dz, filePaths]) => {
+      const targetId = dz.dataset.target;
+      const promise = dz.dataset.multiple === 'true'
+        ? setDropzoneFiles(dz, targetId, filePaths)
+        : setDropzoneFile(dz, targetId, filePaths[0]);
+      dz.classList.add('drop-received');
+      setTimeout(() => dz.classList.remove('drop-received'), TIMING.DROP_FEEDBACK);
+      return promise;
+    });
+    await Promise.all(assignments);
+    logMessage(
+      `Auto-routed ${paths.length - ambiguous.length - unmatched.length - overflow.length} ` +
+      `file(s) to: ${[...routeMap.keys()].map(dropzoneLabel).join(', ')}`,
+      'success'
+    );
   }
 
-  return true;
+  for (const { path, candidates } of ambiguous) {
+    logMessage(
+      `${getFileName(path)} fits ${candidates.map(dropzoneLabel).join(' or ')}. ` +
+      `Drop it on the field you want.`,
+      'warning'
+    );
+  }
+  for (const { path, dropzone } of overflow) {
+    logMessage(`${dropzoneLabel(dropzone)} takes one file; ${getFileName(path)} was not loaded.`, 'warning');
+  }
+  if (unmatched.length > 0) {
+    logMessage(
+      `${unmatched.length} file(s) could not be matched: ${unmatched.map(getFileName).join(', ')}`,
+      'warning'
+    );
+  }
+
+  return routeMap.size > 0;
 }
