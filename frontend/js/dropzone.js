@@ -144,7 +144,7 @@ async function handleSmartDrop(payload) {
 /**
  * Set single file on dropzone
  */
-export async function setDropzoneFile(dropzone, targetId, filePath) {
+export async function setDropzoneFile(dropzone, targetId, filePath, quiet = false) {
   const input = document.getElementById(targetId);
   const fileDisplay = dropzone.querySelector('.dropzone-file');
   const fileName = fileDisplay?.querySelector('.file-name');
@@ -176,14 +176,14 @@ export async function setDropzoneFile(dropzone, targetId, filePath) {
     }
   }).catch(() => {});
 
-  logMessage(`Selected: ${name}`, 'success');
+  if (!quiet) logMessage(`Selected: ${name}`, 'success');
 }
 
 /**
  * Set multiple files on dropzone (accumulates with existing files)
  * @param {boolean} replace - If true, replace existing files instead of accumulating
  */
-export async function setDropzoneFiles(dropzone, targetId, filePaths, replace = false) {
+export async function setDropzoneFiles(dropzone, targetId, filePaths, replace = false, quiet = false) {
   const input = document.getElementById(targetId);
   const fileDisplay = dropzone.querySelector('.dropzone-file');
   const fileName = fileDisplay?.querySelector('.file-name');
@@ -262,7 +262,7 @@ export async function setDropzoneFiles(dropzone, targetId, filePaths, replace = 
   }
 
   const addedCount = allFiles.length - (replace ? 0 : (allFiles.length - filePaths.length));
-  if (addedCount > 0) {
+  if (addedCount > 0 && !quiet) {
     logMessage(`Added ${filePaths.length} file(s). Total: ${allFiles.length}`, 'success');
   }
 }

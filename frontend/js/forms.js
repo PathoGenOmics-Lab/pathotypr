@@ -206,7 +206,7 @@ async function handleDownloadMtbcModel(e) {
     if (result.success && result.path) {
       const modelDropzone = document.querySelector('[data-target="predict-model"]');
       if (modelDropzone) {
-        await setDropzoneFile(modelDropzone, 'predict-model', result.path);
+        await setDropzoneFile(modelDropzone, 'predict-model', result.path, true);
       }
       logMessage(`MTBC model loaded: ${modelAsset.filename}`, 'success');
     } else {
@@ -275,14 +275,15 @@ async function loadQuickMarkers(dataConfig, btn, label) {
     if (markersResult.success && markersResult.path) {
       const classifyMarkersDropzone = document.querySelector('[data-target="classify-markers"]');
       if (classifyMarkersDropzone) {
-        await setDropzoneFiles(classifyMarkersDropzone, 'classify-markers', [markersResult.path]);
+        await setDropzoneFiles(classifyMarkersDropzone, 'classify-markers', [markersResult.path], false, true);
       }
       // Also add to split-fastq (accumulate with existing)
       const splitfqMarkersDropzone = document.querySelector('[data-target="splitfq-markers"]');
       if (splitfqMarkersDropzone) {
-        await setDropzoneFiles(splitfqMarkersDropzone, 'splitfq-markers', [markersResult.path]);
+        await setDropzoneFiles(splitfqMarkersDropzone, 'splitfq-markers', [markersResult.path], false, true);
       }
-      logMessage(`${label} markers loaded: ${markersAsset.filename}`, 'success');
+      const shownLabel = label.charAt(0).toUpperCase() + label.slice(1);
+      logMessage(`${shownLabel} markers loaded: ${markersAsset.filename}`, 'success');
     } else {
       logMessage(`Failed to download ${label} markers: ${markersResult.error || 'Unknown error'}`, 'error');
     }
@@ -292,12 +293,12 @@ async function loadQuickMarkers(dataConfig, btn, label) {
       const classifyRefDropzone = document.querySelector('[data-target="classify-reference"]');
       const refInput = document.getElementById('classify-reference');
       if (classifyRefDropzone && !refInput?.value) {
-        await setDropzoneFile(classifyRefDropzone, 'classify-reference', referenceResult.path);
+        await setDropzoneFile(classifyRefDropzone, 'classify-reference', referenceResult.path, true);
       }
       const splitfqRefDropzone = document.querySelector('[data-target="splitfq-reference"]');
       const splitfqRefInput = document.getElementById('splitfq-reference');
       if (splitfqRefDropzone && !splitfqRefInput?.value) {
-        await setDropzoneFile(splitfqRefDropzone, 'splitfq-reference', referenceResult.path);
+        await setDropzoneFile(splitfqRefDropzone, 'splitfq-reference', referenceResult.path, true);
       }
       logMessage(`Reference loaded: ${reference.filename}`, 'success');
     } else {
@@ -368,7 +369,7 @@ async function downloadMtbcModelSilent() {
     if (result.success && result.path) {
       const modelDropzone = document.querySelector('[data-target="predict-model"]');
       if (modelDropzone) {
-        await setDropzoneFile(modelDropzone, 'predict-model', result.path);
+        await setDropzoneFile(modelDropzone, 'predict-model', result.path, true);
       }
       logMessage(`MTBC model loaded: ${modelAsset.filename}`, 'success');
     } else {
@@ -415,11 +416,11 @@ async function loadGenotypingDemoData() {
     if (markersResult.success && markersResult.path) {
       const classifyMarkersDropzone = document.querySelector('[data-target="classify-markers"]');
       if (classifyMarkersDropzone) {
-        await setDropzoneFile(classifyMarkersDropzone, 'classify-markers', markersResult.path);
+        await setDropzoneFile(classifyMarkersDropzone, 'classify-markers', markersResult.path, true);
       }
       const splitfqMarkersDropzone = document.querySelector('[data-target="splitfq-markers"]');
       if (splitfqMarkersDropzone) {
-        await setDropzoneFile(splitfqMarkersDropzone, 'splitfq-markers', markersResult.path);
+        await setDropzoneFile(splitfqMarkersDropzone, 'splitfq-markers', markersResult.path, true);
       }
       logMessage(`Markers loaded: ${markersAsset.filename}`, 'success');
     } else {
@@ -431,11 +432,11 @@ async function loadGenotypingDemoData() {
     if (referenceResult.success && referenceResult.path) {
       const classifyRefDropzone = document.querySelector('[data-target="classify-reference"]');
       if (classifyRefDropzone) {
-        await setDropzoneFile(classifyRefDropzone, 'classify-reference', referenceResult.path);
+        await setDropzoneFile(classifyRefDropzone, 'classify-reference', referenceResult.path, true);
       }
       const splitfqRefDropzone = document.querySelector('[data-target="splitfq-reference"]');
       if (splitfqRefDropzone) {
-        await setDropzoneFile(splitfqRefDropzone, 'splitfq-reference', referenceResult.path);
+        await setDropzoneFile(splitfqRefDropzone, 'splitfq-reference', referenceResult.path, true);
       }
       logMessage(`Reference loaded: ${reference.filename}`, 'success');
     } else {
