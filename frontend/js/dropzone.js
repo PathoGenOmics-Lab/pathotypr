@@ -138,9 +138,6 @@ function highlightDropzone(dropzone) {
   hoveredDropzone?.classList.remove('drag-over');
   dropzone?.classList.add('drag-over');
   hoveredDropzone = dropzone;
-  // The centred card explains the drop-anywhere fallback, which is only of use while no
-  // field is being aimed at. Over a field it would cover the very thing being aimed at.
-  dragOverlay?.classList.toggle('aiming', Boolean(dropzone));
 }
 
 // The overlay is tracked here rather than looked up in the DOM, because it outlives a
@@ -167,19 +164,10 @@ function showDragOverlay() {
     return;
   }
 
+  // Just a tint. The card that used to sit here covered the fields the drag is aimed at,
+  // and its promise of automatic assignment is no longer what happens.
   const overlay = document.createElement('div');
   overlay.id = 'drag-overlay';
-  overlay.innerHTML = `
-    <div class="drag-overlay-content">
-      <svg class="drag-overlay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-        <polyline points="7 10 12 15 17 10"/>
-        <line x1="12" y1="15" x2="12" y2="3"/>
-      </svg>
-      <span class="drag-overlay-title">Drop your files</span>
-      <span class="drag-overlay-hint">Files will be auto-assigned by type</span>
-    </div>
-  `;
   document.body.appendChild(overlay);
   dragOverlay = overlay;
   // Trigger animation
