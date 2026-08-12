@@ -198,8 +198,9 @@ async function handleDownloadMtbcModel(e) {
   openConsoleDrawerIfClosed(true);
 
   try {
+    const modelAsset = await resolveZenodoAsset(mtbcModel.kind, 'model');
     const result = await tauriInvoke('download_file', {
-      params: { url: mtbcModel.url, filename: mtbcModel.filename }
+      params: { url: modelAsset.url, filename: modelAsset.filename }
     });
 
     if (result.success && result.path) {
@@ -207,7 +208,7 @@ async function handleDownloadMtbcModel(e) {
       if (modelDropzone) {
         await setDropzoneFile(modelDropzone, 'predict-model', result.path);
       }
-      logMessage(`MTBC model loaded: ${mtbcModel.filename}`, 'success');
+      logMessage(`MTBC model loaded: ${modelAsset.filename}`, 'success');
     } else {
       logMessage(`Failed to download MTBC model: ${result.error || 'Unknown error'}`, 'error');
     }
@@ -224,14 +225,31 @@ async function handleDownloadMtbcModel(e) {
 /**
  * Download and load marker + reference files into Classify dropzones
  */
+/**
+ * Resolve a Zenodo asset (kind -> url + filename) against the newest published deposit.
+ *
+ * The version is never written into the app: the backend asks Zenodo for the newest one
+ * and matches the asset by filename prefix. If Zenodo is unreachable it answers with the
+ * pinned URLs and flags it, which is worth saying out loud because the file may then be
+ * older than the one published.
+ */
+async function resolveZenodoAsset(kind, label) {
+  const resolution = await tauriInvoke('resolve_marker_assets');
+  const asset = (resolution.assets || []).find(a => a.kind === kind);
+  if (!asset) {
+    throw new Error(`the marker deposit does not publish a ${label} file`);
+  }
+  if (resolution.fallback) {
+    logMessage(`Could not reach Zenodo; downloading the last known ${label} file`, 'warning');
+  } else {
+    const version = resolution.version ? ` ${resolution.version}` : '';
+    logMessage(`Marker deposit${version} resolved (Zenodo record ${resolution.record_id})`, 'info');
+  }
+  return asset;
+}
+
 async function loadQuickMarkers(dataConfig, btn, label) {
   const { markers, reference } = dataConfig;
-
-  if (markers.url.startsWith('YOUR_')) {
-    logMessage(`${label} markers URL not configured yet. Download manually and drag the file.`, 'warning');
-    openConsoleDrawerIfClosed(true);
-    return;
-  }
 
   const originalHTML = btn.innerHTML;
   btn.disabled = true;
@@ -246,8 +264,9 @@ async function loadQuickMarkers(dataConfig, btn, label) {
   openConsoleDrawerIfClosed(true);
 
   try {
+    const markersAsset = await resolveZenodoAsset(markers.kind, label);
     const [markersResult, referenceResult] = await Promise.all([
-      tauriInvoke('download_file', { params: { url: markers.url, filename: markers.filename } }),
+      tauriInvoke('download_file', { params: { url: markersAsset.url, filename: markersAsset.filename } }),
       tauriInvoke('download_file', { params: { url: reference.url, filename: reference.filename } })
     ]);
 
@@ -262,7 +281,7 @@ async function loadQuickMarkers(dataConfig, btn, label) {
       if (splitfqMarkersDropzone) {
         await setDropzoneFiles(splitfqMarkersDropzone, 'splitfq-markers', [markersResult.path]);
       }
-      logMessage(`${label} markers loaded: ${markers.filename}`, 'success');
+      logMessage(`${label} markers loaded: ${markersAsset.filename}`, 'success');
     } else {
       logMessage(`Failed to download ${label} markers: ${markersResult.error || 'Unknown error'}`, 'error');
     }
@@ -339,11 +358,10 @@ async function loadDemoData() {
  * Download MTBC model silently (used by Load MTB Data button)
  */
 async function downloadMtbcModelSilent() {
-  if (mtbcModel.url.startsWith('YOUR_')) return;
-
   try {
+    const modelAsset = await resolveZenodoAsset(mtbcModel.kind, 'model');
     const result = await tauriInvoke('download_file', {
-      params: { url: mtbcModel.url, filename: mtbcModel.filename }
+      params: { url: modelAsset.url, filename: modelAsset.filename }
     });
 
     if (result.success && result.path) {
@@ -351,7 +369,7 @@ async function downloadMtbcModelSilent() {
       if (modelDropzone) {
         await setDropzoneFile(modelDropzone, 'predict-model', result.path);
       }
-      logMessage(`MTBC model loaded: ${mtbcModel.filename}`, 'success');
+      logMessage(`MTBC model loaded: ${modelAsset.filename}`, 'success');
     } else {
       logMessage(`Failed to download MTBC model: ${result.error || 'Unknown error'}`, 'error');
     }
@@ -366,12 +384,6 @@ async function downloadMtbcModelSilent() {
  */
 async function loadGenotypingDemoData() {
   const { markers, reference } = demoGenotypingData;
-
-  // Validate that URLs have been configured
-  if (markers.url.startsWith('YOUR_') || reference.url.startsWith('YOUR_')) {
-    logMessage('MTB data URLs not configured yet.', 'warning');
-    return;
-  }
 
   const btn = document.getElementById('btn-load-demo');
   const originalContent = btn ? btn.innerHTML : '';
@@ -390,8 +402,9 @@ async function loadGenotypingDemoData() {
 
   try {
     // Download markers and reference in parallel
+    const markersAsset = await resolveZenodoAsset(markers.kind, 'lineage');
     const [markersResult, referenceResult] = await Promise.all([
-      tauriInvoke('download_file', { params: { url: markers.url, filename: markers.filename } }),
+      tauriInvoke('download_file', { params: { url: markersAsset.url, filename: markersAsset.filename } }),
       tauriInvoke('download_file', { params: { url: reference.url, filename: reference.filename } })
     ]);
 
@@ -407,7 +420,7 @@ async function loadGenotypingDemoData() {
       if (splitfqMarkersDropzone) {
         await setDropzoneFile(splitfqMarkersDropzone, 'splitfq-markers', markersResult.path);
       }
-      logMessage(`Markers loaded: ${markers.filename}`, 'success');
+      logMessage(`Markers loaded: ${markersAsset.filename}`, 'success');
     } else {
       logMessage(`Failed to download markers: ${markersResult.error || 'Unknown error'}`, 'error');
       success = false;
