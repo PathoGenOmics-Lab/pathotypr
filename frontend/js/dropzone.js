@@ -77,11 +77,15 @@ export async function setupTauriDragDrop() {
     await appWindow.onDragDropEvent((event) => {
       if (event.payload.type === 'over') {
         showDragOverlay();
+        highlightDropzone(dropzoneFromPosition(event.payload.position));
       } else if (event.payload.type === 'drop') {
+        const aimed = dropzoneFromPosition(event.payload.position);
         hideDragOverlay();
-        handleSmartDrop(event.payload);
+        highlightDropzone(null);
+        handleDrop(event.payload, aimed);
       } else if (event.payload.type === 'leave' || event.payload.type === 'cancel') {
         hideDragOverlay();
+        highlightDropzone(null);
       }
     });
 
@@ -89,6 +93,43 @@ export async function setupTauriDragDrop() {
   } catch (err) {
     console.warn('Tauri drag-drop setup failed:', err);
   }
+}
+
+// Which dropzone the pointer is over during a drag. Several fields in a panel accept the
+// same extension (classify takes .fasta for both the reference and the samples, and .tsv
+// for both the markers and the input list), so extension alone cannot say where a file
+// belongs. Aiming does: drop on the field you mean and it goes there.
+let hoveredDropzone = null;
+
+/**
+ * The dropzone under a drag pointer, or null.
+ *
+ * Tauri reports the pointer in physical pixels, which have to be scaled to CSS pixels
+ * before the document can be hit-tested. The overlay does not interfere: it is
+ * pointer-events: none.
+ */
+function dropzoneFromPosition(position) {
+  if (!position || typeof position.x !== 'number' || typeof position.y !== 'number') return null;
+  const ratio = window.devicePixelRatio || 1;
+  const element = document.elementFromPoint(position.x / ratio, position.y / ratio);
+  const dropzone = element?.closest('.dropzone[data-target]');
+  if (!dropzone) return null;
+  // Only fields on the panel in view can take a drop.
+  return dropzone.closest('.panel.active') ? dropzone : null;
+}
+
+/** Human-readable name of a dropzone, taken from its form label. */
+function dropzoneLabel(dropzone) {
+  const label = dropzone.closest('.form-group')?.querySelector('label')?.textContent?.trim();
+  return (label || dropzone.dataset.target).replace(/\s*\?.*$/, '');   // drop tooltip text
+}
+
+/** Mark the dropzone being aimed at, so it is clear where the file will land. */
+function highlightDropzone(dropzone) {
+  if (hoveredDropzone === dropzone) return;   // don't touch the DOM on every drag event
+  hoveredDropzone?.classList.remove('drag-over');
+  dropzone?.classList.add('drag-over');
+  hoveredDropzone = dropzone;
 }
 
 // The overlay is tracked here rather than looked up in the DOM, because it outlives a
@@ -152,15 +193,52 @@ function hideDragOverlay() {
 }
 
 /**
- * Handle drop — always smart-routes by extension
+ * Handle a drop: files land on the field they were dropped on, and anything dropped
+ * outside a field — or that the aimed field cannot take — falls back to routing by
+ * extension.
  */
-async function handleSmartDrop(payload) {
+async function handleDrop(payload, aimedDropzone) {
   const paths = payload.paths;
   if (!paths || paths.length === 0) return;
 
-  const routed = await smartRouteFiles(paths);
+  let remaining = paths;
+
+  if (aimedDropzone) {
+    const targetId = aimedDropzone.dataset.target;
+    const extensions = aimedDropzone.dataset.extensions?.split(',') || [];
+    const accepted = paths.filter(p => validateFileExtension(p, extensions));
+    const rejected = paths.filter(p => !accepted.includes(p));
+
+    if (accepted.length > 0) {
+      const isMultiple = aimedDropzone.dataset.multiple === 'true';
+      if (isMultiple) {
+        await setDropzoneFiles(aimedDropzone, targetId, accepted);
+        remaining = rejected;
+      } else {
+        await setDropzoneFile(aimedDropzone, targetId, accepted[0]);
+        if (accepted.length > 1) {
+          logMessage(`${dropzoneLabel(aimedDropzone)} takes one file; routing the rest by type`, 'info');
+        }
+        // Anything the field could not hold is routed rather than dropped on the floor.
+        remaining = [...accepted.slice(1), ...rejected];
+      }
+      aimedDropzone.classList.add('drop-received');
+      setTimeout(() => aimedDropzone.classList.remove('drop-received'), TIMING.DROP_FEEDBACK);
+    } else if (rejected.length > 0) {
+      // Dropped on a field that cannot take these files. Say so, then let the fallback
+      // try, rather than silently sending them somewhere the user did not point at.
+      logMessage(
+        `${dropzoneLabel(aimedDropzone)} only accepts ${extensions.join(', ')}`,
+        'warning'
+      );
+    }
+  }
+
+  if (remaining.length === 0) return;
+
+  const routed = await smartRouteFiles(remaining);
   if (!routed) {
-    logMessage(`Could not match ${paths.length} file(s) to any input field. Check file extensions.`, 'warning');
+    logMessage(`Could not match ${remaining.length} file(s) to any input field. Check file extensions.`, 'warning');
   }
 }
 
@@ -438,10 +516,7 @@ async function smartRouteFiles(paths) {
 
   // Report results
   const routedCount = paths.length - unrouted.length;
-  const dzNames = [...routeMap.keys()].map(dz => {
-    const label = dz.closest('.form-group')?.querySelector('label')?.textContent?.trim() || dz.dataset.target;
-    return label.replace(/\s*\?.*$/, ''); // Remove tooltip text
-  });
+  const dzNames = [...routeMap.keys()].map(dropzoneLabel);
   logMessage(`Auto-routed ${routedCount} file(s) to: ${dzNames.join(', ')}`, 'success');
 
   if (unrouted.length > 0) {
