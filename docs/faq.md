@@ -159,15 +159,16 @@ Defaults and flags differ per command:
 ## Reference data
 
 !!! question "Where do the MTBC markers and the pre-trained model live?"
-    Ready-to-use marker panels and a pre-trained Random Forest model for the *Mycobacterium tuberculosis* complex (MTBC) are published on **Zenodo record [19210044](https://zenodo.org/records/19210044)** (DOI [10.5281/zenodo.19210044](https://zenodo.org/records/19210044)):
+    Ready-to-use marker panels and a pre-trained Random Forest model for the *Mycobacterium tuberculosis* complex (MTBC) are published on Zenodo under the concept DOI [10.5281/zenodo.19210043](https://doi.org/10.5281/zenodo.19210043), which always resolves to the newest version:
 
     | File | Description |
     |---|---|
-    | `pathotypr_lineage_markers_v1.0.0.tsv` | 3,707 lineage SNPs (L1–L10, A1–A4) |
-    | `pathotypr_dr_markers_v1.0.0.tsv` | 102,213 DR mutations (WHO catalogue v2, 2023) |
-    | `pathotypr_rf_model_v1.0.0.pathotypr` | Pre-trained RF model (k=31, 100 trees) |
+    | `pathotypr_lineage_markers_*.tsv` | 3,707 lineage SNPs (L1–L10, A1–A4) |
+    | `pathotypr_dr_markers_ancestor_*.tsv` | DR mutations from the WHO catalogue (2nd edition, 2023), ancestor coordinates |
+    | `pathotypr_dr_markers_H37Rv_*.tsv` | The same catalogue in H37Rv coordinates |
+    | `pathotypr_rf_model_*.pathotypr` | Pre-trained RF model (k=31, 100 trees) |
 
-    Download links are on the [Installation](installation.md#mtbc-marker-files-pre-trained-model) page. Pass the marker TSV to `-m` (for `classify`/`split-fastq`) and the model to `-m/--model` (for `predict`).
+    Filenames carry the catalogue version, so they change between releases; the desktop app resolves the newest deposit on its own. Download links are on the [Installation](installation.md#mtbc-marker-files-pre-trained-model) page. Pass the marker TSV to `-m` (for `classify`/`split-fastq`) and the model to `-m/--model` (for `predict`).
 
 !!! question "Can I use pathotypr for an organism other than *M. tuberculosis*?"
     Technically yes — nothing is hard-coded to one species. The marker panel and

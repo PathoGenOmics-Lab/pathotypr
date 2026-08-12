@@ -52,7 +52,7 @@ ran against.
 The archived release, including the marker panels and the trained model, has its
 own DOI:
 
-[10.5281/zenodo.19210044](https://doi.org/10.5281/zenodo.19210044)
+[10.5281/zenodo.19210043](https://doi.org/10.5281/zenodo.19210043)
 
 !!! tip "Record the version you ran"
     Marker panels change between releases, so a lineage or resistance call is

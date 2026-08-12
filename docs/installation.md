@@ -75,14 +75,15 @@ pathotypr --help
 Ready-to-use marker panels and a pre-trained Random Forest model for
 *Mycobacterium tuberculosis* complex (MTBC) are published on Zenodo:
 
-| File | Description | Download |
-|---|---|---|
-| `pathotypr_lineage_markers_v1.0.0.tsv` | 3,707 lineage SNPs (L1–L10, A1–A4) | [:material-download: Download](https://zenodo.org/records/19210044/files/pathotypr_lineage_markers_v1.0.0.tsv?download=1) |
-| `pathotypr_dr_markers_v1.0.0.tsv` | 102,213 DR mutations (WHO catalogue v2, 2023) | [:material-download: Download](https://zenodo.org/records/19210044/files/pathotypr_dr_markers_v1.0.0.tsv?download=1) |
-| `pathotypr_rf_model_v1.0.0.pathotypr` | Pre-trained RF model (k=31, 100 trees) | [:material-download: Download](https://zenodo.org/records/19210044/files/pathotypr_rf_model_v1.0.0.pathotypr?download=1) |
+| File | Description |
+|---|---|
+| `pathotypr_lineage_markers_*.tsv` | 3,707 lineage SNPs (L1–L10, A1–A4) |
+| `pathotypr_dr_markers_ancestor_*.tsv` | DR mutations from the WHO catalogue (2nd edition, 2023), in ancestor coordinates |
+| `pathotypr_dr_markers_H37Rv_*.tsv` | The same catalogue in H37Rv coordinates |
+| `pathotypr_rf_model_*.pathotypr` | Pre-trained RF model (k=31, 100 trees) |
 
 !!! info "DOI"
-    [10.5281/zenodo.19210044](https://zenodo.org/records/19210044)
+    [10.5281/zenodo.19210043](https://doi.org/10.5281/zenodo.19210043)
 
 Once installed, head to the [command guides](train.md) or the
 [input formats](input-formats.md) reference to get started.
