@@ -1,6 +1,6 @@
 [package]
 name = "pathotypr-gui"
-version = "1.0.1"
+version = "1.0.2"
 description = "Pathotypr GUI - A desktop application for genome classification and variant genotyping"
 authors = ["Paula Ruiz Rodriguez <paula.ruiz.rodriguez@csic.es>"]
 edition = "2021"
