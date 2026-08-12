@@ -104,18 +104,26 @@ let hoveredDropzone = null;
 /**
  * The dropzone under a drag pointer, or null.
  *
- * Tauri reports the pointer in physical pixels, which have to be scaled to CSS pixels
- * before the document can be hit-tested. The overlay does not interfere: it is
- * pointer-events: none.
+ * The position is typed as physical in Tauri, but on this platform it arrives already in
+ * CSS pixels, so it is hit-tested as-is and only scaled by the device pixel ratio as a
+ * fallback, for a platform that does report physical pixels. The overlay does not
+ * interfere with the hit test: it is pointer-events: none.
  */
 function dropzoneFromPosition(position) {
   if (!position || typeof position.x !== 'number' || typeof position.y !== 'number') return null;
+
   const ratio = window.devicePixelRatio || 1;
-  const element = document.elementFromPoint(position.x / ratio, position.y / ratio);
-  const dropzone = element?.closest('.dropzone[data-target]');
-  if (!dropzone) return null;
-  // Only fields on the panel in view can take a drop.
-  return dropzone.closest('.panel.active') ? dropzone : null;
+  const candidates = ratio === 1
+    ? [[position.x, position.y]]
+    : [[position.x, position.y], [position.x / ratio, position.y / ratio]];
+
+  for (const [x, y] of candidates) {
+    if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) continue;
+    const dropzone = document.elementFromPoint(x, y)?.closest('.dropzone[data-target]');
+    // Only fields on the panel in view can take a drop.
+    if (dropzone?.closest('.panel.active')) return dropzone;
+  }
+  return null;
 }
 
 /** Human-readable name of a dropzone, taken from its form label. */
@@ -130,6 +138,9 @@ function highlightDropzone(dropzone) {
   hoveredDropzone?.classList.remove('drag-over');
   dropzone?.classList.add('drag-over');
   hoveredDropzone = dropzone;
+  // The centred card explains the drop-anywhere fallback, which is only of use while no
+  // field is being aimed at. Over a field it would cover the very thing being aimed at.
+  dragOverlay?.classList.toggle('aiming', Boolean(dropzone));
 }
 
 // The overlay is tracked here rather than looked up in the DOM, because it outlives a

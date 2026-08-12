@@ -1722,9 +1722,9 @@ svg {
   left: var(--sidebar-width, 220px);
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  /* Light tint only. A blur used to sit over the panel, which hid the fields the drag
+     is meant to be aimed at, and cost a full-area recomposite on every frame. */
+  background: rgba(255, 255, 255, 0.18);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1739,7 +1739,13 @@ svg {
 }
 
 [data-theme="dark"] #drag-overlay {
-  background: rgba(15, 23, 35, 0.55);
+  background: rgba(15, 23, 35, 0.28);
+}
+
+/* Aiming at a field: the field itself is the signal, so the card steps aside. */
+#drag-overlay.aiming .drag-overlay-content {
+  opacity: 0;
+  transition: opacity 0.12s ease;
 }
 
 .drag-overlay-content {
