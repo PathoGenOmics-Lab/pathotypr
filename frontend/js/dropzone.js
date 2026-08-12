@@ -91,15 +91,29 @@ export async function setupTauriDragDrop() {
   }
 }
 
+// The overlay is tracked here rather than looked up in the DOM, because it outlives a
+// single drag: Tauri emits `over` continuously while the cursor moves, and the element
+// lingers during its fade-out. Both cases have to be told apart from a fresh drag.
+let dragOverlay = null;
+let dragOverlayRemoval = null;
+
 /**
  * Show the drag overlay on the active panel
  */
 function showDragOverlay() {
-  // An overlay from a previous drag may still be fading out. Discard it and start a
-  // fresh one: a drag that leaves and returns quickly would otherwise show nothing,
-  // and reusing the node would keep its pending removal timer and transitionend
-  // listener, which would then tear down the overlay we just brought back.
-  document.getElementById('drag-overlay')?.remove();
+  // A fade-out may be in flight from a drag that just left; keep the element.
+  if (dragOverlayRemoval) {
+    clearTimeout(dragOverlayRemoval);
+    dragOverlayRemoval = null;
+  }
+
+  if (dragOverlay) {
+    // Repeat `over` events, or a drag that left and came straight back. Re-adding a
+    // class already present is a no-op, so the animation is not restarted on every
+    // mouse move.
+    dragOverlay.classList.add('visible');
+    return;
+  }
 
   const overlay = document.createElement('div');
   overlay.id = 'drag-overlay';
@@ -115,6 +129,7 @@ function showDragOverlay() {
     </div>
   `;
   document.body.appendChild(overlay);
+  dragOverlay = overlay;
   // Trigger animation
   requestAnimationFrame(() => overlay.classList.add('visible'));
 }
@@ -123,13 +138,17 @@ function showDragOverlay() {
  * Hide the drag overlay
  */
 function hideDragOverlay() {
-  const overlay = document.getElementById('drag-overlay');
-  if (overlay) {
-    overlay.classList.remove('visible');
-    overlay.addEventListener('transitionend', () => overlay.remove(), { once: true });
-    // Fallback removal
-    setTimeout(() => overlay.remove(), 300);
-  }
+  if (!dragOverlay) return;
+  const overlay = dragOverlay;
+  overlay.classList.remove('visible');
+  // Removal is deferred so the fade-out plays, and is cancelled by showDragOverlay if
+  // the drag returns first. No transitionend listener: fading back in would fire it and
+  // tear down an overlay that is on its way back.
+  dragOverlayRemoval = setTimeout(() => {
+    overlay.remove();
+    if (dragOverlay === overlay) dragOverlay = null;
+    dragOverlayRemoval = null;
+  }, 300);
 }
 
 /**
