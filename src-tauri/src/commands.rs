@@ -1310,6 +1310,8 @@ pub struct ZenodoResolution {
     pub assets: Vec<ZenodoAsset>,
     /// True when Zenodo could not be reached and the pinned URLs are being served.
     pub fallback: bool,
+    /// Why the newest version could not be resolved, so the caller can report it.
+    pub reason: Option<String>,
 }
 
 fn pinned_resolution(reason: &str) -> ZenodoResolution {
@@ -1329,6 +1331,7 @@ fn pinned_resolution(reason: &str) -> ZenodoResolution {
         version: None,
         assets,
         fallback: true,
+        reason: Some(reason.to_string()),
     }
 }
 
@@ -1340,7 +1343,9 @@ fn pinned_resolution(reason: &str) -> ZenodoResolution {
 /// so the caller can say so.
 #[tauri::command]
 pub async fn resolve_marker_assets() -> Result<ZenodoResolution, String> {
+    // Zenodo's API answers 403 to requests without a User-Agent.
     let client = match reqwest::Client::builder()
+        .user_agent(format!("Pathotypr/{}", env!("CARGO_PKG_VERSION")))
         .timeout(std::time::Duration::from_secs(15))
         .build()
     {
@@ -1408,5 +1413,6 @@ pub async fn resolve_marker_assets() -> Result<ZenodoResolution, String> {
             .map(str::to_string),
         assets,
         fallback: false,
+        reason: None,
     })
 }
