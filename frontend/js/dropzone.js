@@ -95,7 +95,11 @@ export async function setupTauriDragDrop() {
  * Show the drag overlay on the active panel
  */
 function showDragOverlay() {
-  if (document.getElementById('drag-overlay')) return;
+  // An overlay from a previous drag may still be fading out. Discard it and start a
+  // fresh one: a drag that leaves and returns quickly would otherwise show nothing,
+  // and reusing the node would keep its pending removal timer and transitionend
+  // listener, which would then tear down the overlay we just brought back.
+  document.getElementById('drag-overlay')?.remove();
 
   const overlay = document.createElement('div');
   overlay.id = 'drag-overlay';
@@ -163,6 +167,11 @@ export async function setDropzoneFile(dropzone, targetId, filePath, quiet = fals
   if (fileName) fileName.textContent = name;
   if (fileDisplay) fileDisplay.classList.add('has-file');
   if (fileMeta) fileMeta.replaceChildren();
+  // A dropzone that accepts several files may still be showing chips from an earlier
+  // multi-file selection. The list was just dropped from the input, so the chips would
+  // claim files that are no longer selected.
+  const staleChips = dropzone.querySelector('.file-chips');
+  if (staleChips) staleChips.innerHTML = '';
 
   // Load metadata in background — don't block UI
   getFileMetadata(filePath).then(metadata => {
@@ -192,15 +201,18 @@ export async function setDropzoneFiles(dropzone, targetId, filePaths, replace = 
 
   // Get existing files and merge with new ones (avoiding duplicates)
   let allFiles = filePaths;
+  let existingCount = 0;
   if (!replace && input?.dataset.files) {
     try {
       const existingFiles = JSON.parse(input.dataset.files);
+      existingCount = existingFiles.length;
       // Merge: add new files that aren't already in the list
       const newFiles = filePaths.filter(p => !existingFiles.includes(p));
       allFiles = [...existingFiles, ...newFiles];
     } catch (e) {
       // If parsing fails, just use the new files
       allFiles = filePaths;
+      existingCount = 0;
     }
   }
 
@@ -253,17 +265,24 @@ export async function setDropzoneFiles(dropzone, targetId, filePaths, replace = 
         const pathToRemove = btn.dataset.path;
         const remaining = allFiles.filter(p => p !== pathToRemove);
         if (remaining.length > 0) {
-          setDropzoneFiles(dropzone, targetId, remaining, true); // Replace mode for removal
+          // Replace mode, and quiet: re-rendering the shorter list is a removal, and
+          // letting it announce itself would report the leftovers as newly added.
+          setDropzoneFiles(dropzone, targetId, remaining, true, true);
         } else {
           clearDropzone(dropzone, targetId);
         }
+        logMessage(`Removed: ${getFileName(pathToRemove)}`, 'info');
       });
     });
   }
 
-  const addedCount = allFiles.length - (replace ? 0 : (allFiles.length - filePaths.length));
+  // Files already in the list are dropped by the merge above, so report what actually
+  // landed rather than how many were handed in.
+  const addedCount = replace ? allFiles.length : allFiles.length - existingCount;
   if (addedCount > 0 && !quiet) {
-    logMessage(`Added ${filePaths.length} file(s). Total: ${allFiles.length}`, 'success');
+    logMessage(`Added ${addedCount} file(s). Total: ${allFiles.length}`, 'success');
+  } else if (addedCount === 0 && !quiet) {
+    logMessage(`Already selected: ${filePaths.map(getFileName).join(', ')}`, 'info');
   }
 }
 

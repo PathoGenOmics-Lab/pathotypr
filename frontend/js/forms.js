@@ -416,11 +416,11 @@ async function loadGenotypingDemoData() {
     if (markersResult.success && markersResult.path) {
       const classifyMarkersDropzone = document.querySelector('[data-target="classify-markers"]');
       if (classifyMarkersDropzone) {
-        await setDropzoneFile(classifyMarkersDropzone, 'classify-markers', markersResult.path, true);
+        await setDropzoneFiles(classifyMarkersDropzone, 'classify-markers', [markersResult.path], false, true);
       }
       const splitfqMarkersDropzone = document.querySelector('[data-target="splitfq-markers"]');
       if (splitfqMarkersDropzone) {
-        await setDropzoneFile(splitfqMarkersDropzone, 'splitfq-markers', markersResult.path, true);
+        await setDropzoneFiles(splitfqMarkersDropzone, 'splitfq-markers', [markersResult.path], false, true);
       }
       logMessage(`Markers loaded: ${markersAsset.filename}`, 'success');
     } else {
