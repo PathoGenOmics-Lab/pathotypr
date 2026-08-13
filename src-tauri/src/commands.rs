@@ -1301,6 +1301,8 @@ pub struct ZenodoAsset {
     pub kind: String,
     pub filename: String,
     pub url: String,
+    /// True when the deposit does not publish this asset and a pinned URL is served instead.
+    pub fallback: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -1323,6 +1325,7 @@ fn pinned_resolution(reason: &str) -> ZenodoResolution {
                 kind: kind.to_string(),
                 filename: filename.to_string(),
                 url: url.to_string(),
+                fallback: true,
             })
         })
         .collect();
@@ -1384,7 +1387,19 @@ pub async fn resolve_marker_assets() -> Result<ZenodoResolution, String> {
 
     let mut assets = Vec::new();
     for kind in ["lineage_markers", "dr_markers", "rf_model"] {
+        // A deposit can be published missing one of the assets, as happened when a new
+        // version carried the resistance catalogue but not the lineage panel or the model.
+        // That is no reason to fail the other downloads, so each asset falls back on its own.
         let Some(filename) = defaults::select_asset(kind, borrowed.iter().copied()) else {
+            if let Some((url, filename)) = defaults::fallback_asset(kind) {
+                log::warn!("The current marker deposit does not publish a {kind} file; using the pinned URL");
+                assets.push(ZenodoAsset {
+                    kind: kind.to_string(),
+                    filename: filename.to_string(),
+                    url: url.to_string(),
+                    fallback: true,
+                });
+            }
             continue;
         };
         let url = files
@@ -1399,10 +1414,11 @@ pub async fn resolve_marker_assets() -> Result<ZenodoResolution, String> {
             kind: kind.to_string(),
             filename: filename.to_string(),
             url,
+            fallback: false,
         });
     }
 
-    if assets.is_empty() {
+    if assets.iter().all(|a| a.fallback) {
         return Ok(pinned_resolution("the deposit listed no recognisable assets"));
     }
 

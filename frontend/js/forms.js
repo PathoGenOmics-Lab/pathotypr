@@ -242,6 +242,8 @@ async function resolveZenodoAsset(kind, label) {
   if (resolution.fallback) {
     const reason = resolution.reason ? ` (${resolution.reason})` : '';
     logMessage(`Could not reach Zenodo${reason}; downloading the last known ${label} file`, 'warning');
+  } else if (asset.fallback) {
+    logMessage(`The current marker deposit does not publish a ${label} file; downloading the last known one`, 'warning');
   } else {
     const version = resolution.version ? ` ${resolution.version}` : '';
     logMessage(`Marker deposit${version} resolved (Zenodo record ${resolution.record_id})`, 'info');
