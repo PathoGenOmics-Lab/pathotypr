@@ -43,24 +43,17 @@ pathotypr --help
 
 ## 2. Get the MTBC panel, model, and reference
 
-The marker panel and pre-trained model live on Zenodo ([record 19210044](https://zenodo.org/records/19210044), DOI [10.5281/zenodo.19210044](https://doi.org/10.5281/zenodo.19210044)). The marker positions are numbered in **H37Rv coordinates** (`NC_000962.3`), but the reference sequence you pass to `-r` must be the **MTBC ancestor** genome the panel was built against — the same file the desktop app downloads.
+The marker panel and pre-trained model live on Zenodo under the concept DOI [10.5281/zenodo.19210043](https://doi.org/10.5281/zenodo.19210043), which always resolves to the newest version. Open it and download the files, or fetch them from the command line as below; the desktop app resolves the same deposit on its own. Filenames carry the catalogue version and therefore change between releases, so the commands read them from the deposit instead of assuming one. The marker positions are numbered in **H37Rv coordinates** (`NC_000962.3`), but the reference sequence you pass to `-r` must be the **MTBC ancestor** genome the panel was built against — the same file the desktop app downloads.
 
 === "curl"
 
     ```bash
-    # Lineage SNP panel (3,707 markers, L1–L10 + A1–A4)
-    curl -L -o pathotypr_lineage_markers_v1.0.0.tsv \
-      "https://zenodo.org/records/19210044/files/pathotypr_lineage_markers_v1.0.0.tsv?download=1"
+    # Newest marker deposit: lineage panel, drug-resistance panel and pre-trained model
+    curl -sL "https://zenodo.org/api/records/19210043/versions/latest" \
+      | jq -r '.files[] | "\(.links.self) \(.key)"' \
+      | while read -r url name; do curl -L -o "$name" "$url"; done
 
-    # Drug-resistance panel (WHO catalogue v2, 2023)
-    curl -L -o pathotypr_dr_markers_v1.0.0.tsv \
-      "https://zenodo.org/records/19210044/files/pathotypr_dr_markers_v1.0.0.tsv?download=1"
-
-    # Pre-trained Random Forest model (k=31, 100 trees)
-    curl -L -o pathotypr_rf_model_v1.0.0.pathotypr \
-      "https://zenodo.org/records/19210044/files/pathotypr_rf_model_v1.0.0.pathotypr?download=1"
-
-    # Reference the panel was built against (single-record)
+    # Reference the panel was built against (single-record, separate deposit)
     curl -L -o MTB_ancestor_reference.fasta \
       "https://zenodo.org/records/3497110/files/MTB_ancestor_reference.fasta?download=1"
     ```
@@ -68,27 +61,20 @@ The marker panel and pre-trained model live on Zenodo ([record 19210044](https:/
 === "wget"
 
     ```bash
-    # Lineage SNP panel (3,707 markers, L1–L10 + A1–A4)
-    wget -O pathotypr_lineage_markers_v1.0.0.tsv \
-      "https://zenodo.org/records/19210044/files/pathotypr_lineage_markers_v1.0.0.tsv?download=1"
+    # Newest marker deposit: lineage panel, drug-resistance panel and pre-trained model
+    wget -qO- "https://zenodo.org/api/records/19210043/versions/latest" \
+      | jq -r '.files[] | "\(.links.self) \(.key)"' \
+      | while read -r url name; do wget -O "$name" "$url"; done
 
-    # Drug-resistance panel (WHO catalogue v2, 2023)
-    wget -O pathotypr_dr_markers_v1.0.0.tsv \
-      "https://zenodo.org/records/19210044/files/pathotypr_dr_markers_v1.0.0.tsv?download=1"
-
-    # Pre-trained Random Forest model (k=31, 100 trees)
-    wget -O pathotypr_rf_model_v1.0.0.pathotypr \
-      "https://zenodo.org/records/19210044/files/pathotypr_rf_model_v1.0.0.pathotypr?download=1"
-
-    # Reference the panel was built against (single-record)
+    # Reference the panel was built against (single-record, separate deposit)
     wget -O MTB_ancestor_reference.fasta \
       "https://zenodo.org/records/3497110/files/MTB_ancestor_reference.fasta?download=1"
     ```
 
 !!! warning "Use the ancestor reference, not H37Rv"
-    `classify` and `split-fastq` splice each marker's allele into flanking bases taken from whatever you pass to `-r`, so the reference must be the one the panel was built against. That is `MTB_ancestor_reference.fasta` — the file `pathotypr` itself downloads (see `defaults.rs`). It is single-record and shares H37Rv's coordinates, but carries ancestral alleles, so substituting the H37Rv sequence silently produces different diagnostic k-mers and markers may stop matching. The model in `pathotypr_rf_model_v1.0.0.pathotypr` is self-contained and does **not** need a reference.
+    `classify` and `split-fastq` splice each marker's allele into flanking bases taken from whatever you pass to `-r`, so the reference must be the one the panel was built against. That is `MTB_ancestor_reference.fasta` — the file `pathotypr` itself downloads (see `defaults.rs`). It is single-record and shares H37Rv's coordinates, but carries ancestral alleles, so substituting the H37Rv sequence silently produces different diagnostic k-mers and markers may stop matching. The pre-trained model is self-contained and does **not** need a reference.
 
-After this step your working directory holds the three Zenodo assets plus `MTB_ancestor_reference.fasta`. You'll also need your own sample(s): an **assembled genome** (`sample.fasta`) and, for the reads route, a **FASTQ pair** (`sample_R1.fastq.gz`, `sample_R2.fastq.gz`). See [Input formats](input-formats.md) for the exact specs.
+After this step your working directory holds the deposit's files plus `MTB_ancestor_reference.fasta`. You'll also need your own sample(s): an **assembled genome** (`sample.fasta`) and, for the reads route, a **FASTQ pair** (`sample_R1.fastq.gz`, `sample_R2.fastq.gz`). See [Input formats](input-formats.md) for the exact specs.
 
 ---
 
@@ -100,7 +86,7 @@ Call the known lineage SNPs in an assembled genome. `--nested-classification` tu
 
     ```bash
     pathotypr classify \
-      -m pathotypr_lineage_markers_v1.0.0.tsv \
+      -m pathotypr_lineage_markers_*.tsv \
       -r MTB_ancestor_reference.fasta \
       -i sample.fasta \
       -o sample_lineage \
@@ -113,7 +99,7 @@ Call the known lineage SNPs in an assembled genome. `--nested-classification` tu
     ```bash
     # Same command, swap in the DR panel to scan for resistance mutations
     pathotypr classify \
-      -m pathotypr_dr_markers_v1.0.0.tsv \
+      -m pathotypr_dr_markers_ancestor_*.tsv \
       -r MTB_ancestor_reference.fasta \
       -i sample.fasta \
       -o sample_dr \
@@ -136,7 +122,7 @@ No assembly? Genotype straight from FASTQ. `split-fastq` counts REF vs ALT diagn
 
 ```bash
 pathotypr split-fastq \
-  -m pathotypr_lineage_markers_v1.0.0.tsv \
+  -m pathotypr_lineage_markers_*.tsv \
   -r MTB_ancestor_reference.fasta \
   -i sample_R1.fastq.gz -i sample_R2.fastq.gz \
   --paired \
@@ -162,7 +148,7 @@ Outputs are `sample_genotype_<sample>_mutations.tsv` (per-marker detail: positio
 ```bash
 pathotypr predict \
   -i sample.fasta \
-  -m pathotypr_rf_model_v1.0.0.pathotypr \
+  -m pathotypr_rf_model_*.pathotypr \
   -o sample_prediction.tsv \
   --excel
 ```

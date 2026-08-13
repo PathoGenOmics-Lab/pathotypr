@@ -77,11 +77,15 @@ export async function setupTauriDragDrop() {
     await appWindow.onDragDropEvent((event) => {
       if (event.payload.type === 'over') {
         showDragOverlay();
+        highlightDropzone(dropzoneFromPosition(event.payload.position));
       } else if (event.payload.type === 'drop') {
+        const aimed = dropzoneFromPosition(event.payload.position);
         hideDragOverlay();
-        handleSmartDrop(event.payload);
+        highlightDropzone(null);
+        handleDrop(event.payload, aimed);
       } else if (event.payload.type === 'leave' || event.payload.type === 'cancel') {
         hideDragOverlay();
+        highlightDropzone(null);
       }
     });
 
@@ -91,26 +95,81 @@ export async function setupTauriDragDrop() {
   }
 }
 
+// Which dropzone the pointer is over during a drag. Several fields in a panel accept the
+// same extension (classify takes .fasta for both the reference and the samples, and .tsv
+// for both the markers and the input list), so extension alone cannot say where a file
+// belongs. Aiming does: drop on the field you mean and it goes there.
+let hoveredDropzone = null;
+
+/**
+ * The dropzone under a drag pointer, or null.
+ *
+ * The position is typed as physical in Tauri, but on this platform it arrives already in
+ * CSS pixels, so it is hit-tested as-is and only scaled by the device pixel ratio as a
+ * fallback, for a platform that does report physical pixels. The overlay does not
+ * interfere with the hit test: it is pointer-events: none.
+ */
+function dropzoneFromPosition(position) {
+  if (!position || typeof position.x !== 'number' || typeof position.y !== 'number') return null;
+
+  const ratio = window.devicePixelRatio || 1;
+  const candidates = ratio === 1
+    ? [[position.x, position.y]]
+    : [[position.x, position.y], [position.x / ratio, position.y / ratio]];
+
+  for (const [x, y] of candidates) {
+    if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) continue;
+    const dropzone = document.elementFromPoint(x, y)?.closest('.dropzone[data-target]');
+    // Only fields on the panel in view can take a drop.
+    if (dropzone?.closest('.panel.active')) return dropzone;
+  }
+  return null;
+}
+
+/** Human-readable name of a dropzone, taken from its form label. */
+function dropzoneLabel(dropzone) {
+  const label = dropzone.closest('.form-group')?.querySelector('label')?.textContent?.trim();
+  return (label || dropzone.dataset.target).replace(/\s*\?.*$/, '');   // drop tooltip text
+}
+
+/** Mark the dropzone being aimed at, so it is clear where the file will land. */
+function highlightDropzone(dropzone) {
+  if (hoveredDropzone === dropzone) return;   // don't touch the DOM on every drag event
+  hoveredDropzone?.classList.remove('drag-over');
+  dropzone?.classList.add('drag-over');
+  hoveredDropzone = dropzone;
+}
+
+// The overlay is tracked here rather than looked up in the DOM, because it outlives a
+// single drag: Tauri emits `over` continuously while the cursor moves, and the element
+// lingers during its fade-out. Both cases have to be told apart from a fresh drag.
+let dragOverlay = null;
+let dragOverlayRemoval = null;
+
 /**
  * Show the drag overlay on the active panel
  */
 function showDragOverlay() {
-  if (document.getElementById('drag-overlay')) return;
+  // A fade-out may be in flight from a drag that just left; keep the element.
+  if (dragOverlayRemoval) {
+    clearTimeout(dragOverlayRemoval);
+    dragOverlayRemoval = null;
+  }
 
+  if (dragOverlay) {
+    // Repeat `over` events, or a drag that left and came straight back. Re-adding a
+    // class already present is a no-op, so the animation is not restarted on every
+    // mouse move.
+    dragOverlay.classList.add('visible');
+    return;
+  }
+
+  // Just a tint. The card that used to sit here covered the fields the drag is aimed at,
+  // and its promise of automatic assignment is no longer what happens.
   const overlay = document.createElement('div');
   overlay.id = 'drag-overlay';
-  overlay.innerHTML = `
-    <div class="drag-overlay-content">
-      <svg class="drag-overlay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-        <polyline points="7 10 12 15 17 10"/>
-        <line x1="12" y1="15" x2="12" y2="3"/>
-      </svg>
-      <span class="drag-overlay-title">Drop your files</span>
-      <span class="drag-overlay-hint">Files will be auto-assigned by type</span>
-    </div>
-  `;
   document.body.appendChild(overlay);
+  dragOverlay = overlay;
   // Trigger animation
   requestAnimationFrame(() => overlay.classList.add('visible'));
 }
@@ -119,32 +178,73 @@ function showDragOverlay() {
  * Hide the drag overlay
  */
 function hideDragOverlay() {
-  const overlay = document.getElementById('drag-overlay');
-  if (overlay) {
-    overlay.classList.remove('visible');
-    overlay.addEventListener('transitionend', () => overlay.remove(), { once: true });
-    // Fallback removal
-    setTimeout(() => overlay.remove(), 300);
-  }
+  if (!dragOverlay) return;
+  const overlay = dragOverlay;
+  overlay.classList.remove('visible');
+  // Removal is deferred so the fade-out plays, and is cancelled by showDragOverlay if
+  // the drag returns first. No transitionend listener: fading back in would fire it and
+  // tear down an overlay that is on its way back.
+  dragOverlayRemoval = setTimeout(() => {
+    overlay.remove();
+    if (dragOverlay === overlay) dragOverlay = null;
+    dragOverlayRemoval = null;
+  }, 300);
 }
 
 /**
- * Handle drop — always smart-routes by extension
+ * Handle a drop: files land on the field they were dropped on, and anything dropped
+ * outside a field — or that the aimed field cannot take — falls back to routing by
+ * extension.
  */
-async function handleSmartDrop(payload) {
+async function handleDrop(payload, aimedDropzone) {
   const paths = payload.paths;
   if (!paths || paths.length === 0) return;
 
-  const routed = await smartRouteFiles(paths);
+  let remaining = paths;
+
+  if (aimedDropzone) {
+    const targetId = aimedDropzone.dataset.target;
+    const extensions = aimedDropzone.dataset.extensions?.split(',') || [];
+    const accepted = paths.filter(p => validateFileExtension(p, extensions));
+    const rejected = paths.filter(p => !accepted.includes(p));
+
+    if (accepted.length > 0) {
+      const isMultiple = aimedDropzone.dataset.multiple === 'true';
+      if (isMultiple) {
+        await setDropzoneFiles(aimedDropzone, targetId, accepted);
+        remaining = rejected;
+      } else {
+        await setDropzoneFile(aimedDropzone, targetId, accepted[0]);
+        if (accepted.length > 1) {
+          logMessage(`${dropzoneLabel(aimedDropzone)} takes one file; routing the rest by type`, 'info');
+        }
+        // Anything the field could not hold is routed rather than dropped on the floor.
+        remaining = [...accepted.slice(1), ...rejected];
+      }
+      aimedDropzone.classList.add('drop-received');
+      setTimeout(() => aimedDropzone.classList.remove('drop-received'), TIMING.DROP_FEEDBACK);
+    } else if (rejected.length > 0) {
+      // Dropped on a field that cannot take these files. Say so, then let the fallback
+      // try, rather than silently sending them somewhere the user did not point at.
+      logMessage(
+        `${dropzoneLabel(aimedDropzone)} only accepts ${extensions.join(', ')}`,
+        'warning'
+      );
+    }
+  }
+
+  if (remaining.length === 0) return;
+
+  const routed = await smartRouteFiles(remaining);
   if (!routed) {
-    logMessage(`Could not match ${paths.length} file(s) to any input field. Check file extensions.`, 'warning');
+    logMessage(`Could not match ${remaining.length} file(s) to any input field. Check file extensions.`, 'warning');
   }
 }
 
 /**
  * Set single file on dropzone
  */
-export async function setDropzoneFile(dropzone, targetId, filePath) {
+export async function setDropzoneFile(dropzone, targetId, filePath, quiet = false) {
   const input = document.getElementById(targetId);
   const fileDisplay = dropzone.querySelector('.dropzone-file');
   const fileName = fileDisplay?.querySelector('.file-name');
@@ -163,6 +263,11 @@ export async function setDropzoneFile(dropzone, targetId, filePath) {
   if (fileName) fileName.textContent = name;
   if (fileDisplay) fileDisplay.classList.add('has-file');
   if (fileMeta) fileMeta.replaceChildren();
+  // A dropzone that accepts several files may still be showing chips from an earlier
+  // multi-file selection. The list was just dropped from the input, so the chips would
+  // claim files that are no longer selected.
+  const staleChips = dropzone.querySelector('.file-chips');
+  if (staleChips) staleChips.innerHTML = '';
 
   // Load metadata in background — don't block UI
   getFileMetadata(filePath).then(metadata => {
@@ -176,14 +281,14 @@ export async function setDropzoneFile(dropzone, targetId, filePath) {
     }
   }).catch(() => {});
 
-  logMessage(`Selected: ${name}`, 'success');
+  if (!quiet) logMessage(`Selected: ${name}`, 'success');
 }
 
 /**
  * Set multiple files on dropzone (accumulates with existing files)
  * @param {boolean} replace - If true, replace existing files instead of accumulating
  */
-export async function setDropzoneFiles(dropzone, targetId, filePaths, replace = false) {
+export async function setDropzoneFiles(dropzone, targetId, filePaths, replace = false, quiet = false) {
   const input = document.getElementById(targetId);
   const fileDisplay = dropzone.querySelector('.dropzone-file');
   const fileName = fileDisplay?.querySelector('.file-name');
@@ -192,15 +297,18 @@ export async function setDropzoneFiles(dropzone, targetId, filePaths, replace = 
 
   // Get existing files and merge with new ones (avoiding duplicates)
   let allFiles = filePaths;
+  let existingCount = 0;
   if (!replace && input?.dataset.files) {
     try {
       const existingFiles = JSON.parse(input.dataset.files);
+      existingCount = existingFiles.length;
       // Merge: add new files that aren't already in the list
       const newFiles = filePaths.filter(p => !existingFiles.includes(p));
       allFiles = [...existingFiles, ...newFiles];
     } catch (e) {
       // If parsing fails, just use the new files
       allFiles = filePaths;
+      existingCount = 0;
     }
   }
 
@@ -253,17 +361,24 @@ export async function setDropzoneFiles(dropzone, targetId, filePaths, replace = 
         const pathToRemove = btn.dataset.path;
         const remaining = allFiles.filter(p => p !== pathToRemove);
         if (remaining.length > 0) {
-          setDropzoneFiles(dropzone, targetId, remaining, true); // Replace mode for removal
+          // Replace mode, and quiet: re-rendering the shorter list is a removal, and
+          // letting it announce itself would report the leftovers as newly added.
+          setDropzoneFiles(dropzone, targetId, remaining, true, true);
         } else {
           clearDropzone(dropzone, targetId);
         }
+        logMessage(`Removed: ${getFileName(pathToRemove)}`, 'info');
       });
     });
   }
 
-  const addedCount = allFiles.length - (replace ? 0 : (allFiles.length - filePaths.length));
-  if (addedCount > 0) {
-    logMessage(`Added ${filePaths.length} file(s). Total: ${allFiles.length}`, 'success');
+  // Files already in the list are dropped by the merge above, so report what actually
+  // landed rather than how many were handed in.
+  const addedCount = replace ? allFiles.length : allFiles.length - existingCount;
+  if (addedCount > 0 && !quiet) {
+    logMessage(`Added ${addedCount} file(s). Total: ${allFiles.length}`, 'success');
+  } else if (addedCount === 0 && !quiet) {
+    logMessage(`Already selected: ${filePaths.map(getFileName).join(', ')}`, 'info');
   }
 }
 
@@ -326,89 +441,85 @@ export function clearActivePanelDropzones() {
 }
 
 /**
- * Smart-route dropped files to the correct dropzone based on file extension.
- * Groups files by matching extension → dropzone, then assigns them.
- * Returns true if at least one file was routed successfully.
+ * Route dropped files by extension, but only where the extension is unambiguous.
+ *
+ * A panel can offer several fields for the same extension — classify takes .fasta for
+ * both the reference and the samples, and .tsv for both the markers and the input list.
+ * Guessing between them is worse than not routing: a reference genome silently loaded as
+ * a sample is a wrong run, not a small annoyance. So a file that matches more than one
+ * field is left alone and reported, and the user drops it on the field they mean.
+ *
+ * Returns true if at least one file was routed.
  */
 async function smartRouteFiles(paths) {
   const activePanel = document.querySelector('.panel.active');
   if (!activePanel) return false;
 
-  // Collect all visible dropzones in the active panel
   const dropzones = Array.from(activePanel.querySelectorAll('.dropzone[data-target]'))
     .filter(dz => !dz.closest('.hidden'));
-
   if (dropzones.length === 0) return false;
 
-  // Group files by which dropzone they match
-  const routeMap = new Map(); // dropzone → [paths]
-  const unrouted = [];
-
-  // A dropzone the user has already filled before this drop.
-  const isPreFilled = (dz) => {
-    const input = document.getElementById(dz.dataset.target);
-    return Boolean(
-      String(input?.value || '').trim() ||
-      (input?.dataset?.files && input.dataset.files !== '[]')
-    );
-  };
-  // A single-file dropzone can only take one file from this drop.
-  const canAccept = (dz) => dz.dataset.multiple === 'true' || !routeMap.has(dz);
+  const routeMap = new Map();      // dropzone -> [paths]
+  const ambiguous = [];            // [{ path, candidates }]
+  const unmatched = [];
+  const overflow = [];             // matched a single-file field already taken by this drop
 
   for (const filePath of paths) {
-    let matched = false;
-    // Two passes: prefer a dropzone that is still empty, so dropping a second
-    // file of the same type does not overwrite an input the user already
-    // filled (e.g. landing a sample FASTA on top of the reference). Only if no
-    // empty dropzone matches do we fall back to any matching one.
-    for (const preferEmpty of [true, false]) {
-      for (const dz of dropzones) {
-        const extensions = dz.dataset.extensions?.split(',') || [];
-        if (extensions.length === 0 || !validateFileExtension(filePath, extensions)) continue;
-        if (!canAccept(dz)) continue;
-        if (preferEmpty && isPreFilled(dz)) continue;
+    const candidates = dropzones.filter(dz => {
+      const extensions = dz.dataset.extensions?.split(',') || [];
+      return extensions.length > 0 && validateFileExtension(filePath, extensions);
+    });
+
+    if (candidates.length === 0) {
+      unmatched.push(filePath);
+    } else if (candidates.length > 1) {
+      ambiguous.push({ path: filePath, candidates });
+    } else {
+      const dz = candidates[0];
+      const isMultiple = dz.dataset.multiple === 'true';
+      if (!isMultiple && routeMap.has(dz)) {
+        overflow.push({ path: filePath, dropzone: dz });
+      } else {
         if (!routeMap.has(dz)) routeMap.set(dz, []);
         routeMap.get(dz).push(filePath);
-        matched = true;
-        break;
       }
-      if (matched) break;
     }
-    if (!matched) unrouted.push(filePath);
   }
 
-  if (routeMap.size === 0) return false;
-
-  // Assign files to their matched dropzones in parallel
-  const assignments = [...routeMap.entries()].map(([dz, filePaths]) => {
-    const targetId = dz.dataset.target;
-    const isMultiple = dz.dataset.multiple === 'true';
-
-    const promise = isMultiple
-      ? setDropzoneFiles(dz, targetId, filePaths)
-      : setDropzoneFile(dz, targetId, filePaths[0]).then(() => {
-          if (filePaths.length > 1) {
-            logMessage(`Only first file assigned to ${targetId} (single file input).`, 'warning');
-          }
-        });
-
-    dz.classList.add('drop-received');
-    setTimeout(() => dz.classList.remove('drop-received'), TIMING.DROP_FEEDBACK);
-    return promise;
-  });
-  await Promise.all(assignments);
-
-  // Report results
-  const routedCount = paths.length - unrouted.length;
-  const dzNames = [...routeMap.keys()].map(dz => {
-    const label = dz.closest('.form-group')?.querySelector('label')?.textContent?.trim() || dz.dataset.target;
-    return label.replace(/\s*\?.*$/, ''); // Remove tooltip text
-  });
-  logMessage(`Auto-routed ${routedCount} file(s) to: ${dzNames.join(', ')}`, 'success');
-
-  if (unrouted.length > 0) {
-    logMessage(`${unrouted.length} file(s) could not be matched: ${unrouted.map(getFileName).join(', ')}`, 'warning');
+  if (routeMap.size > 0) {
+    const assignments = [...routeMap.entries()].map(([dz, filePaths]) => {
+      const targetId = dz.dataset.target;
+      const promise = dz.dataset.multiple === 'true'
+        ? setDropzoneFiles(dz, targetId, filePaths)
+        : setDropzoneFile(dz, targetId, filePaths[0]);
+      dz.classList.add('drop-received');
+      setTimeout(() => dz.classList.remove('drop-received'), TIMING.DROP_FEEDBACK);
+      return promise;
+    });
+    await Promise.all(assignments);
+    logMessage(
+      `Auto-routed ${paths.length - ambiguous.length - unmatched.length - overflow.length} ` +
+      `file(s) to: ${[...routeMap.keys()].map(dropzoneLabel).join(', ')}`,
+      'success'
+    );
   }
 
-  return true;
+  for (const { path, candidates } of ambiguous) {
+    logMessage(
+      `${getFileName(path)} fits ${candidates.map(dropzoneLabel).join(' or ')}. ` +
+      `Drop it on the field you want.`,
+      'warning'
+    );
+  }
+  for (const { path, dropzone } of overflow) {
+    logMessage(`${dropzoneLabel(dropzone)} takes one file; ${getFileName(path)} was not loaded.`, 'warning');
+  }
+  if (unmatched.length > 0) {
+    logMessage(
+      `${unmatched.length} file(s) could not be matched: ${unmatched.map(getFileName).join(', ')}`,
+      'warning'
+    );
+  }
+
+  return routeMap.size > 0;
 }

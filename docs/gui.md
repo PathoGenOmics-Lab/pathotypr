@@ -37,6 +37,90 @@ note on macOS and Windows.
 - Excel export written alongside the TSV output
 - Configurable parameters with sensible defaults and reset buttons
 
+## Using the app
+
+Every workflow uses the same window. The sidebar picks one of the five commands,
+grouped as machine learning, genotyping and utilities; the form in the middle collects
+exactly what the corresponding command takes as flags; and the run button, the progress
+bar and the console sit along the bottom.
+
+![The Pathotypr home panel, with the sidebar, the workflow cards and the console](assets/gui/home.png)
+
+### Getting the reference data
+
+**Load MTB Data** downloads the marker panels, the pre-trained model and the MTBC
+ancestor reference, and fills them into every panel that needs them. It resolves the
+newest published version of the [Zenodo deposit](https://doi.org/10.5281/zenodo.19210043)
+at download time, so the app keeps working when the catalogue is updated. The Classify
+and Split FASTQ panels also have **Lineage Markers** and **DR Markers** buttons that
+fetch one panel at a time.
+
+If you already have the files — from [Getting started](getting-started.md), for
+instance — drag them onto the fields instead. The app never needs the files to come
+from Zenodo.
+
+### Genotyping an assembly
+
+![The Classify panel](assets/gui/classify.png)
+
+1. Drop the marker TSV on **Markers TSV** and the ancestor genome on **Reference FASTA**.
+   Both are filled for you if you used one of the download buttons.
+2. Drop your assemblies on **Input Genomes**, or switch to **Sample List** to pass a file
+   listing them.
+3. Set **Output Prefix** with *Save As*.
+4. Adjust **Options** if you need to; the defaults match the CLI defaults.
+5. Press **Run**.
+
+Files are routed to the field you drop them on, and the field under the cursor is
+highlighted while you drag. Dropping on empty space routes by extension instead, and
+when an extension fits more than one field — `.fasta` fits both the reference and the
+samples — the app says so and leaves the file for you to place, rather than guessing.
+
+### Genotyping reads
+
+![The Split FASTQ panel](assets/gui/split-fastq.png)
+
+Same shape, with FASTQ input. Paired files are detected from their names (`_R1`/`_R2`,
+`_1`/`_2`, `.1`/`.2`), and **Min Depth** and **Min Alt Percent** are the read-level
+thresholds described in [split-fastq](split-fastq.md).
+
+### Reading the results
+
+When a run finishes the results open below the form: a paginated, filterable table of
+the output TSV, and charts appropriate to the workflow — lineage composition, a
+resistance profile for a drug-resistance panel, or match scores. The console drawer
+keeps a timestamped log, and output paths in it are clickable.
+
+The files themselves are written exactly where the CLI would write them, with the same
+names, and an `.xlsx` copy alongside if you tick the Excel option.
+
+### The same run on the command line
+
+Every field is one flag. The GUI is a front end to the same engine, so a run set up in
+the app is a run you can script:
+
+| Field in the app | Flag |
+|---|---|
+| Markers TSV | `-m, --markers` |
+| Reference FASTA | `-r, --reference` |
+| Input Genomes / FASTQ files | `-i, --input` |
+| Sample List | `-l, --input-list` |
+| Output Prefix | `-o, --output-prefix` |
+| K-mer Size | `-k, --kmer-size` |
+| Threads | `-t, --threads` |
+| Min Depth | `--min-depth` |
+| Min Alt Percent | `--min-alt-percent` |
+| Nested classification | `--nested-classification` |
+| Excel output | `--excel` |
+
+!!! tip "Use the CLI for anything repeated"
+    The app is built for looking at one run closely: setting it up, watching it, and
+    reading the tables and charts it produces. Batches, cluster jobs, pipelines and
+    anything you need to reproduce months later belong on the command line, which is
+    documented per command under [Commands](train.md) and is the reference
+    implementation. Both call the same `pathotypr-core`, so results are identical.
+
+
 ## Building from source
 
 *Only needed to modify pathotypr itself — see [Get the app](#get-the-app) to

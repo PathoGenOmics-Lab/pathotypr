@@ -198,16 +198,17 @@ async function handleDownloadMtbcModel(e) {
   openConsoleDrawerIfClosed(true);
 
   try {
+    const modelAsset = await resolveZenodoAsset(mtbcModel.kind, 'model');
     const result = await tauriInvoke('download_file', {
-      params: { url: mtbcModel.url, filename: mtbcModel.filename }
+      params: { url: modelAsset.url, filename: modelAsset.filename }
     });
 
     if (result.success && result.path) {
       const modelDropzone = document.querySelector('[data-target="predict-model"]');
       if (modelDropzone) {
-        await setDropzoneFile(modelDropzone, 'predict-model', result.path);
+        await setDropzoneFile(modelDropzone, 'predict-model', result.path, true);
       }
-      logMessage(`MTBC model loaded: ${mtbcModel.filename}`, 'success');
+      logMessage(`MTBC model loaded: ${modelAsset.filename}`, 'success');
     } else {
       logMessage(`Failed to download MTBC model: ${result.error || 'Unknown error'}`, 'error');
     }
@@ -224,14 +225,34 @@ async function handleDownloadMtbcModel(e) {
 /**
  * Download and load marker + reference files into Classify dropzones
  */
+/**
+ * Resolve a Zenodo asset (kind -> url + filename) against the newest published deposit.
+ *
+ * The version is never written into the app: the backend asks Zenodo for the newest one
+ * and matches the asset by filename prefix. If Zenodo is unreachable it answers with the
+ * pinned URLs and flags it, which is worth saying out loud because the file may then be
+ * older than the one published.
+ */
+async function resolveZenodoAsset(kind, label) {
+  const resolution = await tauriInvoke('resolve_marker_assets');
+  const asset = (resolution.assets || []).find(a => a.kind === kind);
+  if (!asset) {
+    throw new Error(`the marker deposit does not publish a ${label} file`);
+  }
+  if (resolution.fallback) {
+    const reason = resolution.reason ? ` (${resolution.reason})` : '';
+    logMessage(`Could not reach Zenodo${reason}; downloading the last known ${label} file`, 'warning');
+  } else if (asset.fallback) {
+    logMessage(`The current marker deposit does not publish a ${label} file; downloading the last known one`, 'warning');
+  } else {
+    const version = resolution.version ? ` ${resolution.version}` : '';
+    logMessage(`Marker deposit${version} resolved (Zenodo record ${resolution.record_id})`, 'info');
+  }
+  return asset;
+}
+
 async function loadQuickMarkers(dataConfig, btn, label) {
   const { markers, reference } = dataConfig;
-
-  if (markers.url.startsWith('YOUR_')) {
-    logMessage(`${label} markers URL not configured yet. Download manually and drag the file.`, 'warning');
-    openConsoleDrawerIfClosed(true);
-    return;
-  }
 
   const originalHTML = btn.innerHTML;
   btn.disabled = true;
@@ -246,8 +267,9 @@ async function loadQuickMarkers(dataConfig, btn, label) {
   openConsoleDrawerIfClosed(true);
 
   try {
+    const markersAsset = await resolveZenodoAsset(markers.kind, label);
     const [markersResult, referenceResult] = await Promise.all([
-      tauriInvoke('download_file', { params: { url: markers.url, filename: markers.filename } }),
+      tauriInvoke('download_file', { params: { url: markersAsset.url, filename: markersAsset.filename } }),
       tauriInvoke('download_file', { params: { url: reference.url, filename: reference.filename } })
     ]);
 
@@ -255,14 +277,15 @@ async function loadQuickMarkers(dataConfig, btn, label) {
     if (markersResult.success && markersResult.path) {
       const classifyMarkersDropzone = document.querySelector('[data-target="classify-markers"]');
       if (classifyMarkersDropzone) {
-        await setDropzoneFiles(classifyMarkersDropzone, 'classify-markers', [markersResult.path]);
+        await setDropzoneFiles(classifyMarkersDropzone, 'classify-markers', [markersResult.path], false, true);
       }
       // Also add to split-fastq (accumulate with existing)
       const splitfqMarkersDropzone = document.querySelector('[data-target="splitfq-markers"]');
       if (splitfqMarkersDropzone) {
-        await setDropzoneFiles(splitfqMarkersDropzone, 'splitfq-markers', [markersResult.path]);
+        await setDropzoneFiles(splitfqMarkersDropzone, 'splitfq-markers', [markersResult.path], false, true);
       }
-      logMessage(`${label} markers loaded: ${markers.filename}`, 'success');
+      const shownLabel = label.charAt(0).toUpperCase() + label.slice(1);
+      logMessage(`${shownLabel} markers loaded: ${markersAsset.filename}`, 'success');
     } else {
       logMessage(`Failed to download ${label} markers: ${markersResult.error || 'Unknown error'}`, 'error');
     }
@@ -272,12 +295,12 @@ async function loadQuickMarkers(dataConfig, btn, label) {
       const classifyRefDropzone = document.querySelector('[data-target="classify-reference"]');
       const refInput = document.getElementById('classify-reference');
       if (classifyRefDropzone && !refInput?.value) {
-        await setDropzoneFile(classifyRefDropzone, 'classify-reference', referenceResult.path);
+        await setDropzoneFile(classifyRefDropzone, 'classify-reference', referenceResult.path, true);
       }
       const splitfqRefDropzone = document.querySelector('[data-target="splitfq-reference"]');
       const splitfqRefInput = document.getElementById('splitfq-reference');
       if (splitfqRefDropzone && !splitfqRefInput?.value) {
-        await setDropzoneFile(splitfqRefDropzone, 'splitfq-reference', referenceResult.path);
+        await setDropzoneFile(splitfqRefDropzone, 'splitfq-reference', referenceResult.path, true);
       }
       logMessage(`Reference loaded: ${reference.filename}`, 'success');
     } else {
@@ -339,19 +362,18 @@ async function loadDemoData() {
  * Download MTBC model silently (used by Load MTB Data button)
  */
 async function downloadMtbcModelSilent() {
-  if (mtbcModel.url.startsWith('YOUR_')) return;
-
   try {
+    const modelAsset = await resolveZenodoAsset(mtbcModel.kind, 'model');
     const result = await tauriInvoke('download_file', {
-      params: { url: mtbcModel.url, filename: mtbcModel.filename }
+      params: { url: modelAsset.url, filename: modelAsset.filename }
     });
 
     if (result.success && result.path) {
       const modelDropzone = document.querySelector('[data-target="predict-model"]');
       if (modelDropzone) {
-        await setDropzoneFile(modelDropzone, 'predict-model', result.path);
+        await setDropzoneFile(modelDropzone, 'predict-model', result.path, true);
       }
-      logMessage(`MTBC model loaded: ${mtbcModel.filename}`, 'success');
+      logMessage(`MTBC model loaded: ${modelAsset.filename}`, 'success');
     } else {
       logMessage(`Failed to download MTBC model: ${result.error || 'Unknown error'}`, 'error');
     }
@@ -366,12 +388,6 @@ async function downloadMtbcModelSilent() {
  */
 async function loadGenotypingDemoData() {
   const { markers, reference } = demoGenotypingData;
-
-  // Validate that URLs have been configured
-  if (markers.url.startsWith('YOUR_') || reference.url.startsWith('YOUR_')) {
-    logMessage('MTB data URLs not configured yet.', 'warning');
-    return;
-  }
 
   const btn = document.getElementById('btn-load-demo');
   const originalContent = btn ? btn.innerHTML : '';
@@ -390,8 +406,9 @@ async function loadGenotypingDemoData() {
 
   try {
     // Download markers and reference in parallel
+    const markersAsset = await resolveZenodoAsset(markers.kind, 'lineage');
     const [markersResult, referenceResult] = await Promise.all([
-      tauriInvoke('download_file', { params: { url: markers.url, filename: markers.filename } }),
+      tauriInvoke('download_file', { params: { url: markersAsset.url, filename: markersAsset.filename } }),
       tauriInvoke('download_file', { params: { url: reference.url, filename: reference.filename } })
     ]);
 
@@ -401,13 +418,13 @@ async function loadGenotypingDemoData() {
     if (markersResult.success && markersResult.path) {
       const classifyMarkersDropzone = document.querySelector('[data-target="classify-markers"]');
       if (classifyMarkersDropzone) {
-        await setDropzoneFile(classifyMarkersDropzone, 'classify-markers', markersResult.path);
+        await setDropzoneFiles(classifyMarkersDropzone, 'classify-markers', [markersResult.path], false, true);
       }
       const splitfqMarkersDropzone = document.querySelector('[data-target="splitfq-markers"]');
       if (splitfqMarkersDropzone) {
-        await setDropzoneFile(splitfqMarkersDropzone, 'splitfq-markers', markersResult.path);
+        await setDropzoneFiles(splitfqMarkersDropzone, 'splitfq-markers', [markersResult.path], false, true);
       }
-      logMessage(`Markers loaded: ${markers.filename}`, 'success');
+      logMessage(`Markers loaded: ${markersAsset.filename}`, 'success');
     } else {
       logMessage(`Failed to download markers: ${markersResult.error || 'Unknown error'}`, 'error');
       success = false;
@@ -417,11 +434,11 @@ async function loadGenotypingDemoData() {
     if (referenceResult.success && referenceResult.path) {
       const classifyRefDropzone = document.querySelector('[data-target="classify-reference"]');
       if (classifyRefDropzone) {
-        await setDropzoneFile(classifyRefDropzone, 'classify-reference', referenceResult.path);
+        await setDropzoneFile(classifyRefDropzone, 'classify-reference', referenceResult.path, true);
       }
       const splitfqRefDropzone = document.querySelector('[data-target="splitfq-reference"]');
       if (splitfqRefDropzone) {
-        await setDropzoneFile(splitfqRefDropzone, 'splitfq-reference', referenceResult.path);
+        await setDropzoneFile(splitfqRefDropzone, 'splitfq-reference', referenceResult.path, true);
       }
       logMessage(`Reference loaded: ${reference.filename}`, 'success');
     } else {

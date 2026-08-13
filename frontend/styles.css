@@ -1722,9 +1722,9 @@ svg {
   left: var(--sidebar-width, 220px);
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  /* Light tint only. A blur used to sit over the panel, which hid the fields the drag
+     is meant to be aimed at, and cost a full-area recomposite on every frame. */
+  background: rgba(255, 255, 255, 0.18);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1739,43 +1739,7 @@ svg {
 }
 
 [data-theme="dark"] #drag-overlay {
-  background: rgba(15, 23, 35, 0.55);
-}
-
-.drag-overlay-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 48px 64px;
-  border: 2px dashed var(--primary);
-  border-radius: 20px;
-  background: rgba(var(--primary-rgb), 0.04);
-  animation: dragOverlayBounce 0.4s ease;
-}
-
-.drag-overlay-icon {
-  width: 48px;
-  height: 48px;
-  color: var(--primary);
-  opacity: 0.7;
-}
-
-.drag-overlay-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  letter-spacing: -0.01em;
-}
-
-.drag-overlay-hint {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-}
-
-@keyframes dragOverlayBounce {
-  0% { transform: scale(0.9); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
+  background: rgba(15, 23, 35, 0.28);
 }
 
 @keyframes dropPulse {

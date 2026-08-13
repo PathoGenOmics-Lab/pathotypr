@@ -9,7 +9,7 @@
 [![Bioconda](https://img.shields.io/conda/vn/bioconda/pathotypr?style=flat-square&color=%23009E73&label=bioconda)](https://anaconda.org/bioconda/pathotypr)
 [![Bioconda downloads](https://img.shields.io/conda/dn/bioconda/pathotypr?style=flat-square&color=%23009E73&label=downloads)](https://anaconda.org/bioconda/pathotypr)
 [![Preprint](https://img.shields.io/badge/preprint-bioRxiv-%23b31b1b?style=flat-square)](https://doi.org/10.64898/2026.03.24.714002)
-[![Markers](https://img.shields.io/badge/markers-Zenodo%2019210044-%230072B2?style=flat-square)](https://zenodo.org/records/19210044)
+[![Markers](https://img.shields.io/badge/markers-Zenodo-%230072B2?style=flat-square)](https://doi.org/10.5281/zenodo.19210043)
 
 **Lineage classification and marker-driven genotyping — from assemblies or raw reads.**
 
@@ -84,13 +84,14 @@ walks through a full MTBC run, from install to reading the output.
 
 ## Ready-to-use MTBC data
 
-Marker panels and a pre-trained model for the *M. tuberculosis* complex are published on Zenodo, DOI [10.5281/zenodo.19210044](https://doi.org/10.5281/zenodo.19210044):
+Marker panels and a pre-trained model for the *M. tuberculosis* complex are published on Zenodo under the concept DOI [10.5281/zenodo.19210043](https://doi.org/10.5281/zenodo.19210043), which always resolves to the newest version:
 
 | File | Contents |
 |---|---|
-| `pathotypr_lineage_markers_v1.0.0.tsv` | 3,707 lineage SNPs (L1–L10, A1–A4) |
-| `pathotypr_dr_markers_v1.0.0.tsv` | 102,213 DR mutations (WHO catalogue v2, 2023) |
-| `pathotypr_rf_model_v1.0.0.pathotypr` | Pre-trained Random Forest (k=31, 100 trees) |
+| `pathotypr_lineage_markers_*.tsv` | 3,707 lineage SNPs (L1–L10, A1–A4) |
+| `pathotypr_dr_markers_ancestor_*.tsv` | DR mutations from the WHO catalogue (2nd edition, 2023), ancestor coordinates |
+| `pathotypr_dr_markers_H37Rv_*.tsv` | The same catalogue in H37Rv coordinates |
+| `pathotypr_rf_model_*.pathotypr` | Pre-trained Random Forest (k=31, 100 trees) |
 
 Download links and usage are in the [installation guide](https://pathogenomics-lab.github.io/pathotypr/installation/#mtbc-marker-files-pre-trained-model).
 

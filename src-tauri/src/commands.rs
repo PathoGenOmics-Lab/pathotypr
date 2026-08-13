@@ -1,7 +1,7 @@
 //! Tauri command handlers for all GUI-invokable operations.
 
 use pathotypr_core::{
-    classify, classify_split_fastq, predict, r#match, train, ClassifyArgs,
+    classify, classify_split_fastq, defaults, predict, r#match, train, ClassifyArgs,
     MatchArgs, PredictArgs, SplitFastqArgs, TrainArgs,
 };
 use serde::{Deserialize, Serialize};
@@ -1289,5 +1289,146 @@ pub fn get_app_info() -> serde_json::Value {
         "description": "A high-performance tool for genome classification and variant genotyping",
         "authors": "Paula Ruiz Rodriguez & Mireia Coscolla (PathoGenOmics Lab)",
         "license": "AGPL-3.0"
+    })
+}
+
+// ============================================================================
+// MARKER DEPOSIT RESOLUTION
+// ============================================================================
+
+#[derive(Debug, Serialize)]
+pub struct ZenodoAsset {
+    pub kind: String,
+    pub filename: String,
+    pub url: String,
+    /// True when the deposit does not publish this asset and a pinned URL is served instead.
+    pub fallback: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ZenodoResolution {
+    pub record_id: String,
+    pub version: Option<String>,
+    pub assets: Vec<ZenodoAsset>,
+    /// True when Zenodo could not be reached and the pinned URLs are being served.
+    pub fallback: bool,
+    /// Why the newest version could not be resolved, so the caller can report it.
+    pub reason: Option<String>,
+}
+
+fn pinned_resolution(reason: &str) -> ZenodoResolution {
+    log::warn!("Could not resolve the newest marker deposit ({reason}); using pinned URLs");
+    let assets = ["lineage_markers", "dr_markers", "rf_model"]
+        .iter()
+        .filter_map(|kind| {
+            defaults::fallback_asset(kind).map(|(url, filename)| ZenodoAsset {
+                kind: kind.to_string(),
+                filename: filename.to_string(),
+                url: url.to_string(),
+                fallback: true,
+            })
+        })
+        .collect();
+    ZenodoResolution {
+        record_id: String::new(),
+        version: None,
+        assets,
+        fallback: true,
+        reason: Some(reason.to_string()),
+    }
+}
+
+/// Resolve the newest published version of the marker deposit.
+///
+/// Assets are matched by filename prefix rather than by a version written into the code,
+/// so publishing a new catalogue on Zenodo is enough to make the app offer it. If the
+/// deposit cannot be reached the pinned URLs are returned instead, flagged as a fallback
+/// so the caller can say so.
+#[tauri::command]
+pub async fn resolve_marker_assets() -> Result<ZenodoResolution, String> {
+    // Zenodo's API answers 403 to requests without a User-Agent.
+    let client = match reqwest::Client::builder()
+        .user_agent(format!("Pathotypr/{}", env!("CARGO_PKG_VERSION")))
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+    {
+        Ok(c) => c,
+        Err(e) => return Ok(pinned_resolution(&e.to_string())),
+    };
+
+    let response = match client.get(defaults::ZENODO_LATEST_VERSION_API).send().await {
+        Ok(r) if r.status().is_success() => r,
+        Ok(r) => return Ok(pinned_resolution(&format!("HTTP {}", r.status()))),
+        Err(e) => return Ok(pinned_resolution(&e.to_string())),
+    };
+
+    // reqwest is built without its json feature here, so the body is parsed explicitly.
+    let body = match response.text().await {
+        Ok(b) => b,
+        Err(e) => return Ok(pinned_resolution(&e.to_string())),
+    };
+    let record: serde_json::Value = match serde_json::from_str(&body) {
+        Ok(v) => v,
+        Err(e) => return Ok(pinned_resolution(&e.to_string())),
+    };
+
+    let files = record["files"].as_array().cloned().unwrap_or_default();
+    let filenames: Vec<String> = files
+        .iter()
+        .filter_map(|f| f["key"].as_str().map(str::to_string))
+        .collect();
+    let borrowed: Vec<&str> = filenames.iter().map(String::as_str).collect();
+
+    let record_id = record["id"]
+        .as_u64()
+        .map(|n| n.to_string())
+        .or_else(|| record["id"].as_str().map(str::to_string))
+        .unwrap_or_default();
+
+    let mut assets = Vec::new();
+    for kind in ["lineage_markers", "dr_markers", "rf_model"] {
+        // A deposit can be published missing one of the assets, as happened when a new
+        // version carried the resistance catalogue but not the lineage panel or the model.
+        // That is no reason to fail the other downloads, so each asset falls back on its own.
+        let Some(filename) = defaults::select_asset(kind, borrowed.iter().copied()) else {
+            if let Some((url, filename)) = defaults::fallback_asset(kind) {
+                log::warn!("The current marker deposit does not publish a {kind} file; using the pinned URL");
+                assets.push(ZenodoAsset {
+                    kind: kind.to_string(),
+                    filename: filename.to_string(),
+                    url: url.to_string(),
+                    fallback: true,
+                });
+            }
+            continue;
+        };
+        let url = files
+            .iter()
+            .find(|f| f["key"].as_str() == Some(filename))
+            .and_then(|f| f["links"]["self"].as_str())
+            .map(str::to_string)
+            .unwrap_or_else(|| {
+                format!("https://zenodo.org/records/{record_id}/files/{filename}?download=1")
+            });
+        assets.push(ZenodoAsset {
+            kind: kind.to_string(),
+            filename: filename.to_string(),
+            url,
+            fallback: false,
+        });
+    }
+
+    if assets.iter().all(|a| a.fallback) {
+        return Ok(pinned_resolution("the deposit listed no recognisable assets"));
+    }
+
+    Ok(ZenodoResolution {
+        record_id,
+        version: record["metadata"]["version"]
+            .as_str()
+            .map(str::to_string),
+        assets,
+        fallback: false,
+        reason: None,
     })
 }

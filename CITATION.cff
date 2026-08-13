@@ -11,8 +11,8 @@ authors:
     given-names: Mireia
     orcid: "https://orcid.org/0000-0003-2078-1032"
     affiliation: "Institute for Integrative Systems Biology (I2SysBio), CSIC - University of Valencia"
-version: 1.0.1
-date-released: 2026-03-24
+version: 1.0.2
+date-released: 2026-08-12
 license: AGPL-3.0-only
 repository-code: "https://github.com/PathoGenOmics-Lab/pathotypr"
 url: "https://github.com/PathoGenOmics-Lab/pathotypr"

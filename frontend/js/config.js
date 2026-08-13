@@ -109,45 +109,30 @@ export const fallbackColors = [
   '#84cc16', '#a855f7', '#22c55e', '#e11d48', '#0ea5e9'
 ];
 
-// M. tuberculosis genotyping data URLs (markers + reference genome)
-export const demoGenotypingData = {
-  markers: {
-    url: 'https://zenodo.org/records/19210044/files/pathotypr_lineage_markers_v1.0.0.tsv?download=1',
-    filename: 'pathotypr_lineage_markers_v1.0.0.tsv'
-  },
-  reference: {
-    url: 'https://zenodo.org/records/3497110/files/MTB_ancestor_reference.fasta?download=1',
-    filename: 'reference.fasta'
-  }
+// Marker panels and the pre-trained model live in a versioned Zenodo deposit whose
+// concept DOI (10.5281/zenodo.19210043) always points at the newest version. The backend
+// resolves that version at download time (resolve_marker_assets) and recognises each
+// asset by the prefix of its filename, so publishing a new catalogue on Zenodo is enough
+// for the app to offer it: no URL or version is written here. `kind` selects the asset.
+export const ancestorReference = {
+  url: 'https://zenodo.org/records/3497110/files/MTB_ancestor_reference.fasta?download=1',
+  filename: 'MTB_ancestor_reference.fasta'
 };
 
 export const lineageMarkerData = {
-  markers: {
-    url: 'https://zenodo.org/records/19210044/files/pathotypr_lineage_markers_v1.0.0.tsv?download=1',
-    filename: 'pathotypr_lineage_markers_v1.0.0.tsv'
-  },
-  reference: {
-    url: 'https://zenodo.org/records/3497110/files/MTB_ancestor_reference.fasta?download=1',
-    filename: 'MTB_ancestor_reference.fasta'
-  }
+  markers: { kind: 'lineage_markers' },
+  reference: ancestorReference
 };
 
 export const drMarkerData = {
-  markers: {
-    url: 'https://zenodo.org/records/19210044/files/pathotypr_dr_markers_v1.0.0.tsv?download=1',
-    filename: 'pathotypr_dr_markers_v1.0.0.tsv'
-  },
-  reference: {
-    url: 'https://zenodo.org/records/3497110/files/MTB_ancestor_reference.fasta?download=1',
-    filename: 'MTB_ancestor_reference.fasta'
-  }
+  markers: { kind: 'dr_markers' },
+  reference: ancestorReference
 };
 
+export const demoGenotypingData = lineageMarkerData;
+
 // Pre-trained MTBC model for Predict
-export const mtbcModel = {
-  url: 'https://zenodo.org/records/19210044/files/pathotypr_rf_model_v1.0.0.pathotypr?download=1',
-  filename: 'pathotypr_rf_model_v1.0.0.pathotypr'
-};
+export const mtbcModel = { kind: 'rf_model' };
 
 // UI timing constants (ms)
 export const TIMING = {

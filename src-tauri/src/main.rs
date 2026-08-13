@@ -34,6 +34,7 @@ fn main() {
             commands::get_system_usage,
             commands::get_version,
             commands::get_app_info,
+            commands::resolve_marker_assets,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
