@@ -112,6 +112,23 @@ pathotypr classify
                 </assert_contents>
             </output>
         </test>
+        <!-- The masked FASTA is a discovered collection, so its naming deserves
+             a test of its own. The input genomes contain no N at all, so an N in
+             the output can only have come from masking. -->
+        <test expect_num_outputs="3">
+            <param name="genomes" value="sample1.fasta" ftype="fasta"/>
+            <param name="markers" value="markers.tsv" ftype="tabular"/>
+            <param name="reference" value="reference.fasta" ftype="fasta"/>
+            <param name="output_masked_fasta" value="true"/>
+            <output_collection name="masked" type="list" count="1">
+                <element name="sample1" ftype="fasta">
+                    <assert_contents>
+                        <has_text text="&gt;sample1"/>
+                        <has_text text="N"/>
+                    </assert_contents>
+                </element>
+            </output_collection>
+        </test>
     </tests>
     <help><![CDATA[
 **What it does**
