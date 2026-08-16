@@ -18,8 +18,12 @@ jobs:
 
       # The validator is a plain module with its own tests. Running them here
       # means a broken rule can never comment on someone's proposal.
+      # The path has to name the test files. `node --test <directory>` treats the
+      # directory as a module to execute and dies with MODULE_NOT_FOUND, which
+      # is what this step did on its first real run: it failed for its own
+      # reasons before it could check anything.
       - name: Test the validator
-        run: node --test .github/scripts/
+        run: node --test .github/scripts/*.test.js
 
       - name: Validate the proposal and comment
         uses: actions/github-script@v9
