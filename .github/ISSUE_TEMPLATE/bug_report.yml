@@ -1,27 +1,54 @@
-name: Bug Report
-description: Report a bug in pathotypr
+name: Bug report
+description: pathotypr crashed, refused valid input, or behaved differently from the documentation
 title: "[Bug] "
 labels: ["bug"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form when pathotypr **fails**: it crashes, exits with an error, or
+        does something the documentation says it should not.
+
+        If it runs to completion but the calls look wrong, use
+        [Unexpected results](https://github.com/PathoGenOmics-Lab/pathotypr/issues/new?template=unexpected_results.yml)
+        instead. If you are unsure how to use a command, ask in
+        [Q&A](https://github.com/PathoGenOmics-Lab/pathotypr/discussions/new?category=q-a).
+
   - type: input
     id: version
     attributes:
       label: pathotypr version
-      placeholder: "e.g., 0.2.1"
+      description: Output of `pathotypr --version`, or the version shown in the desktop app.
+      placeholder: "e.g. 1.0.2"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install it?
+      description: Several failures are specific to one of these, so this narrows the search a lot.
+      options:
+        - Bioconda (conda / mamba)
+        - Desktop installer from the releases page
+        - Built from source with cargo
+        - Docker or a container image
+        - Other
     validations:
       required: true
 
   - type: dropdown
     id: module
     attributes:
-      label: Module
+      label: Which command?
       options:
-        - classify
-        - predict
         - train
+        - predict
+        - classify
         - split-fastq
         - match
-        - GUI
+        - Desktop GUI
+        - Installation itself
         - Other
     validations:
       required: true
@@ -29,25 +56,27 @@ body:
   - type: input
     id: os
     attributes:
-      label: OS & Architecture
-      placeholder: "e.g., macOS 15.3 ARM64, Ubuntu 22.04 x86_64"
+      label: Operating system and architecture
+      placeholder: "e.g. macOS 15.3 arm64, Ubuntu 22.04 x86_64, Windows 11 x86_64"
     validations:
       required: true
 
   - type: textarea
     id: description
     attributes:
-      label: Description
-      description: What happened? What did you expect?
+      label: What happened, and what did you expect instead?
+      description: Describe both. "It failed" tells us less than "it exited after reading the reference, and I expected it to write a TSV".
     validations:
       required: true
 
   - type: textarea
-    id: reproduce
+    id: command
     attributes:
-      label: Steps to reproduce
-      description: Commands or steps to trigger the bug
+      label: The exact command
+      description: Paste the full command line, including every flag. For the desktop app, list the fields you filled in.
       render: bash
+      placeholder: |
+        pathotypr classify -m markers.tsv -r reference.fasta -i sample.fasta -o out
     validations:
       required: true
 
@@ -55,7 +84,35 @@ body:
     id: error
     attributes:
       label: Error output
-      description: Paste the error message or log
+      description: |
+        Paste the full output, not just the last line. Re-running with `-vv` adds
+        per-row detail that usually identifies the cause immediately.
       render: text
     validations:
+      required: true
+
+  - type: textarea
+    id: inputs
+    attributes:
+      label: Your input files
+      description: |
+        Describe them, or attach small ones by dragging them here. Useful details:
+        number of records, approximate genome size, how many marker rows, whether
+        the reference is a single-record FASTA, and whether the FASTQ is gzipped
+        and paired.
+
+        Do not upload patient data or anything you cannot share publicly. A
+        synthetic file that reproduces the failure is worth more than a real one
+        you have to redact.
+    validations:
       required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and did not find this one.
+          required: true
+        - label: I am on the latest release, or I have stated my version above and checked the changelog.
+          required: false

@@ -1,0 +1,81 @@
+# Which part of the project a pull request touches, worked out from the files it
+# changes. The labels exist so that "what is broken in the GUI" is a question the
+# issue list can answer, and applying them by hand is how they stop being applied.
+#
+# The issue forms label their own issues, so this only has to cover pull requests.
+#
+# Format is actions/labeler v5, which is not v4's: a bare list of globs under the
+# label name silently matches nothing.
+
+module:train:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pathotypr-core/src/train.rs"
+          - "pathotypr-core/src/sparse_tree.rs"
+          - "pathotypr-core/src/vectorizer.rs"
+          - "pathotypr-core/src/model.rs"
+
+module:predict:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pathotypr-core/src/predict.rs"
+          - "pathotypr-core/src/lineage.rs"
+
+module:classify:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pathotypr-core/src/classify/**"
+
+module:split-fastq:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pathotypr-core/src/classify_split_fastq.rs"
+          - "pathotypr-core/src/split_kmer.rs"
+          - "pathotypr-core/src/paired_end.rs"
+
+module:match:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pathotypr-core/src/match/**"
+
+module:gui:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src-tauri/**"
+          - "frontend/**"
+
+area:markers:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pathotypr-core/src/classify/markers.rs"
+          - "docs/marker_format.md"
+          - ".github/scripts/validate-marker-tsv*.js"
+          - ".github/DISCUSSION_TEMPLATE/**"
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/**"
+          - "mkdocs.yml"
+          - "readme.md"
+          - "CONTRIBUTING.md"
+
+area:packaging:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/workflows/release.yml"
+          - "Cargo.toml"
+          - "Cargo.lock"
+          - "pathotypr-core/Cargo.toml"
+          - "src-tauri/Cargo.toml"
+          - "src-tauri/tauri.conf.json"
+          - "CITATION.cff"
+
+# Everything under .github, not a list of the files there. Naming them one by one
+# would leave this file itself uncovered, so the pull request adding a rule would
+# arrive with no label, which is a small thing that says exactly how such a list
+# ages.
+area:ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**"

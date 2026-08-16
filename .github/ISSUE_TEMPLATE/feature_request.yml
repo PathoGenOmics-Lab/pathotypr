@@ -1,0 +1,66 @@
+name: Feature request
+description: Suggest a new capability or a change to an existing one
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ideas are welcome. The ones that get built are usually the ones that
+        describe a concrete analysis that is awkward today, rather than a feature
+        in the abstract.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do that is hard right now?
+      description: Describe the analysis, not the feature. What are you running, and where does it become painful?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like pathotypr to do?
+      description: If you have a concrete shape in mind, sketch the command line or the output columns.
+      placeholder: |
+        e.g. pathotypr classify --report json, so results can be piped into a downstream script
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of pathotypr would this touch?
+      options:
+        - train
+        - predict
+        - classify
+        - split-fastq
+        - match
+        - Desktop GUI
+        - Marker format
+        - Output files
+        - Documentation
+        - Packaging and installation
+        - Something else or not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What are you doing instead today?
+      description: A workaround, another tool, or a manual step. This tells us how much the feature is really worth.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and discussions and did not find this.
+          required: true
+        - label: I would be willing to help test this.
+          required: false

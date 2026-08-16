@@ -1,0 +1,88 @@
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Questions about how to run pathotypr, or about why a call came out the way
+        it did, belong here rather than in the issue tracker. An answer here can be
+        marked as the answer, which is what makes the next person find it.
+
+        Three things worth checking first, because they account for most questions:
+
+        - **`train` takes its label from the FASTA header**, specifically the first
+          whitespace-separated token. Feeding it genomes straight from NCBI gives
+          one class per accession rather than one per group, and nothing warns you.
+          Rewrite the headers to the labels you actually want predicted.
+        - **Marker positions are 1-based on the exact reference you pass with
+          `-r`.** A panel read against a different assembly produces confident,
+          wrong calls with no warning at all.
+        - **`split-fastq` skips indels.** SNPs and equal-length MNVs work in both
+          workflows; a REF and ALT of different lengths is accepted by `classify`
+          and dropped from read-based genotyping.
+
+        Running with `-vv` reports every marker that was skipped and why, which
+        answers a surprising number of questions on its own.
+
+        If the tool crashed or refused to run, that is a
+        [bug report](https://github.com/PathoGenOmics-Lab/pathotypr/issues/new/choose)
+        instead.
+
+  - type: input
+    attributes:
+      label: Version
+      description: The output of `pathotypr --version`, or the version the desktop app shows.
+      placeholder: "pathotypr 1.0.2"
+    validations:
+      required: true
+
+  - type: dropdown
+    attributes:
+      label: Which command is the question about?
+      options:
+        - train
+        - predict
+        - classify
+        - split-fastq
+        - match
+        - The desktop app
+        - Installation
+        - Marker files
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: What are you trying to find out?
+      description: >-
+        The analysis behind the question, not only the symptom. Knowing what
+        answer you are after usually changes what the answer should be.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: The command you ran
+      description: The whole command, including every flag. If you used the desktop app, say which fields you filled in.
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: What you saw
+      description: Output, log lines, or the rows you are asking about. Paste rather than paraphrase where you can.
+      render: text
+    validations:
+      required: false
+
+  - type: input
+    attributes:
+      label: Which organism?
+      description: >-
+        pathotypr carries no assumption about species, but it has only been
+        validated on the M. tuberculosis complex. Knowing you are on something
+        else changes the answer considerably.
+      placeholder: "e.g. M. tuberculosis, or Pseudomonas aeruginosa"
+    validations:
+      required: false

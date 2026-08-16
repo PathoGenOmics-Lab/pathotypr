@@ -1,0 +1,30 @@
+# Blank issues stay available. The forms cover the reports that arrive most
+# often, but a small tool gets questions that fit no form, and having nowhere to
+# put them is worse than an unstructured issue.
+blank_issues_enabled: true
+
+contact_links:
+  - name: Ask how to use pathotypr
+    url: https://github.com/PathoGenOmics-Lab/pathotypr/discussions/new?category=q-a
+    about: >-
+      How to run it on your data, what a column means, or why a call came out
+      the way it did. Answers there get marked as answers, so the next person
+      finds them.
+
+  - name: Documentation
+    url: https://pathogenomics-lab.github.io/pathotypr/
+    about: Tutorials, every command option, input formats, output columns and benchmarks.
+
+  - name: Frequently asked questions
+    url: https://pathogenomics-lab.github.io/pathotypr/faq/
+    about: Worth a look first, particularly for questions about marker files and labels.
+
+  - name: Propose a marker panel
+    url: https://github.com/PathoGenOmics-Lab/pathotypr/discussions/new?category=marker-proposals
+    about: >-
+      Submit lineage-defining variants for inclusion. A bot checks your TSV
+      against the marker format automatically.
+
+  - name: Report a security vulnerability
+    url: https://github.com/PathoGenOmics-Lab/pathotypr/security/advisories/new
+    about: Please report vulnerabilities privately rather than in a public issue.
