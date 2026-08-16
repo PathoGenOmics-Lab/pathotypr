@@ -1,0 +1,60 @@
+# Dependency updates.
+#
+# The shape here is chosen to keep the updates and drop the noise:
+#
+#   * monthly, not weekly
+#   * grouped, so one pull request carries a whole ecosystem's routine bumps
+#   * majors kept apart, in their own pull request, because those are the ones
+#     that change APIs and want a person
+#
+# The minor and patch group is merged automatically once CI passes; see
+# .github/workflows/dependabot-auto-merge.yml. The major group never is.
+#
+# `schedule` here is Dependabot's own timer, not a cron in GitHub Actions: no
+# workflow in this repository runs on a schedule.
+#
+# Security updates are a separate mechanism, enabled in the repository settings,
+# and are unaffected by any of this: a vulnerable dependency still gets its own
+# pull request the day the advisory lands, major or not. That is what would have
+# surfaced the eight rust-openssl advisories rather than an outside bot.
+
+version: 2
+
+updates:
+  # The Rust workspace: pathotypr-core and the desktop crate under src-tauri,
+  # which share one lockfile at the root.
+  - package-ecosystem: cargo
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    labels: ["dependencies", "rust"]
+    commit-message:
+      prefix: "cargo"
+    groups:
+      cargo-routine:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      cargo-major:
+        patterns: ["*"]
+        update-types: ["major"]
+
+  # The actions used by the workflows. Left unpinned they rot quietly: a major
+  # of actions/checkout or actions/github-script eventually stops working on the
+  # runner image, and the first sign of it is a red check on an unrelated pull
+  # request.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+    labels: ["dependencies", "area:ci"]
+    commit-message:
+      prefix: "actions"
+    groups:
+      actions-routine:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      actions-major:
+        patterns: ["*"]
+        update-types: ["major"]
