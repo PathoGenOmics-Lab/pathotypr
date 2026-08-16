@@ -1,25 +1,46 @@
 name: Deploy docs
 
+# Pages publishes from a workflow rather than from a branch, so this uploads the
+# built site as an artifact and deploys that.
+#
+# It used to end in `mkdocs gh-deploy --force`, which pushes the built site to a
+# gh-pages branch. Under the branch setting that push was the deployment. Under
+# the workflow setting nothing reads that branch, so gh-deploy would keep
+# reporting success while the published site silently stopped moving.
+
 on:
   push:
     branches:
       - main
-      - 1.0.2
     paths:
       - docs/**
       - mkdocs.yml
+      - docs/requirements.txt
       - .github/workflows/docs.yml
   workflow_dispatch:
 
 permissions:
-  contents: write
+  # contents was write only so gh-deploy could push the branch. Reading is enough
+  # now; the deployment goes through the Pages API.
+  contents: read
+  pages: write
+  # deploy-pages authenticates to Pages with an OIDC token rather than a secret.
+  id-token: write
+
+# One deployment at a time. Queued rather than cancelled, so a run that is
+# already publishing is allowed to finish instead of leaving a half-swapped site.
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  build:
+    name: Build the site
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
+          # git-revision-date-localized reads commit dates, so it needs history.
           fetch-depth: 0
 
       - uses: actions/setup-python@v7
@@ -45,9 +66,25 @@ jobs:
       - name: Install dependencies
         run: pip install -r docs/requirements.txt
 
+      - uses: actions/configure-pages@v5
+
       # CI is set by GitHub Actions, which is what switches social cards on.
       - name: Build (strict)
         run: mkdocs build --strict
 
-      - name: Deploy to GitHub Pages
-        run: mkdocs gh-deploy --force
+      # mkdocs writes to site/ by default; that is what gets published.
+      - name: Upload the built site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    name: Publish to Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
