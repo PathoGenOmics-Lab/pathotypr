@@ -71,6 +71,11 @@ area:packaging:
           - "src-tauri/tauri.conf.json"
           - "CITATION.cff"
 
+area:galaxy:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "galaxy/**"
+
 # Everything under .github, not a list of the files there. Naming them one by one
 # would leave this file itself uncovered, so the pull request adding a rule would
 # arrive with no label, which is a small thing that says exactly how such a list
