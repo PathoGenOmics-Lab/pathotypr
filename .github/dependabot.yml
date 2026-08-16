@@ -31,6 +31,24 @@ updates:
     labels: ["dependencies", "rust"]
     commit-message:
       prefix: "cargo"
+    # Temporary, with a precise condition for removing it rather than a vague
+    # one.
+    #
+    # bincode 3.0.0 is not a usable release. Its entire lib.rs is
+    # `compile_error!("https://xkcd.com/2347/")`, so it refuses to build by
+    # design. It is not yanked and it is the crate's max_stable_version, so
+    # Dependabot picks it correctly and the resulting pull request cannot ever
+    # pass CI. It took the other five majors in its group down with it.
+    #
+    # Remove this when crates.io shows a bincode major that compiles. At that
+    # point the move is a deliberate migration rather than a routine bump: the
+    # 2.x line replaced serde-based `serialize`/`deserialize` with its own
+    # Encode/Decode traits, and whether a model written by 1.3.3 still loads
+    # has to be checked against the published Zenodo bundle before anything
+    # ships.
+    ignore:
+      - dependency-name: "bincode"
+        update-types: ["version-update:semver-major"]
     groups:
       cargo-routine:
         patterns: ["*"]
