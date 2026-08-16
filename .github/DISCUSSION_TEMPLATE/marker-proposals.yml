@@ -1,0 +1,162 @@
+labels:
+  - marker-proposal
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🧬 Marker panel proposal
+
+        Propose diagnostic variants for inclusion in pathotypr.
+
+        The authoritative rules are in the
+        [marker format reference](https://pathogenomics-lab.github.io/pathotypr/marker_format/).
+        The essentials: tab-separated, `position`, `REF`, `ALT`, then **one lineage
+        level per column** root to leaf, then optionally an **empty separator
+        column** followed by `gene` and `mutation`. Positions are 1-based on the
+        single-record reference you name below.
+
+        > **Scope.** Community proposals are currently accepted for the
+        > *Mycobacterium tuberculosis* complex only: *M. tuberculosis*, *M. bovis*,
+        > *M. caprae*, *M. africanum*, *M. microti*, *M. pinnipedii*, *M. orygis*,
+        > and related species.
+
+        When you post, a bot parses the TSV preview and comments with what it
+        found. Editing the discussion runs it again.
+
+  - type: dropdown
+    id: organism
+    attributes:
+      label: MTBC species or subspecies
+      description: Which member or members do these markers target?
+      options:
+        - M. tuberculosis (sensu stricto)
+        - M. bovis
+        - M. caprae
+        - M. africanum
+        - M. microti
+        - M. pinnipedii
+        - M. orygis
+        - Dassie bacillus
+        - Chimpanzee bacillus
+        - M. mungi
+        - Multiple, or the whole MTBC
+    validations:
+      required: true
+
+  - type: dropdown
+    id: panel_kind
+    attributes:
+      label: What do these markers define?
+      options:
+        - Phylogenetic lineage
+        - Drug resistance
+        - Both
+        - Something else, described below
+    validations:
+      required: true
+
+  - type: input
+    id: reference
+    attributes:
+      label: Reference genome
+      description: |
+        The exact sequence the positions were called against. This must be a
+        single-record FASTA when the panel is used. A panel read against a
+        different assembly produces confident, wrong calls with no warning, so
+        please be precise.
+      placeholder: "e.g. GCF_000195955.2 (H37Rv), or the MTB ancestor reference"
+      value: "GCF_000195955.2 (H37Rv)"
+    validations:
+      required: true
+
+  - type: input
+    id: lineages
+    attributes:
+      label: Lineages or phenotypes covered
+      placeholder: "e.g. L1 to L10 and A1 to A4, or L4.1.2, or RIF and INH"
+    validations:
+      required: true
+
+  - type: input
+    id: n_markers
+    attributes:
+      label: Number of markers
+      description: Total rows in the full file, not in the preview below.
+      placeholder: "e.g. 3707"
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: |
+        Papers, phylogenies, catalogues or other support for these markers.
+        Include DOIs or URLs where possible.
+      placeholder: |
+        - Comas et al. 2010 (doi:10.1038/ng.590)
+        - Validated on 500 RefSeq genomes
+    validations:
+      required: true
+
+  - type: textarea
+    id: tsv_preview
+    attributes:
+      label: Marker TSV preview
+      description: |
+        Paste the first 10 or so rows, tabs intact. The bot validates exactly
+        what you paste here, so paste real rows rather than retyping them.
+
+        The example shows the two shapes: a lineage hierarchy spread across
+        columns, and an annotated row where an **empty column** separates the
+        last lineage level from `gene`.
+      render: text
+      placeholder: |
+        #position	ref	alt	level1	level2	level3
+        615938	A	G	L1
+        1799921	C	G	L2
+        801959	A	G	L2	L2.2
+        2831482	C	T	L2	L2.2	L2.2.1
+        761155	C	T	RIF		rpoB	S450L
+    validations:
+      required: true
+
+  - type: textarea
+    id: full_file
+    attributes:
+      label: Full marker file
+      description: |
+        Drag the complete TSV here, or link a public URL or Zenodo DOI. Proposals
+        cannot be accepted on the preview alone.
+    validations:
+      required: false
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation results
+      description: |
+        If you have run this panel with `pathotypr classify` or `split-fastq`,
+        please share what happened: how many genomes, concordance against what
+        truth set, how many markers were skipped in a `-vv` run, and any edge
+        cases you know of.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: Tab-separated, UTF-8, with one lineage level per column rather than a semicolon-separated cell.
+          required: true
+        - label: Positions are 1-based on the reference genome named above.
+          required: true
+        - label: Alleles are plain A, C, G and T.
+          required: true
+        - label: I know that indels are accepted by classify and skipped by split-fastq, and my panel is consistent with how I expect it to be used.
+          required: false
+        - label: I have tested these markers on a validation set.
+          required: false
+        - label: I am willing to maintain this marker set.
+          required: false
