@@ -1,0 +1,43 @@
+name: Documentation problem
+description: Something in the documentation is wrong, missing, or misleading
+title: "[Docs] "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Documentation that is wrong is worse than documentation that is absent,
+        because people act on it. Reports of either are welcome.
+
+        Small fixes are often faster to send directly: every page on the site has
+        an edit button that opens a pull request against `docs/`.
+
+  - type: input
+    id: page
+    attributes:
+      label: Which page?
+      description: The URL on the documentation site, or the path under docs/.
+      placeholder: "e.g. https://pathogenomics-lab.github.io/pathotypr/marker_format/"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of problem?
+      options:
+        - It states something that is factually wrong
+        - It describes behaviour that does not match what the tool does
+        - Something is missing
+        - It is correct but confusing or easy to misread
+        - A broken link, a bad example, or a typo
+    validations:
+      required: true
+
+  - type: textarea
+    id: detail
+    attributes:
+      label: What does it say, and what should it say?
+      description: Quote the passage if you can. If you found the correct answer by experiment, please say what you ran.
+    validations:
+      required: true

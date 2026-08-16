@@ -1,0 +1,125 @@
+name: Unexpected results
+description: pathotypr ran successfully but the lineage, resistance or match calls look wrong
+title: "[Results] "
+labels: ["wrong-results"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form when the run **completes** but you do not believe the output.
+        A wrong call is more serious than a crash, because nothing announces it.
+
+        Most reports of this kind turn out to be one of a handful of causes, so the
+        questions below are aimed straight at them. Filling them in honestly is
+        often enough to find the answer before anyone else reads the issue.
+
+  - type: input
+    id: version
+    attributes:
+      label: pathotypr version
+      placeholder: "e.g. 1.0.2"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: module
+    attributes:
+      label: Which command produced the output?
+      options:
+        - classify
+        - split-fastq
+        - predict
+        - train
+        - match
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect, and what did you get?
+      description: State both calls explicitly, for example "expected L4.3.4.2, got L2.2.1".
+    validations:
+      required: true
+
+  - type: textarea
+    id: truth
+    attributes:
+      label: How do you know the expected answer?
+      description: |
+        This is the single most useful field. Published lineage for a public
+        accession, another tool's call, an in-house pipeline, epidemiological
+        record, or a spiked control all carry different weight, and knowing which
+        one changes how we look at it.
+      placeholder: |
+        e.g. ERR551304, reported as L2 in Comas et al. 2013
+        e.g. TB-Profiler calls it 4.3.4.2, pathotypr calls it 4.3.4
+    validations:
+      required: true
+
+  - type: dropdown
+    id: markers
+    attributes:
+      label: Which marker panel?
+      description: Only relevant to classify and split-fastq.
+      options:
+        - The published MTBC lineage panel (Zenodo, v1.0.0)
+        - The published MTBC resistance panel (Zenodo, v1.0.0)
+        - A panel I built myself
+        - A panel from somewhere else
+        - Not applicable (predict, train or match)
+    validations:
+      required: true
+
+  - type: input
+    id: reference
+    attributes:
+      label: Reference genome used with -r
+      description: |
+        Marker positions are 1-based coordinates on this exact sequence. A panel
+        read against a different assembly produces confident, wrong calls with no
+        warning, so please give the accession you actually passed.
+      placeholder: "e.g. MTB_ancestor_reference.fasta, or GCF_000195955.2 (H37Rv)"
+    validations:
+      required: false
+
+  - type: textarea
+    id: output
+    attributes:
+      label: The relevant output rows
+      description: |
+        Paste the rows from the output TSV that show the disputed call, including
+        the header line so the columns can be read.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: verbose
+    attributes:
+      label: Log output from a run with -vv
+      description: |
+        Re-run the same command with `-vv`. It reports every marker that was
+        skipped and why: position not an integer, empty allele, allele too long
+        for the k-mer window, or an indel dropped by split-fastq. A large number
+        of skipped markers is frequently the whole explanation.
+      render: text
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Things worth ruling out first
+      description: Tick what you have already checked. Leaving one unticked is fine and is useful information in itself.
+      options:
+        - label: The marker positions and the reference genome come from the same assembly.
+          required: false
+        - label: The reference FASTA has a single record.
+          required: false
+        - label: "For split-fastq: I am aware indels are skipped and my panel is SNPs or equal-length MNVs."
+          required: false
+        - label: "For train and predict: the label is the first whitespace-separated token of each FASTA header, and my headers are labelled the way I intend."
+          required: false
+        - label: I can share the input, or a public accession that reproduces this.
+          required: false
