@@ -32,10 +32,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
 
@@ -64,7 +64,7 @@ jobs:
 
       - name: Setup Python (Windows only)
         if: matrix.platform == 'windows-latest'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
@@ -97,7 +97,7 @@ jobs:
           $json | ConvertTo-Json -Depth 100 | Set-Content -Encoding utf8 $confPath
 
       - name: Build and Upload to Release
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Ad-hoc sign on macOS: changes "damaged" → "unidentified developer" (right-click → Open works)
