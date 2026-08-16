@@ -1,0 +1,18 @@
+categories:
+  - Sequence Analysis
+  - Variant Analysis
+description: Lineage classification and marker-driven genotyping from assemblies or raw reads
+long_description: |
+  pathotypr classifies microbial genomes into lineages and genotypes them
+  against user-defined marker panels. It works from assembled genomes (FASTA)
+  and from raw reads (FASTQ) without aligning them, and it carries no assumption
+  about the organism: the marker panel supplied defines what is typed.
+homepage_url: https://pathogenomics-lab.github.io/pathotypr/
+remote_repository_url: https://github.com/PathoGenOmics-Lab/pathotypr
+owner: iuc
+suite:
+  name: suite_pathotypr
+  description: Lineage classification and marker-driven genotyping with pathotypr
+  long_description: |
+    A suite of the five pathotypr commands: train, predict, classify,
+    split-fastq and match.
