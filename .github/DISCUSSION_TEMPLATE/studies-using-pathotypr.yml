@@ -1,0 +1,102 @@
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If pathotypr was part of an analysis, this is the place to say so. A
+        published paper, a preprint, a thesis or an unpublished dataset all
+        count, and there is no need to wait until something is out.
+
+        Two reasons this is worth the few minutes it takes. It is the only way
+        the people who maintain it find out where it is being used, since a
+        citation in a paper reaches nobody here on its own. And the last field
+        is where a real analysis says what the tool made harder than it had to
+        be, which is worth more than any feature request written from the
+        outside.
+
+  - type: input
+    attributes:
+      label: The work
+      description: >-
+        A DOI, a preprint link, a repository, or just a title if there is
+        nothing to link to yet.
+      placeholder: https://doi.org/10.1000/example
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Which version of pathotypr
+      description: >-
+        The output of `pathotypr --version`, or the release you installed. It
+        matters, and not only for tidiness: before 1.0.1, `classify` scanned
+        only the forward strand and missed markers on reverse-oriented contigs,
+        and genomes with no hits were dropped from the summary rather than
+        reported as unclassified. An analysis run on draft assemblies with 1.0.0
+        wants reading with that in mind.
+      placeholder: pathotypr 1.0.2
+    validations:
+      required: true
+
+  - type: checkboxes
+    attributes:
+      label: Which commands did the work
+      options:
+        - label: classify
+        - label: split-fastq
+        - label: predict
+        - label: train
+        - label: match
+
+  - type: input
+    attributes:
+      label: Marker panel
+      description: >-
+        The published MTBC panel from Zenodo, a panel you curated, or one from
+        somewhere else. If you built it, saying how many markers and how the
+        hierarchy is laid out helps more than the file name.
+      placeholder: pathotypr_lineage_markers_v1.0.0.tsv (Zenodo), 3707 SNPs
+    validations:
+      required: false
+
+  - type: input
+    attributes:
+      label: Reference genome
+      description: >-
+        The exact assembly the marker positions were called against. This is the
+        single most consequential detail in the whole form: a panel read against
+        a different assembly produces confident, wrong calls and says nothing
+        about it.
+      placeholder: MTB_ancestor_reference.fasta, or GCF_000195955.2 (H37Rv)
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Organism
+      description: >-
+        pathotypr carries no assumption about species, and has only been
+        validated on the *M. tuberculosis* complex. Knowing what it is actually
+        being run against is how the defaults get chosen well, and where it is
+        being pushed beyond what has been tested.
+      placeholder: Mycobacterium tuberculosis
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: What you used it for
+      description: >-
+        The question it helped answer. A sentence is plenty.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: What was awkward
+      description: >-
+        Anything you had to work around, a number you had to explain to a
+        reviewer, output you ended up reshaping yourself, a threshold you had to
+        move and could not say why. This is the most useful field on the form
+        and one of the optional ones.
+    validations:
+      required: false
