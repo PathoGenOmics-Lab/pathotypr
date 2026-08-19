@@ -11,12 +11,19 @@ env:
 jobs:
   test:
     runs-on: ubuntu-22.04
+    # Measured at about 5 minutes. The ceiling exists so a hung apt or a cold
+    # cache fails in minutes instead of occupying a runner for the 6 hour
+    # default, which is what happened on 2026-08-19.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
 
       - uses: dtolnay/rust-toolchain@stable
 
+      # apt-get update queries about 30 repositories and is the step that
+      # hung for hours on 2026-08-19. Its own ceiling makes the failure say so.
       - name: Install build dependencies
+        timeout-minutes: 10
         run: sudo apt-get update && sudo apt-get install -y cmake
 
       - name: Rust cache
@@ -39,6 +46,8 @@ jobs:
   gui:
     name: GUI (Linux)
     runs-on: ubuntu-22.04
+    # Measured at about 3 minutes.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
 
@@ -46,7 +55,10 @@ jobs:
 
       # cmake for pathotypr-core; the rest is the GTK and WebKit stack the
       # Tauri backend links against, matching what release.yml installs.
+      # apt-get update queries about 30 repositories and is the step that
+      # hung for hours on 2026-08-19. Its own ceiling makes the failure say so.
       - name: Install build dependencies
+        timeout-minutes: 10
         run: |
           sudo apt-get update
           sudo apt-get install -y \

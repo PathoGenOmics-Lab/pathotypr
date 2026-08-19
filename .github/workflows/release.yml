@@ -30,6 +30,11 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
 
+    # The Windows build is the slowest of the matrix at about 11 minutes.
+    # A cold cache is slower still, so the ceiling is generous; it is here to
+    # stop a hung step holding a runner for the 6 hour default.
+    timeout-minutes: 45
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -50,6 +55,7 @@ jobs:
           workspaces: ". -> target"
 
       - name: Install dependencies (Ubuntu only)
+        timeout-minutes: 10
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
