@@ -20,11 +20,16 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      # apt-get update queries about 30 repositories and is the step that
-      # hung for hours on 2026-08-19. Its own ceiling makes the failure say so.
       - name: Install build dependencies
         timeout-minutes: 10
-        run: sudo apt-get update && sudo apt-get install -y cmake
+        run: |
+          # apt-get update queries about thirty repositories and is where this
+          # step hangs: on 2026-08-19 it got through nine of them in ten minutes
+          # and never reached the install. The runner image already ships
+          # package lists, so install from those and only refresh them if a
+          # package cannot be found.
+          sudo apt-get install -y cmake ||
+            { sudo apt-get update && sudo apt-get install -y cmake; }
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
@@ -55,19 +60,18 @@ jobs:
 
       # cmake for pathotypr-core; the rest is the GTK and WebKit stack the
       # Tauri backend links against, matching what release.yml installs.
-      # apt-get update queries about 30 repositories and is the step that
-      # hung for hours on 2026-08-19. Its own ceiling makes the failure say so.
       - name: Install build dependencies
         timeout-minutes: 10
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            cmake \
-            pkg-config \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev
+          # apt-get update queries about thirty repositories and is where this
+          # step hangs: on 2026-08-19 it got through nine of them in ten minutes
+          # and never reached the install. The runner image already ships
+          # package lists, so install from those and only refresh them if a
+          # package cannot be found.
+          PKGS="cmake pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev
+                libayatana-appindicator3-dev librsvg2-dev"
+          sudo apt-get install -y $PKGS ||
+            { sudo apt-get update && sudo apt-get install -y $PKGS; }
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
