@@ -61,10 +61,15 @@ jobs:
       - name: Install image libraries for social cards
         timeout-minutes: 10
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libcairo2-dev libfreetype6-dev libffi-dev \
-            libjpeg-dev libpng-dev libz-dev
+          # apt-get update queries about thirty repositories and is where this
+          # step hangs: on 2026-08-19 it got through nine of them in ten minutes
+          # and never reached the install. The runner image already ships
+          # package lists, so install from those and only refresh them if a
+          # package cannot be found.
+          PKGS="libcairo2-dev libfreetype6-dev libffi-dev
+                libjpeg-dev libpng-dev libz-dev"
+          sudo apt-get install -y --no-install-recommends $PKGS ||
+            { sudo apt-get update && sudo apt-get install -y --no-install-recommends $PKGS; }
 
       - name: Install dependencies
         run: pip install -r docs/requirements.txt
