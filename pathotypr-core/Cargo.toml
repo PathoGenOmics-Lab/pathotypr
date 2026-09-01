@@ -50,7 +50,7 @@ rust-lapper = "1.1.0"
 fxhash = "0.2.1"
 
 # Excel export
-rust_xlsxwriter = "0.98"
+rust_xlsxwriter = "0.99"
 
 # Text processing
 regex = "1.10"
