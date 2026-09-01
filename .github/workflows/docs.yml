@@ -74,7 +74,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r docs/requirements.txt
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
 
       # CI is set by GitHub Actions, which is what switches social cards on.
       - name: Build (strict)
@@ -82,7 +82,7 @@ jobs:
 
       # mkdocs writes to site/ by default; that is what gets published.
       - name: Upload the built site
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: site
 
