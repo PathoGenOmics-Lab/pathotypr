@@ -8,7 +8,7 @@
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL%20v3-%23af64d1?style=flat-square)](LICENSE)
 [![Bioconda](https://img.shields.io/conda/vn/bioconda/pathotypr?style=flat-square&color=%23009E73&label=bioconda)](https://anaconda.org/bioconda/pathotypr)
 [![Bioconda downloads](https://img.shields.io/conda/dn/bioconda/pathotypr?style=flat-square&color=%23009E73&label=downloads)](https://anaconda.org/bioconda/pathotypr)
-[![Preprint](https://img.shields.io/badge/preprint-bioRxiv-%23b31b1b?style=flat-square)](https://doi.org/10.64898/2026.03.24.714002)
+[![Paper](https://img.shields.io/badge/paper-Emerg%20Infect%20Dis%202026-%23E69F00?style=flat-square)](https://doi.org/10.3201/eid3211.261074)
 [![Markers](https://img.shields.io/badge/markers-Zenodo-%230072B2?style=flat-square)](https://doi.org/10.5281/zenodo.19210043)
 
 **Lineage classification and marker-driven genotyping — from assemblies or raw reads.**
@@ -114,7 +114,7 @@ Everything lives at **[pathogenomics-lab.github.io/pathotypr](https://pathogenom
 
 If you use pathotypr, please cite:
 
-> Ruiz-Rodriguez P, Coscollá M. **Pathotypr: harmonised MTBC lineage assignment and resistance-associated variant detection for genomic surveillance.** *bioRxiv* (2026). doi: [10.64898/2026.03.24.714002](https://doi.org/10.64898/2026.03.24.714002)
+> Ruiz-Rodriguez P, Coscollá M. **Alignment-Free Tool for Assemblies and Reads in Genomic Surveillance of Tuberculosis.** *Emerg Infect Dis*. 2026;32(11):1913-1918. doi: [10.3201/eid3211.261074](https://doi.org/10.3201/eid3211.261074)
 
 BibTeX, RIS and APA entries, plus the software DOI, are on the
 [citation page](https://pathogenomics-lab.github.io/pathotypr/citation/).
