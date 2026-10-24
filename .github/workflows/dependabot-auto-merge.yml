@@ -34,28 +34,41 @@ jobs:
       # rule that fails open: an ecosystem that reports no update type at all
       # yields an empty string, an empty string is not equal to major, and the
       # rule says yes to something nobody identified. Anything this cannot
-      # positively recognise as a patch or a minor waits for a person.
+      # positively recognise as a patch or a minor waits for a person, and so
+      # does a group this does not know.
       #
-      # A grouped pull request reports the highest semver change it carries, so
-      # a group containing one major is a major here even if everything else in
-      # it is a patch.
+      # The group decides before the update type does. fetch-metadata reads the
+      # version as plain semver, so zstd 0.13.3 -> 0.14.0 reports semver-minor,
+      # while Dependabot, which knows that below 1.0 the minor number is the
+      # breaking one, files it under cargo-major. The two checks used to be
+      # ORed, and that bump merged itself unreviewed (#31). An ungrouped update
+      # gets the same rule by hand: below 1.0 only a patch passes, and below 0.1
+      # nothing does.
       - name: Decide whether this one may merge itself
         id: decide
         env:
           GROUP: ${{ steps.metadata.outputs.dependency-group }}
           UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
+          PREVIOUS_VERSION: ${{ steps.metadata.outputs.previous-version }}
         run: |
           set -euo pipefail
           may_merge=false
           case "$GROUP" in
+            *-major) ;;
             *-routine) may_merge=true ;;
-          esac
-          case "$UPDATE_TYPE" in
-            version-update:semver-patch|version-update:semver-minor) may_merge=true ;;
+            "")
+              case "$UPDATE_TYPE" in
+                version-update:semver-patch|version-update:semver-minor) may_merge=true ;;
+              esac
+              case "$PREVIOUS_VERSION" in
+                0.0.*) may_merge=false ;;
+                0.*) [ "$UPDATE_TYPE" = version-update:semver-patch ] || may_merge=false ;;
+              esac
+              ;;
           esac
           # Printed because a decision nobody can read is a decision nobody can
           # correct: this line is what a later surprise gets diagnosed from.
-          echo "group='${GROUP}' update-type='${UPDATE_TYPE}' -> may-merge=${may_merge}"
+          echo "group='${GROUP}' update-type='${UPDATE_TYPE}' previous='${PREVIOUS_VERSION}' -> may-merge=${may_merge}"
           echo "may-merge=${may_merge}" >> "$GITHUB_OUTPUT"
 
       - name: Queue the merge
@@ -69,7 +82,7 @@ jobs:
         if: steps.decide.outputs.may-merge != 'true'
         run: |
           gh pr comment "$PR_URL" --body \
-            "Left for review. Only a \`-routine\` group, or an update that identifies itself as patch or minor, merges on its own once CI passes. This one is a major update or does not say which it is."
+            "Left for review. Only a \`-routine\` group, or an ungrouped update that identifies itself as patch or minor (patch only below 1.0), merges on its own once CI passes. This one is in a \`-major\` group, is a major update, or does not say which it is."
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
