@@ -129,9 +129,9 @@ ships with a native desktop GUI.
 
 If you use pathotypr, please cite:
 
-> Ruiz-Rodriguez P, Coscollá M. **Pathotypr: harmonised MTBC lineage assignment
-> and resistance-associated variant detection for genomic surveillance.**
-> *bioRxiv* (2026). doi: [10.64898/2026.03.24.714002](https://doi.org/10.64898/2026.03.24.714002)
+> Ruiz-Rodriguez P, Coscollá M. **Alignment-Free Tool for Assemblies and Reads in
+> Genomic Surveillance of Tuberculosis.** *Emerg Infect Dis*. 2026;32(11):1913-1918.
+> doi: [10.3201/eid3211.261074](https://doi.org/10.3201/eid3211.261074)
 
 See [Citation](citation.md) for BibTeX and RIS entries, the software and marker
 DOI, and the licence.
