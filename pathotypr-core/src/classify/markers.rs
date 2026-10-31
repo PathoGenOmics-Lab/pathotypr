@@ -8,6 +8,7 @@ use log::{debug, info, trace, warn};
 use needletail::Sequence;
 use rustc_hash::{FxHashMap, FxHashSet};
 
+use crate::classify::annotation::GenomeContext;
 use crate::errors::AppResult;
 
 // ---------------------------------------------------------------------------
@@ -144,15 +145,20 @@ impl AnchorEvidence {
 }
 
 /// What the anchors say about one marker.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub enum AnchorRead {
     /// No anchor of this marker occurs exactly once, so nothing was read.
     Unusable,
     /// The two anchors disagree, so neither is trusted.
     Conflict,
-    /// The bases found where the allele should be.
-    Allele(String, AnchorEvidence),
+    /// The bases found where the allele should be, with the sample's bases
+    /// around them.
+    Allele(String, GenomeContext, AnchorEvidence),
 }
+
+/// Bases kept beyond the allele on the side away from the anchor, so the codon
+/// the allele sits in can be read from the sample rather than assumed.
+const ANCHOR_CODON_MARGIN: usize = 2;
 
 /// Anchor occurrences accumulated over every contig and strand of one genome.
 #[derive(Clone, Debug)]
@@ -173,8 +179,12 @@ impl AnchorScan {
         }
     }
 
-    /// The allele of a marker, read from whichever anchors are usable.
+    /// The allele of a marker, read from whichever anchors are usable, with
+    /// the bases around it so its codon can be read from the sample too.
     pub fn allele_of(&self, index: &AnchorIndex, marker_id: usize, allele_len: usize) -> AnchorRead {
+        // From the left anchor the allele starts where the anchor ends, and
+        // what follows is the sample's; the bases before it are the anchor,
+        // which matched, so they are the reference.
         let from_left = index
             .marker_left
             .get(marker_id)
@@ -183,8 +193,8 @@ impl AnchorScan {
             .filter(|&slot| self.left_count[slot] == 1)
             .and_then(|slot| self.left_bases[slot].as_ref())
             .filter(|bases| bases.len() >= allele_len)
-            // the allele starts where the left anchor ends
-            .map(|bases| bases[..allele_len].to_vec());
+            .map(|bases| (bases[..allele_len].to_vec(), bases.clone(), 0usize));
+        // From the right anchor the allele ends where the anchor begins.
         let from_right = index
             .marker_right
             .get(marker_id)
@@ -193,16 +203,27 @@ impl AnchorScan {
             .filter(|&slot| self.right_count[slot] == 1)
             .and_then(|slot| self.right_bases[slot].as_ref())
             .filter(|bases| bases.len() >= allele_len)
-            // and ends where the right anchor begins
-            .map(|bases| bases[bases.len() - allele_len..].to_vec());
-        let (bases, evidence) = match (from_left, from_right) {
+            .map(|bases| {
+                let start = bases.len() - allele_len;
+                (bases[start..].to_vec(), bases.clone(), start)
+            });
+        let (allele, context, before, evidence) = match (from_left, from_right) {
             (None, None) => return AnchorRead::Unusable,
-            (Some(l), Some(r)) if l != r => return AnchorRead::Conflict,
-            (Some(l), Some(_)) => (l, AnchorEvidence::Both),
-            (Some(l), None) => (l, AnchorEvidence::Left),
-            (None, Some(r)) => (r, AnchorEvidence::Right),
+            (Some((l, ..)), Some((r, ..))) if l != r => return AnchorRead::Conflict,
+            // With both, the two windows together cover the codon.
+            (Some((l, lb, _)), Some((_, rb, start))) => {
+                let mut bases = rb[..start].to_vec();
+                bases.extend_from_slice(&lb);
+                (l, bases, start, AnchorEvidence::Both)
+            }
+            (Some((l, lb, before)), None) => (l, lb, before, AnchorEvidence::Left),
+            (None, Some((r, rb, before))) => (r, rb, before, AnchorEvidence::Right),
         };
-        AnchorRead::Allele(String::from_utf8_lossy(&bases).into_owned(), evidence)
+        AnchorRead::Allele(
+            String::from_utf8_lossy(&allele).into_owned(),
+            GenomeContext { bases: context, before },
+            evidence,
+        )
     }
 }
 
@@ -237,7 +258,7 @@ pub fn scan_anchors(genome_sequence: &str, index: &AnchorIndex, scan: &mut Ancho
             scan.left_count[slot] = scan.left_count[slot].saturating_add(1);
             if scan.left_bases[slot].is_none() {
                 let from = start + a;
-                let to = (from + index.left_span[slot]).min(seq_len);
+                let to = (from + index.left_span[slot] + ANCHOR_CODON_MARGIN).min(seq_len);
                 if from <= to {
                     scan.left_bases[slot] = Some(bytes[from..to].to_vec());
                 }
@@ -246,7 +267,7 @@ pub fn scan_anchors(genome_sequence: &str, index: &AnchorIndex, scan: &mut Ancho
         if let Some(slot) = slot_right {
             scan.right_count[slot] = scan.right_count[slot].saturating_add(1);
             if scan.right_bases[slot].is_none() {
-                let span = index.right_span[slot];
+                let span = index.right_span[slot] + ANCHOR_CODON_MARGIN;
                 let from = start.saturating_sub(span);
                 if start >= span {
                     scan.right_bases[slot] = Some(bytes[from..start].to_vec());

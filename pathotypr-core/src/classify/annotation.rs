@@ -173,11 +173,50 @@ pub(crate) fn complement_byte(b: u8) -> u8 {
 
 /// Translate a variant (SNP or MNV) to amino acid change(s).
 /// Handles multi-base substitutions that may span codon boundaries.
+/// The sample's own bases around a variant, in reference orientation.
+///
+/// A codon is three bases and a marker usually describes one of them. Building
+/// the alternative codon from the reference and this marker alone asserts that
+/// the other two are reference, which is false whenever the sample carries a
+/// second change in the same codon: the amino acid then reported is not the
+/// one the sample has. These bases let the codon be read from the sample.
+#[derive(Clone, Debug, Default)]
+pub struct GenomeContext {
+    pub bases: Vec<u8>,
+    /// How many of `bases` sit before the variant.
+    pub before: usize,
+}
+
+impl GenomeContext {
+    /// The sample's base at `offset` from the first base of the variant.
+    fn base_at(&self, offset: isize) -> Option<u8> {
+        let idx = offset + self.before as isize;
+        if idx < 0 {
+            return None;
+        }
+        self.bases.get(idx as usize).copied()
+    }
+}
+
+/// The sample's base for a reference position inside a codon, or the
+/// reference's own when the sample's is not in view.
+fn codon_base(
+    context: Option<&GenomeContext>,
+    ref_pos_0based: usize,
+    genome_pos: usize,
+    fallback: u8,
+) -> u8 {
+    context
+        .and_then(|c| c.base_at(genome_pos as isize - ref_pos_0based as isize))
+        .unwrap_or(fallback)
+}
+
 pub(crate) fn translate_variant_info(
     gene_interval: &Interval<usize, Gene>,
     ref_pos_0based: usize,
     alt_bases: &str,
     ref_allele_len: usize,
+    context: Option<&GenomeContext>,
     ref_seq: &str,
     ref_seq_rc: &str,
 ) -> (Option<String>, Option<String>, Option<String>) {
@@ -234,10 +273,11 @@ pub(crate) fn translate_variant_info(
 
                 for i in 0..3 {
                     let genome_pos = codon_start + i;
-                    if genome_pos >= ref_pos_0based && genome_pos < ref_pos_0based + variant_len {
-                        let alt_idx = genome_pos - ref_pos_0based;
-                        alt_codon[i] = alt_bytes[alt_idx];
-                    }
+                    alt_codon[i] = if genome_pos >= ref_pos_0based && genome_pos < ref_pos_0based + variant_len {
+                        alt_bytes[genome_pos - ref_pos_0based]
+                    } else {
+                        codon_base(context, ref_pos_0based, genome_pos, ref_codon[i])
+                    };
                 }
 
                 let ref_codon_str = String::from_utf8_lossy(&ref_codon);
@@ -294,6 +334,12 @@ pub(crate) fn translate_variant_info(
                         if alt_idx < alt_rc.len() {
                             alt_codon[i] = alt_rc[alt_idx];
                         }
+                    } else {
+                        // The sample's bases are held in reference orientation,
+                        // so this gene's strand needs them complemented back.
+                        let genome_pos = ref_seq.len() - rc_pos - 1;
+                        let sampled = codon_base(context, ref_pos_0based, genome_pos, complement_byte(ref_codon[i]));
+                        alt_codon[i] = complement_byte(sampled);
                     }
                 }
 
@@ -315,5 +361,79 @@ pub(crate) fn translate_variant_info(
             (Some(gene.id.clone()), Some(first_aa.to_string()), Some(change_str))
         }
         _ => (None, None, None),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::classify::reverse_complement_sequence;
+
+    /// A reference whose gene starts at 0, so codon 1 is bases 0 to 2.
+    /// Codon 2 is "GAC", aspartate, the shape of rpoB 435.
+    const REF: &str = "ATGGACCAGTGA";
+
+    fn gene(strand: Strand) -> Interval<usize, Gene> {
+        Interval { start: 0, stop: REF.len(), val: Gene { id: "testA".to_string(), strand } }
+    }
+
+    fn context(bases: &str, before: usize) -> GenomeContext {
+        GenomeContext { bases: bases.as_bytes().to_vec(), before }
+    }
+
+    #[test]
+    fn without_the_sample_the_codon_is_assumed_from_the_reference() {
+        let rc = reverse_complement_sequence(REF);
+        // GAC -> GTC, aspartate to valine, assuming the rest of the codon is
+        // reference. That assumption is what the sample can contradict.
+        let (_, pos, change) =
+            translate_variant_info(&gene(Strand::Forward), 4, "T", 1, None, REF, &rc);
+        assert_eq!(pos.as_deref(), Some("2"));
+        assert_eq!(change.as_deref(), Some("Asp2Val(GAC>GTC)"));
+    }
+
+    #[test]
+    fn the_codon_is_read_from_the_sample_when_it_is_in_view() {
+        let rc = reverse_complement_sequence(REF);
+        // The sample carries TTC at the codon: this marker's T at the middle
+        // base, and another change at the first one. The amino acid is
+        // phenylalanine, and saying valine would name a codon nobody has.
+        let ctx = context("TTC", 1);
+        let (_, _, change) =
+            translate_variant_info(&gene(Strand::Forward), 4, "T", 1, Some(&ctx), REF, &rc);
+        assert_eq!(change.as_deref(), Some("Asp2Phe(GAC>TTC)"));
+    }
+
+    #[test]
+    fn a_second_change_can_make_the_marker_synonymous() {
+        let rc = reverse_complement_sequence(REF);
+        // GAC and GAT are both aspartate. A marker describing the third base
+        // alone, with the sample carrying GAT, is a synonymous change.
+        let ctx = context("GAT", 2);
+        let (_, _, change) =
+            translate_variant_info(&gene(Strand::Forward), 5, "T", 1, Some(&ctx), REF, &rc);
+        assert_eq!(change.as_deref(), Some("Asp2Asp(GAC>GAT) syn"));
+    }
+
+    #[test]
+    fn the_sample_is_read_on_a_reverse_strand_gene_too() {
+        // The same reference read on the other strand: its reverse complement
+        // is TCACTGGTCCAT, whose codon 2 is CTG, leucine.
+        let rc = reverse_complement_sequence(REF);
+        assert_eq!(&rc[3..6], "CTG");
+        let g = gene(Strand::Reverse);
+
+        // Reference position 7 holds the codon's middle base, complemented.
+        // A>C there alone reads as CTG -> CGG in gene orientation.
+        assert_eq!(&REF[7..8], "A");
+        let (_, _, assumed) = translate_variant_info(&g, 7, "C", 1, None, REF, &rc);
+        assert_eq!(assumed.as_deref(), Some("Leu2Arg(CTG>CGG)"));
+
+        // The sample also carries G>A at reference position 8, the codon's
+        // first base in gene orientation, which the marker says nothing about.
+        // Read from the sample the codon is TGG, tryptophan, not arginine.
+        let ctx = context("CA", 0);
+        let (_, _, sampled) = translate_variant_info(&g, 7, "C", 1, Some(&ctx), REF, &rc);
+        assert_eq!(sampled.as_deref(), Some("Leu2Trp(CTG>TGG)"));
     }
 }

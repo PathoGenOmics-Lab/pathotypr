@@ -18,7 +18,10 @@ pub use markers::{
 };
 pub use masking::{collect_mask_positions, mask_sequence, write_masked_fasta};
 
-use annotation::translate_variant_info;
+use annotation::{translate_variant_info, GenomeContext};
+
+/// Bases kept either side of a variant so its codon can be read from the sample.
+const CODON_MARGIN: usize = 2;
 
 use crate::common::configure_thread_pool;
 use crate::errors::{
@@ -358,7 +361,7 @@ fn collect_marker_lines<'a>(
     // the alternative allele of any marker there. Reading one allele of a
     // site rules out the others at the same position.
     let mut site_read = vec![false; marker_index.site_count()];
-    let mut observed: HashMap<usize, (MarkerMatch, String)> = HashMap::new();
+    let mut observed: HashMap<usize, (MarkerMatch, String, GenomeContext)> = HashMap::new();
 
     for contig_seq in &contigs {
         let contig_rc = reverse_complement_sequence(contig_seq);
@@ -381,7 +384,15 @@ fn collect_marker_lines<'a>(
                 let variant_start = m.genome_position + m.left_flank_len;
                 let variant_end = (variant_start + m.alt_allele_len).min(seq.len());
                 let alt_bases = seq[variant_start..variant_end].to_string();
-                observed.insert(m.marker_id, (m, alt_bases));
+                // Two bases either side put the whole codon in view, and the
+                // k-mer's own flanks guarantee they are inside the match.
+                let from = variant_start.saturating_sub(CODON_MARGIN);
+                let to = (variant_end + CODON_MARGIN).min(seq.len());
+                let context = GenomeContext {
+                    bases: seq[from..to].as_bytes().to_vec(),
+                    before: variant_start - from,
+                };
+                observed.insert(m.marker_id, (m, alt_bases, context));
             }
         }
     }
@@ -418,15 +429,15 @@ fn collect_marker_lines<'a>(
 
         let reason = match read {
             // The anchor read this locus and it carries the variant.
-            AnchorRead::Allele(allele, evidence) if allele == entry.alt_allele => {
+            AnchorRead::Allele(allele, context, evidence) if allele == entry.alt_allele => {
                 match observed.get(&id).filter(|_| !kmer_reference) {
                     // The k-mer matched too and nothing contradicts it, so keep
                     // its row: it carries the genome coordinates of the match.
-                    Some((m, alt_bases)) => lines.detail.push(format_marker_match(
-                        genome_name, m, annotations, alt_bases, alleles_found, "kmer", ref_seq, ref_seq_rc,
+                    Some((m, alt_bases, ctx)) => lines.detail.push(format_marker_match(
+                        genome_name, m, annotations, alt_bases, Some(ctx), alleles_found, "kmer", ref_seq, ref_seq_rc,
                     )),
                     None => lines.detail.push(format_anchor_match(
-                        genome_name, entry, annotations, alleles_found, evidence, ref_seq, ref_seq_rc,
+                        genome_name, entry, annotations, Some(&context), alleles_found, evidence, ref_seq, ref_seq_rc,
                     )),
                 }
                 continue;
@@ -443,9 +454,9 @@ fn collect_marker_lines<'a>(
             AnchorRead::Unusable => {
                 if kmer_alt && !kmer_reference {
                     match observed.get(&id) {
-                        Some((m, alt_bases)) => {
+                        Some((m, alt_bases, ctx)) => {
                             lines.detail.push(format_marker_match(
-                                genome_name, m, annotations, alt_bases, "ALT", "kmer", ref_seq, ref_seq_rc,
+                                genome_name, m, annotations, alt_bases, Some(ctx), "ALT", "kmer", ref_seq, ref_seq_rc,
                             ));
                             continue;
                         }
@@ -512,6 +523,7 @@ fn annotate(
     ref_position: usize,
     ref_len: usize,
     alt_bases: &str,
+    context: Option<&GenomeContext>,
     marker_gene: Option<&str>,
     marker_mutation: Option<&str>,
     ref_seq: &str,
@@ -521,7 +533,7 @@ fn annotate(
     let (gff_gene_id, gene_start, gene_end, gff_aa_pos, gff_aa_change) = if let Some(tree) = annotations {
         if let Some(gene_interval) = tree.find(ref_pos_0based, ref_pos_0based + ref_len).next() {
             let (gene_id, aa_pos, aa_change) = translate_variant_info(
-                gene_interval, ref_pos_0based, alt_bases, ref_len, ref_seq, ref_seq_rc,
+                gene_interval, ref_pos_0based, alt_bases, ref_len, context, ref_seq, ref_seq_rc,
             );
             (
                 gene_id,
@@ -553,6 +565,7 @@ fn format_marker_match(
     m: &MarkerMatch,
     annotations: &Option<&Lapper<usize, Gene>>,
     alt_bases: &str,
+    context: Option<&GenomeContext>,
     alleles_found: &str,
     evidence: &str,
     ref_seq: &str,
@@ -564,6 +577,7 @@ fn format_marker_match(
         m.ref_position,
         m.ref_allele_len,
         alt_bases,
+        context,
         m.gene.as_deref(),
         m.mutation.as_deref(),
         ref_seq,
@@ -596,6 +610,7 @@ fn format_anchor_match(
     genome_name: &str,
     entry: &MarkerKmerEntry,
     annotations: &Option<&Lapper<usize, Gene>>,
+    context: Option<&GenomeContext>,
     alleles_found: &str,
     evidence: AnchorEvidence,
     ref_seq: &str,
@@ -606,6 +621,7 @@ fn format_anchor_match(
         entry.ref_position,
         entry.ref_allele_len,
         &entry.alt_allele,
+        context,
         entry.gene.as_deref(),
         entry.mutation.as_deref(),
         ref_seq,
