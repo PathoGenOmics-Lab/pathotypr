@@ -2,7 +2,11 @@
 
 Synthetic benchmarks measuring training and prediction speed, throughput, model size, and memory usage across different dataset sizes. All benchmarks run on a Mac mini M4 (4 threads, k=11, 1000 bp synthetic sequences).
 
-> **Reproduce these benchmarks:** `bash benchmarks/run_benchmarks.sh && python3 benchmarks/plot_benchmarks.py`
+> **Reproduce the synthetic benchmarks:** `bash benchmarks/run_benchmarks.sh` measures the synthetic speed, throughput, model size and memory numbers below on your own machine and writes `benchmarks/results.json`. `python3 benchmarks/plot_benchmarks.py` draws the light figures from it, `python3 benchmarks/plot_benchmarks.py --dark` the dark ones, both into `benchmarks/figures/`; copying those over `docs/assets/benchmarks/` is what updates this page.
+>
+> The real *M. tuberculosis* and fastlin sections further down were measured once by hand on the machine named under [Methodology](#methodology), and their values are stored in `benchmarks/plot_benchmarks.py` and `benchmarks/results_comparison.json`: redrawing the figures takes them from there and measures nothing again.
+>
+> The Criterion micro-benchmarks under `pathotypr-core/benches/` time individual library functions and feed none of the numbers on this page (`bash pathotypr-core/benches/run_benchmarks.sh --synthetic`).
 
 ## Dashboard
 
@@ -50,6 +54,8 @@ Memory usage grows linearly with training data but remains modest. Prediction me
 ## All Modules — Real *M. tuberculosis* Data
 
 End-to-end benchmarks using real MTB genomes (~4.4 Mb each, k=21) on a Mac mini M4 (4 threads).
+
+The runs behind this section were done by hand, one module at a time, and the numbers are stored in `benchmarks/plot_benchmarks.py`. No script in the repository measures them again, so reproducing them means rerunning each module on data of your own and comparing.
 
 ![all modules benchmark](assets/benchmarks/all_modules.png#only-light)
 ![all modules benchmark](assets/benchmarks/all_modules-dark.png#only-dark)
@@ -158,7 +164,7 @@ Head-to-head comparison using real *Mycobacterium tuberculosis* FASTQ samples fr
 
 Both tools correctly identified the major lineage. pathotypr is consistently ~2× faster due to parallel k-mer scanning with Bloom filter acceleration, while fastlin uses ~10× less memory thanks to its minimal barcode approach.
 
-**Test conditions:** Mac mini M4, 4 threads, paired-end reads, gzip-compressed FASTQ.
+**Test conditions:** Mac mini M4, 4 threads, paired-end reads, gzip-compressed FASTQ. Both samples were timed by hand and the results stored in `benchmarks/results_comparison.json`; the plot is drawn from that file.
 
 ## Methodology
 
