@@ -342,6 +342,14 @@ pub fn run(args: SplitFastqArgs) -> AppResult<()> {
     let (markers, marker_index, bloom_filter_arc) =
         load_or_build_marker_database(&args.reference, &args.markers, &args.cancel_token, kmer_len)?;
 
+    // Recognised once for the whole run, like classify does.
+    let resistance_panel = crate::resistance::is_resistance_panel(
+        markers.iter().map(|m| m.lineages.join(";")).collect::<Vec<_>>().iter().map(|s| s.as_str()),
+    );
+    if resistance_panel {
+        info!("  The panel is a drug-resistance catalogue; the summary reports the drugs with a WHO grade 1 or 2 marker.");
+    }
+
     let marker_lineage_paths: Vec<String> = markers
         .iter()
         .map(|marker| marker.lineages.join(";"))
@@ -503,8 +511,37 @@ pub fn run(args: SplitFastqArgs) -> AppResult<()> {
             return Err(AppError::Io(e));
         }
 
+        // Markers the reads could not settle. A marker whose locus carries the
+        // reference allele is covered by reference reads, so it is absent and
+        // known to be. One with no reads at all has not been looked at: a
+        // change next to it stops both k-mers matching, and dropping it
+        // alongside the genuinely absent ones reports absence of evidence as
+        // evidence of absence.
+        let undetermined_path =
+            format!("{}_{}_undetermined.tsv", args.output_prefix, safe_output_name);
+        let mut undetermined_writer = match fs::File::create(&undetermined_path) {
+            Ok(f) => BufWriter::new(f),
+            Err(e) => {
+                drop(detailed_writer);
+                cleanup_generated_outputs(&generated_outputs);
+                return Err(AppError::Io(e));
+            }
+        };
+        generated_outputs.push(undetermined_path.clone());
+        if let Err(e) = writeln!(
+            undetermined_writer,
+            "pos\tref_allele\talt_allele\tref_count\talt_count\tlineage_path\treason"
+        ) {
+            drop(detailed_writer);
+            drop(undetermined_writer);
+            cleanup_generated_outputs(&generated_outputs);
+            return Err(AppError::Io(e));
+        }
+
         // This map will store counts for ALL levels defined by each found marker.
         let mut lineage_counts: HashMap<String, usize> = HashMap::new();
+        let mut undetermined_counts: HashMap<String, usize> = HashMap::new();
+        let mut resistance: HashMap<String, crate::resistance::Verdict> = HashMap::new();
 
         let detail_headers = [
             "pos",
@@ -535,6 +572,48 @@ pub fn run(args: SplitFastqArgs) -> AppResult<()> {
             None
         };
 
+        let undetermined_headers = [
+            "pos",
+            "ref_allele",
+            "alt_allele",
+            "ref_count",
+            "alt_count",
+            "lineage_path",
+            "reason",
+        ];
+        let mut undetermined_excel_writer = if args.excel {
+            match crate::common::ExcelStreamWriter::new(&undetermined_path, &undetermined_headers) {
+                Ok(writer) => Some(writer),
+                Err(e) => {
+                    warn!(
+                        "  ⚠️ Could not initialize undetermined Excel for {}: {}",
+                        sample_name, e
+                    );
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        // Which stretches of the genome the reads actually read. Both k-mers of
+        // a marker are cut from the same window and matched exactly, so reads
+        // on either one read every base of that window: the bases the window
+        // holds are known, and a marker lying inside it is absent rather than
+        // unread. Without this, each called variant would turn the other
+        // markers of its position (ten of them at rpoB 450 in the WHO
+        // catalogue) into markers the run claims not to have looked at.
+        let read_windows = merge_windows(
+            counts
+                .iter()
+                .enumerate()
+                .filter(|(_, &[ref_count, alt_count])| ref_count + alt_count >= args.min_depth)
+                .map(|(marker_id, _)| {
+                    let start = markers[marker_id].kmer_start;
+                    (start, start + kmer_len)
+                }),
+        );
+
         for (marker_id, &[ref_count, alt_count]) in counts.iter().enumerate() {
             if marker_id % 2048 == 0 {
                 if let Err(e) = check_cancelled(&args.cancel_token) {
@@ -546,6 +625,55 @@ pub fn run(args: SplitFastqArgs) -> AppResult<()> {
 
             let coverage = ref_count + alt_count;
             if coverage < args.min_depth {
+                let marker = &markers[marker_id];
+                // Read through a neighbour's window, so the bases are known and
+                // the marker is absent rather than unread.
+                if window_covers(&read_windows, marker.pos, marker.pos + marker.ref_allele.len()) {
+                    continue;
+                }
+                let path = &marker_lineage_paths[marker_id];
+                let reason = if coverage == 0 { "not_found" } else { "low_depth" };
+                if let Err(e) = writeln!(
+                    undetermined_writer,
+                    "{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                    marker.pos + 1,
+                    marker.ref_allele,
+                    marker.alt_allele,
+                    ref_count,
+                    alt_count,
+                    path,
+                    reason
+                ) {
+                    drop(detailed_writer);
+                    drop(undetermined_writer);
+                    cleanup_generated_outputs(&generated_outputs);
+                    return Err(AppError::Io(e));
+                }
+                *undetermined_counts
+                    .entry(path.split(';').next().unwrap_or("").to_string())
+                    .or_default() += 1;
+                let mut disable_undetermined_excel = false;
+                if let Some(writer) = undetermined_excel_writer.as_mut() {
+                    let row = vec![
+                        (marker.pos + 1).to_string(),
+                        marker.ref_allele.clone(),
+                        marker.alt_allele.clone(),
+                        ref_count.to_string(),
+                        alt_count.to_string(),
+                        path.clone(),
+                        reason.to_string(),
+                    ];
+                    if let Err(e) = writer.write_row(&row) {
+                        warn!(
+                            "  ⚠️ Could not append undetermined Excel row for {}: {}",
+                            sample_name, e
+                        );
+                        disable_undetermined_excel = true;
+                    }
+                }
+                if disable_undetermined_excel {
+                    undetermined_excel_writer = None;
+                }
                 continue;
             }
             let alt_fraction = if coverage > 0 {
@@ -609,18 +737,38 @@ pub fn run(args: SplitFastqArgs) -> AppResult<()> {
                 for lineage_prefix in &marker_lineage_prefixes[marker_id] {
                     *lineage_counts.entry(lineage_prefix.clone()).or_default() += 1;
                 }
+                crate::resistance::fold_marker(&mut resistance, lineage_path_string);
             }
         }
         if let Err(e) = detailed_writer.flush() {
             drop(detailed_writer);
+            drop(undetermined_writer);
             cleanup_generated_outputs(&generated_outputs);
             return Err(AppError::Io(e));
         }
         drop(detailed_writer);
+        if let Err(e) = undetermined_writer.flush() {
+            drop(undetermined_writer);
+            cleanup_generated_outputs(&generated_outputs);
+            return Err(AppError::Io(e));
+        }
+        drop(undetermined_writer);
 
         // Write detailed Excel file if requested
         if args.excel {
             check_cancelled_with_cleanup(&args.cancel_token, &generated_outputs)?;
+            if let Some(writer) = undetermined_excel_writer.take() {
+                match writer.finish() {
+                    Ok(xlsx_path) => info!(
+                        "  📊 Undetermined Excel for {} written to {}",
+                        sample_name, xlsx_path
+                    ),
+                    Err(e) => warn!(
+                        "  ⚠️ Could not write undetermined Excel for {}: {}",
+                        sample_name, e
+                    ),
+                }
+            }
             if let Some(writer) = detail_excel_writer.take() {
                 match writer.finish() {
                     Ok(xlsx_path) => info!(
@@ -654,10 +802,33 @@ pub fn run(args: SplitFastqArgs) -> AppResult<()> {
             .collect::<Vec<_>>()
             .join(" ");
 
-        let major_lineage =
-            determine_major_lineage(&lineage_counts, args.nested_classification);
+        // The WHO catalogue is not a hierarchy, so tallying its paths answers
+        // which drug has the most markers, and most of that catalogue is
+        // graded as not associated with resistance.
+        let major_lineage = if resistance_panel {
+            crate::resistance::call(&resistance)
+        } else {
+            determine_major_lineage(&lineage_counts, args.nested_classification)
+        };
+        let mut sorted_undetermined: Vec<(&String, &usize)> = undetermined_counts.iter().collect();
+        sorted_undetermined.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
+        let undetermined_total: usize = undetermined_counts.values().sum();
+        let undetermined_str = sorted_undetermined
+            .iter()
+            .map(|(l, c)| format!("{}:{}", l, c))
+            .collect::<Vec<_>>()
+            .join(" ");
+        if undetermined_total > 0 {
+            info!(
+                "  {} markers of {} could be read neither way; they are listed in {}",
+                undetermined_total, sample_name, undetermined_path
+            );
+        }
 
-        let summary_line = format!("{}\t{}\t{}", sample_name, list_str, major_lineage);
+        let summary_line = format!(
+            "{}\t{}\t{}\t{}\t{}",
+            sample_name, list_str, major_lineage, undetermined_total, undetermined_str
+        );
         all_summary_lines.push(summary_line);
     }
 
@@ -676,13 +847,22 @@ pub fn run(args: SplitFastqArgs) -> AppResult<()> {
         }
     };
     generated_outputs.push(summary_path.clone());
-    if let Err(e) = writeln!(summary_writer, "genome\tlineage:count\tmajor_lineage") {
+    if let Err(e) = writeln!(
+        summary_writer,
+        "genome\tlineage:count\tmajor_lineage\tundetermined\tundetermined:count"
+    ) {
         drop(summary_writer);
         cleanup_generated_outputs(&generated_outputs);
         return Err(AppError::Io(e));
     }
 
-    let summary_headers = ["genome", "lineage:count", "major_lineage"];
+    let summary_headers = [
+        "genome",
+        "lineage:count",
+        "major_lineage",
+        "undetermined",
+        "undetermined:count",
+    ];
     let mut summary_excel_writer = if args.excel {
         match crate::common::ExcelStreamWriter::new(&summary_path, &summary_headers) {
             Ok(writer) => Some(writer),
@@ -743,8 +923,35 @@ pub fn run(args: SplitFastqArgs) -> AppResult<()> {
     Ok(())
 }
 
+/// The stretches of the reference the reads read, as sorted disjoint
+/// half-open intervals. Windows that touch or overlap are joined, because a
+/// base is known if any one window holds it.
+fn merge_windows(windows: impl Iterator<Item = (usize, usize)>) -> Vec<(usize, usize)> {
+    let mut windows: Vec<(usize, usize)> = windows.collect();
+    windows.sort_unstable();
+    let mut merged: Vec<(usize, usize)> = Vec::with_capacity(windows.len());
+    for (start, end) in windows {
+        match merged.last_mut() {
+            Some(last) if start <= last.1 => last.1 = last.1.max(end),
+            _ => merged.push((start, end)),
+        }
+    }
+    merged
+}
+
+/// Whether every base of `start .. end` falls inside one read window.
+fn window_covers(merged: &[(usize, usize)], start: usize, end: usize) -> bool {
+    // The last window that begins at or before the span.
+    match merged.partition_point(|&(window_start, _)| window_start <= start) {
+        0 => false,
+        n => merged[n - 1].1 >= end,
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
+    use super::{merge_windows, window_covers};
     use crate::lineage::determine_major_lineage;
     use std::collections::HashMap;
 
@@ -754,5 +961,47 @@ mod tests {
         counts.insert("L2".to_string(), 2usize);
         counts.insert("L1".to_string(), 2usize);
         assert_eq!(determine_major_lineage(&counts, true), "L1");
+    }
+
+    /// A base is known if any read window holds it, so touching windows join.
+    #[test]
+    fn read_windows_are_joined_and_sorted() {
+        let merged = merge_windows([(100, 131), (40, 71), (120, 151), (71, 90)].into_iter());
+        assert_eq!(merged, vec![(40, 90), (100, 151)]);
+        assert!(merge_windows(std::iter::empty()).is_empty());
+        // A window inside another one must not shorten it.
+        assert_eq!(
+            merge_windows([(100, 131), (105, 120)].into_iter()),
+            vec![(100, 131)]
+        );
+    }
+
+    /// The case this exists for: rpoB 450 carries ten markers in the WHO
+    /// catalogue. One of them is called, which reads the window for all of
+    /// them, so the other nine are absent and not reported as unread. A marker
+    /// hanging over the edge of the window is still unread.
+    #[test]
+    fn a_marker_inside_a_read_window_is_not_reported_as_unread() {
+        let merged = merge_windows([(761140, 761171)].into_iter());
+        assert!(window_covers(&merged, 761154, 761155), "the called SNP");
+        assert!(window_covers(&merged, 761154, 761156), "its two-base neighbour");
+        assert!(window_covers(&merged, 761154, 761165), "the eleven-base marker");
+        assert!(window_covers(&merged, 761168, 761171), "ends on the last base read");
+        assert!(window_covers(&merged, 761140, 761143), "starts on the first base read");
+        assert!(!window_covers(&merged, 761154, 761180), "runs past the window");
+        assert!(!window_covers(&merged, 761168, 761172), "one base past the last");
+        assert!(!window_covers(&merged, 761130, 761145), "starts before it");
+        assert!(!window_covers(&merged, 900000, 900001), "nowhere near it");
+        assert!(!window_covers(&[], 761154, 761155), "nothing was read");
+    }
+
+    /// Two windows side by side do not vouch for a span that crosses the gap
+    /// between them.
+    #[test]
+    fn a_gap_between_windows_leaves_a_span_unread() {
+        let merged = merge_windows([(100, 131), (140, 171)].into_iter());
+        assert!(window_covers(&merged, 125, 130));
+        assert!(!window_covers(&merged, 128, 145));
+        assert!(!window_covers(&merged, 131, 141));
     }
 }

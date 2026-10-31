@@ -18,7 +18,7 @@ Every `pathotypr` subcommand writes tab-separated (TSV) result files, and most c
 | [`train`](train.md) | model bundle, `.importance.tsv`, `.importance.coords.tsv` | — (no `--excel`; accuracy is logged, not filed) |
 | [`predict`](predict.md) | predictions TSV | `.xlsx` with `--excel` |
 | [`classify`](classify.md) | detailed TSV, `_summary.tsv` | `.xlsx` with `--excel`; `_masked.fasta` with `--output-masked-fasta` |
-| [`split-fastq`](split-fastq.md) | per-sample `_mutations.tsv`, `_summary.tsv` | `.xlsx` with `--excel` |
+| [`split-fastq`](split-fastq.md) | per-sample `_mutations.tsv` and `_undetermined.tsv`, `_summary.tsv` | `.xlsx` with `--excel` |
 | [`match`](match.md) | best-match TSV (or stdout) | `.xlsx` with `--excel` **and** `-o` |
 
 ---
@@ -221,7 +221,9 @@ Alignment-free genotyping from FASTQ reads. Writes one detailed table **per samp
 | File | When | Content |
 |---|---|---|
 | `<prefix>_<sample>_mutations.tsv` | always | Per-marker calls for one sample (one file per sample). |
-| `<prefix>_summary.tsv` | always | One row per sample with its major-lineage call. |
+| `<prefix>_<sample>_undetermined.tsv` | always | Markers the reads could answer neither way, one row each, with a `reason` of `not_found` or `low_depth`. Only the header when every marker was read. See [split-fastq](split-fastq.md#per-sample-undetermined-tsv). |
+| `<prefix>_summary.tsv` | always | One row per sample with its major-lineage call and its count of undetermined markers. |
+| `<prefix>_<sample>_mutations.xlsx`, `<prefix>_<sample>_undetermined.xlsx`, `<prefix>_summary.xlsx` | with `--excel` | Excel copies of the three tables. |
 | `<prefix>_<sample>_mutations.xlsx`, `<prefix>_summary.xlsx` | with `--excel` | Excel copies. |
 
 !!! note "Sample names in filenames are sanitised"
@@ -247,15 +249,28 @@ Only markers meeting `--min-depth` coverage **and** `--min-alt-percent` are writ
 !!! tip "Excel colour coding"
     In the detailed `.xlsx`, the annotation columns collapse to a single `annotations` header, and **alt_fraction** is shaded red `< 50`, yellow `50–95`, green `≥ 95`.
 
+### Undetermined table (`<prefix>_<sample>_undetermined.tsv`)
+
+**Header:** `pos  ref_allele  alt_allele  ref_count  alt_count  lineage_path  reason`
+
+One row per marker the reads could answer neither way: `not_found` when no read
+carried either allele, `low_depth` when together they fall below `--min-depth`.
+A marker read through a neighbour's window is not listed, because both k-mers
+of a marker come from the same window and a read matching either one reads
+every base of it. See
+[split-fastq](split-fastq.md#per-sample-undetermined-tsv).
+
 ### Summary table — `<prefix>_summary.tsv`
 
-**Header:** `genome  lineage:count  major_lineage`
+**Header:** `genome  lineage:count  major_lineage  undetermined  undetermined:count`
 
 | Column | Description |
 |---|---|
 | `genome` | Original sample name. |
 | `lineage:count` | Space-separated `lineage:count` pairs across all hierarchical levels, sorted by count descending, then by name. |
-| `major_lineage` | Final lineage call (`--nested-classification` enables hierarchical path validation; otherwise most-abundant wins). |
+| `major_lineage` | Final lineage call (`--nested-classification` enables hierarchical path validation; otherwise most-abundant wins). With a WHO drug-resistance panel, the drugs with a grade 1 or 2 marker instead. |
+| `undetermined` | How many markers the reads could answer neither way. |
+| `undetermined:count` | Those markers as `label:count` pairs under the first level of their path. Empty when every marker was read. |
 
 !!! warning "No indels in FASTQ mode"
     `split-fastq` calls SNPs/MNVs only. Insertions and deletions are detected reliably via the assembly-based [`classify`](classify.md) workflow.

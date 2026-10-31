@@ -134,7 +134,7 @@ pathotypr split-fastq \
   --excel
 ```
 
-Outputs are `sample_genotype_<sample>_mutations.tsv` (per-marker detail: position, alleles, counts, ALT fraction, lineage) and `sample_genotype_summary.tsv` (lineage counts plus the major call).
+Outputs are `sample_genotype_<sample>_mutations.tsv` (per-marker detail: position, alleles, counts, ALT fraction, lineage), `sample_genotype_<sample>_undetermined.tsv` (the markers the reads could answer neither way) and `sample_genotype_summary.tsv` (lineage counts, the major call, and how many markers were left undetermined).
 
 !!! tip "Tuning calls for coverage"
     A variant is called when depth ≥ `--min-depth` (default `10`) **and** the ALT fraction ≥ `--min-alt-percent` (default `95`). Lower `--min-depth` for shallow sequencing, or lower `--min-alt-percent` if you expect mixed / heteroresistant samples.
@@ -187,7 +187,7 @@ The companion `sample_lineage_summary.tsv` collapses this to a single row: the g
 
 ### `split-fastq` — mutations + summary
 
-`sample_genotype_<sample>_mutations.tsv` lists each called marker with its position, REF/ALT alleles, REF and ALT read counts, ALT fraction, and lineage. `sample_genotype_summary.tsv` gives one row per sample: the per-lineage marker counts and the final major-lineage call.
+`sample_genotype_<sample>_mutations.tsv` lists each called marker with its position, REF/ALT alleles, REF and ALT read counts, ALT fraction, and lineage. `sample_genotype_summary.tsv` gives one row per sample: the per-lineage marker counts, the final major-lineage call, and how many markers the reads could answer neither way. Those are listed one per row in `sample_genotype_<sample>_undetermined.tsv`, with `not_found` when no read carried either allele and `low_depth` when the two together fall below `--min-depth`. A marker nobody could read is not a marker that is absent, which matters most with a resistance panel.
 
 ### `predict` — predictions TSV
 

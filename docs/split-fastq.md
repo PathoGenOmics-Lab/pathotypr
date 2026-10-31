@@ -182,7 +182,9 @@ All files are prefixed with `--output-prefix` (default `split`). Sample names ar
 |---|---|---|
 | `<prefix>_<sample>_mutations.tsv` | one per sample | Every marker that passed the depth and ALT-fraction thresholds. |
 | `<prefix>_summary.tsv` | once per run | One row per sample with lineage tallies and the major-lineage call. |
+| `<prefix>_<sample>_undetermined.tsv` | one per sample | Every marker the reads could answer neither way. Only the header when they all were. |
 | `<prefix>_<sample>_mutations.xlsx` | with `--excel` | Excel copy of each per-sample mutations table. |
+| `<prefix>_<sample>_undetermined.xlsx` | with `--excel` | Excel copy of each per-sample undetermined table. |
 | `<prefix>_summary.xlsx` | with `--excel` | Excel copy of the summary table. |
 
 ### Per-sample mutations TSV
@@ -203,19 +205,51 @@ All files are prefixed with `--output-prefix` (default `split`). Sample names ar
 !!! note "Excel conditional formatting"
     In the `.xlsx` copy the `alt_fraction` column is colour-coded: red below 50%, yellow 50–95%, green at 95% and above.
 
+### Per-sample undetermined TSV
+
+`<prefix>_<sample>_undetermined.tsv` holds one row per marker the reads could
+not answer, with the same columns as the mutations table plus a `reason`.
+
+| `reason` | What happened |
+|---|---|
+| `not_found` | No read carried either allele. |
+| `low_depth` | Together the two alleles have fewer than `--min-depth` reads. |
+
+A marker with no reads on either allele is not a marker that is absent, and
+this is where the difference is written down. Both k-mers are exact, so a
+second change anywhere in the same 31-base window hides the reference and the
+alternate alike: the marker is unreadable in this sample, not absent from it.
+Reads that stop short of the marker do the same thing. Either way the call is
+"not read", and the row says so instead of letting the marker fall silently
+into the reference pile.
+
+Markers the reads *did* read are not listed, even when nothing was called for
+them. Both k-mers come from the same window, so a read matching either one
+reads every base of that window: a position covered by a neighbour's reads is
+answered for every marker that lies inside it. At rpoB 450 the WHO catalogue
+carries ten markers; one of them being called reads the window for all ten, and
+the other nine are absent, not unread.
+
+!!! warning "Read it before calling a sample susceptible"
+    A drug with no marker called but markers undetermined has not been shown
+    susceptible. The summary carries the count so it is visible without opening
+    the table.
+
 ### Run summary TSV
 
 `<prefix>_summary.tsv` — header and one row per sample.
 
 ```tsv
-genome	lineage:count	major_lineage
+genome	lineage:count	major_lineage	undetermined	undetermined:count
 ```
 
 | Column | Description |
 |---|---|
 | `genome` | Sample name. |
 | `lineage:count` | Space-separated `lineage:count` pairs (each level and how many markers supported it), ordered by count then name. |
-| `major_lineage` | The final major-lineage call for the sample. |
+| `major_lineage` | The final major-lineage call for the sample. With a WHO drug-resistance panel, the drugs with a grade 1 or 2 marker instead: the catalogue's columns are a drug and a grade, not a hierarchy, so tallying them as lineage levels answers a question nobody asked. |
+| `undetermined` | How many markers the reads could answer neither way. |
+| `undetermined:count` | Those markers as `label:count` pairs under the first level of their path (the drug for a resistance panel, the main lineage for a lineage panel). Empty when every marker was read. |
 
 ## See also
 

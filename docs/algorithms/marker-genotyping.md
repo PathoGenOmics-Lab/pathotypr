@@ -120,6 +120,30 @@ The `classify_split_fastq` module takes the raw `[ref_count, alt_count]` per mar
 2. Walk the hierarchical lineage columns (e.g., L4 → L4.9 → L4.9.1)
 3. Report the most abundant lineage by default (every ancestor prefix is counted, so this is usually the top level); with `--nested-classification`, report the deepest fully supported path
 
+A panel whose paths are a drug, a resistance phenotype and a WHO grade is
+recognised as a resistance catalogue instead, and answered on its own terms:
+the drugs with a grade 1 or 2 marker. Counting those paths as lineage levels
+reports whichever drug happens to carry the most markers, and most markers of
+the WHO catalogue are graded "not associated with resistance".
+
+### Markers that could be read neither way
+
+A marker with fewer than `--min-depth` reads across both alleles has not been
+called absent; it has not been read. Both k-mers are exact matches, so a second
+change anywhere inside the same window hides the reference and the alternate
+alike, and reads that stop short of the marker do the same. Those markers go to
+`<prefix>_<sample>_undetermined.tsv` with the reason, and their count goes in
+the summary, instead of joining the markers that were read and found absent.
+
+The exception is a marker read through a neighbour: both k-mers of a marker are
+cut from the same window, so a read matching either one matches it exactly and
+therefore reads every base of that window. The windows with at least
+`--min-depth` reads are merged into the stretches of the reference the sample
+read, and a marker lying inside one of them is absent rather than unread. This
+is what keeps a called variant from turning the other markers of its own
+position (ten of them at rpoB 450 in the WHO catalogue) into markers the run
+claims not to have looked at.
+
 ### Marker TSV format
 
 ```tsv

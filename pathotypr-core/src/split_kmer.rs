@@ -73,6 +73,10 @@ pub struct Marker {
     pub lineages: Vec<String>, // e.g., ["L2", "L2.2", "L2.2.1"]
     pub alt_kmer: Vec<u8>,
     pub ref_kmer: Vec<u8>,
+    /// 0-based start of the reference window both k-mers were cut from. A read
+    /// that matches either k-mer matches it exactly, so it reads every base of
+    /// `kmer_start .. kmer_start + k`.
+    pub kmer_start: usize,
     pub annotations: Vec<String>,
 }
 
@@ -136,7 +140,7 @@ fn build_small_variant_kmer(
     alt_allele: &[u8],
     ref_seq: &[u8],
     kmer_len: usize,
-) -> Option<(Vec<u8>, Vec<u8>)> {
+) -> Option<(Vec<u8>, Vec<u8>, usize)> {
     let ref_len_allele = ref_allele.len();
     let alt_len_allele = alt_allele.len();
     let max_allele_len = ref_len_allele.max(alt_len_allele);
@@ -169,7 +173,7 @@ fn build_small_variant_kmer(
         &ref_seq[right_flank_start_ref..right_flank_start_ref + alt_right_needed],
     );
 
-    Some((ref_kmer, alt_kmer))
+    Some((ref_kmer, alt_kmer, kmer_start_pos))
 }
 
 // --- Public API ---
@@ -192,9 +196,17 @@ pub fn build_markers(
     info!("  Parsing marker file and generating diagnostic k-mers...");
     let mut markers = Vec::new();
     let mut indels_skipped = 0usize;
+    // Markers the reference cannot give a probe for: the window would run past
+    // the end of the sequence, or the allele is longer than k. They are
+    // reported rather than left to vanish between the panel and the results.
+    let mut without_kmer = 0usize;
     let file = File::open(tsv_markers)
         .map_err(|e| anyhow::anyhow!("Failed to open marker file '{}': {}", tsv_markers, e))?;
     let mut line_count = 0usize;
+    // Marker rows, which is not the file's line count: the header, blank lines
+    // and comments are not markers, and the number is reported to the user
+    // beside how many of them got a k-mer.
+    let mut marker_lines = 0usize;
     let mut header_validated = false;
     for line in BufReader::new(file).lines() {
         line_count += 1;
@@ -220,6 +232,7 @@ pub fn build_markers(
             }
             header_validated = true; // no header, proceed with data
         }
+        marker_lines += 1;
         let fields: Vec<&str> = line_str.split('\t').collect();
         if fields.len() < 4 {
             warn!(
@@ -284,7 +297,7 @@ pub fn build_markers(
         }
 
         if max_allele_len < kmer_len {
-            if let Some((ref_kmer, alt_kmer)) =
+            if let Some((ref_kmer, alt_kmer, kmer_start)) =
                 build_small_variant_kmer(pos0, ref_allele, alt_allele, &ref_seq, kmer_len)
             {
                 markers.push(Marker {
@@ -294,10 +307,18 @@ pub fn build_markers(
                     alt_allele: alt_allele_str,
                     ref_kmer,
                     alt_kmer,
+                    kmer_start,
                     annotations: annotation_cols,
                 });
+            } else {
+                without_kmer += 1;
+                debug!(
+                    "No k-mer for the variant at pos {} (the window runs past the end of the reference)",
+                    pos0 + 1
+                );
             }
         } else {
+            without_kmer += 1;
             debug!(
                 "Skipping variant at pos {} (allele len {} >= k-mer len {})",
                 pos0 + 1,
@@ -316,11 +337,26 @@ pub fn build_markers(
     info!(
         "  Built {} diagnostic k-mers from {} marker lines{}.",
         markers.len(),
-        line_count,
-        if indels_skipped > 0 {
-            format!(" ({} indels skipped — use FASTA classify for indel detection)", indels_skipped)
-        } else {
-            String::new()
+        marker_lines,
+        {
+            let mut notes = Vec::new();
+            if indels_skipped > 0 {
+                notes.push(format!(
+                    "{} indels skipped — use FASTA classify for indel detection",
+                    indels_skipped
+                ));
+            }
+            if without_kmer > 0 {
+                notes.push(format!(
+                    "{} markers the reference gives no k-mer for (run with -v to list them)",
+                    without_kmer
+                ));
+            }
+            if notes.is_empty() {
+                String::new()
+            } else {
+                format!(" ({})", notes.join("; "))
+            }
         }
     );
 

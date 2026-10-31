@@ -183,19 +183,27 @@ let undeterminedBySample = new Map();
  * whose unread markers could never have changed the call, which turns the
  * warning into noise and teaches the reader to skip it.
  */
-export function parseUndeterminedTsv(text) {
+export function parseUndeterminedTsv(text, fallbackSample = '') {
   const out = new Map();
   const lines = String(text || '').split(/\r?\n/);
   if (lines.length < 2) return out;
   const headers = lines[0].split('\t').map(h => h.trim().toLowerCase());
   const sampleIdx = headers.indexOf('genome');
-  const pathIdx = headers.indexOf('lineage');
-  if (sampleIdx === -1 || pathIdx === -1) return out;
+  // classify names the column "lineage", split-fastq "lineage_path", and
+  // split-fastq writes one file per sample so it has no genome column at all:
+  // the caller names the sample from the file it read.
+  const pathIdx = headers.indexOf('lineage') !== -1
+    ? headers.indexOf('lineage')
+    : headers.indexOf('lineage_path');
+  if (pathIdx === -1) return out;
+  if (sampleIdx === -1 && !fallbackSample) return out;
 
   for (let i = 1; i < lines.length; i += 1) {
     if (!lines[i]) continue;
     const cols = lines[i].split('\t');
-    const sample = (cols[sampleIdx] || '').trim();
+    const sample = sampleIdx === -1
+      ? fallbackSample
+      : (cols[sampleIdx] || '').trim();
     const parts = (cols[pathIdx] || '').split(';');
     const drug = (parts[0] || '').trim().toUpperCase();
     if (!sample || !drug) continue;
@@ -277,8 +285,9 @@ export function renderUndeterminedWarningHtml(pending) {
       <header><h4>Not determined</h4></header>
       <p>
         No resistance marker was found for these drugs, but some of their WHO grade 1 or 2
-        markers could be read neither as present nor as absent. A change on both sides of a
-        marker, a missing region or a contig break hides it, so these drugs have
+        markers could be read neither as present nor as absent. A second change inside the
+        same window hides a marker, and so does a stretch the run could not read: a missing
+        region, a contig break, or too little depth over it. These drugs have
         <strong>not</strong> been shown susceptible by this run.
       </p>
       <ul class="dr-und-list">${items}</ul>

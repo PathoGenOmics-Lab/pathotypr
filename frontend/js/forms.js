@@ -544,8 +544,19 @@ function isCancellationMessage(text) {
 async function loadUndeterminedBeside(detailPath) {
   try {
     const base = String(detailPath || '').replace(/\.tsv$/i, '');
-    const text = base ? await readTextFile(`${base}_undetermined.tsv`) : '';
-    setUndeterminedCounts(parseUndeterminedTsv(text));
+    if (!base) {
+      setUndeterminedCounts(new Map());
+      return;
+    }
+    // classify writes <prefix>.tsv beside <prefix>_undetermined.tsv; split-fastq
+    // writes one pair per sample, <prefix>_<sample>_mutations.tsv beside
+    // <prefix>_<sample>_undetermined.tsv, and names no sample inside the file.
+    const perSample = /_mutations$/i.test(base);
+    const path = perSample
+      ? `${base.replace(/_mutations$/i, '')}_undetermined.tsv`
+      : `${base}_undetermined.tsv`;
+    const text = await readTextFile(path);
+    setUndeterminedCounts(parseUndeterminedTsv(text, perSample ? 'Sample' : ''));
   } catch {
     setUndeterminedCounts(new Map());
   }
@@ -1599,8 +1610,11 @@ async function handleResultWithModal(
       if (runId && (!isRunCurrent(runId) || wasCancellationRequested(runId))) return 'cancelled';
       const content = await readTextFile(resolvedOutputPath);
       if (content && panelId) {
-        if (panelId === 'classify') await loadUndeterminedBeside(resolvedOutputPath);
-        else setUndeterminedCounts(new Map());
+        if (panelId === 'classify' || panelId === 'splitfq') {
+          await loadUndeterminedBeside(resolvedOutputPath);
+        } else {
+          setUndeterminedCounts(new Map());
+        }
         showInlineResults(panelId, resolvedOutputPath, content, inputFiles, context);
         refreshVisualizationForTool(panelId);
       } else if (!content) {
