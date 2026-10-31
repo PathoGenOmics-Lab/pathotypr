@@ -34,6 +34,12 @@ pub struct MarkerKmerEntry {
     /// sits, or `None` when it cannot be built or looked up. Without it the
     /// marker can be seen present but never confirmed absent.
     pub ref_kmer: Option<String>,
+    /// The flank immediately before the variant, and the one immediately after
+    /// it, both `anchor_len` bases. Only built for substitutions, where the two
+    /// alleles have the same length and the allele can therefore be read off a
+    /// genome by counting bases from one anchor. See [`AnchorIndex`].
+    pub left_anchor: Option<String>,
+    pub right_anchor: Option<String>,
     pub ref_position: usize,
     pub lineage: String,
     pub ref_allele_len: usize,
@@ -75,6 +81,198 @@ pub struct MarkerIndex {
     /// The site each marker belongs to; `None` when it has no reference k-mer.
     marker_site: Vec<Option<usize>>,
     site_count: usize,
+    /// The half-length anchors, used only to resolve markers the k-mers left
+    /// undetermined.
+    anchors: AnchorIndex,
+}
+
+// ---------------------------------------------------------------------------
+// Anchors
+// ---------------------------------------------------------------------------
+
+/// The two flanks of every substitution marker, indexed on their own.
+///
+/// A k-mer spans the variant and both its flanks, so a single other change
+/// anywhere in it stops the match. Each flank on its own survives a change in
+/// the other one, and the allele can then be read off the genome by counting
+/// bases from the anchor instead of being recognised as a whole. That reads
+/// alleles nobody catalogued, which an index of expected k-mers cannot do.
+///
+/// Only substitutions get anchors. With an indel the allele's length is what
+/// is in question, so bases counted from one anchor cannot say which allele is
+/// there; those markers keep the k-mer answer.
+///
+/// An anchor is half a k-mer and therefore much less specific, so an allele is
+/// read only from an anchor that occurs **exactly once** in the genome. A
+/// repeated anchor says nothing about which copy was read.
+#[derive(Clone, Debug, Default)]
+pub struct AnchorIndex {
+    /// Bases per anchor; 0 when there are none.
+    len: usize,
+    left: Option<KmerLookup>,
+    right: Option<KmerLookup>,
+    /// Markers reachable from each slot, and the longest allele to read there.
+    left_markers: Vec<Vec<usize>>,
+    right_markers: Vec<Vec<usize>>,
+    left_span: Vec<usize>,
+    right_span: Vec<usize>,
+    /// Slot of each marker, when it has anchors.
+    marker_left: Vec<Option<usize>>,
+    marker_right: Vec<Option<usize>>,
+}
+
+/// Where an allele read from the genome came from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AnchorEvidence {
+    Left,
+    Right,
+    Both,
+}
+
+impl AnchorEvidence {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            AnchorEvidence::Left => "left_anchor",
+            AnchorEvidence::Right => "right_anchor",
+            AnchorEvidence::Both => "both_anchors",
+        }
+    }
+}
+
+/// What the anchors say about one marker.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum AnchorRead {
+    /// No anchor of this marker occurs exactly once, so nothing was read.
+    Unusable,
+    /// The two anchors disagree, so neither is trusted.
+    Conflict,
+    /// The bases found where the allele should be.
+    Allele(String, AnchorEvidence),
+}
+
+/// Anchor occurrences accumulated over every contig and strand of one genome.
+#[derive(Clone, Debug)]
+pub struct AnchorScan {
+    left_count: Vec<u32>,
+    right_count: Vec<u32>,
+    left_bases: Vec<Option<Vec<u8>>>,
+    right_bases: Vec<Option<Vec<u8>>>,
+}
+
+impl AnchorScan {
+    pub fn new(index: &AnchorIndex) -> Self {
+        Self {
+            left_count: vec![0; index.left_markers.len()],
+            right_count: vec![0; index.right_markers.len()],
+            left_bases: vec![None; index.left_markers.len()],
+            right_bases: vec![None; index.right_markers.len()],
+        }
+    }
+
+    /// The allele of a marker, read from whichever anchors are usable.
+    pub fn allele_of(&self, index: &AnchorIndex, marker_id: usize, allele_len: usize) -> AnchorRead {
+        let from_left = index
+            .marker_left
+            .get(marker_id)
+            .copied()
+            .flatten()
+            .filter(|&slot| self.left_count[slot] == 1)
+            .and_then(|slot| self.left_bases[slot].as_ref())
+            .filter(|bases| bases.len() >= allele_len)
+            // the allele starts where the left anchor ends
+            .map(|bases| bases[..allele_len].to_vec());
+        let from_right = index
+            .marker_right
+            .get(marker_id)
+            .copied()
+            .flatten()
+            .filter(|&slot| self.right_count[slot] == 1)
+            .and_then(|slot| self.right_bases[slot].as_ref())
+            .filter(|bases| bases.len() >= allele_len)
+            // and ends where the right anchor begins
+            .map(|bases| bases[bases.len() - allele_len..].to_vec());
+        let (bases, evidence) = match (from_left, from_right) {
+            (None, None) => return AnchorRead::Unusable,
+            (Some(l), Some(r)) if l != r => return AnchorRead::Conflict,
+            (Some(l), Some(_)) => (l, AnchorEvidence::Both),
+            (Some(l), None) => (l, AnchorEvidence::Left),
+            (None, Some(r)) => (r, AnchorEvidence::Right),
+        };
+        AnchorRead::Allele(String::from_utf8_lossy(&bases).into_owned(), evidence)
+    }
+}
+
+impl AnchorIndex {
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    pub fn len(&self) -> usize {
+        self.len
+    }
+}
+
+/// Records every anchor occurrence of one sequence into `scan`.
+///
+/// Called once per contig and strand, so the counts add up over the whole
+/// genome and a locus present twice is seen as repeated.
+pub fn scan_anchors(genome_sequence: &str, index: &AnchorIndex, scan: &mut AnchorScan) {
+    let (left, right) = match (index.left.as_ref(), index.right.as_ref()) {
+        (Some(l), Some(r)) => (l, r),
+        _ => return,
+    };
+    let a = index.len;
+    let bytes = genome_sequence.as_bytes();
+    let seq_len = bytes.len();
+    if a == 0 || seq_len < a {
+        return;
+    }
+
+    let mut record = |slot_left: Option<usize>, slot_right: Option<usize>, start: usize| {
+        if let Some(slot) = slot_left {
+            scan.left_count[slot] = scan.left_count[slot].saturating_add(1);
+            if scan.left_bases[slot].is_none() {
+                let from = start + a;
+                let to = (from + index.left_span[slot]).min(seq_len);
+                if from <= to {
+                    scan.left_bases[slot] = Some(bytes[from..to].to_vec());
+                }
+            }
+        }
+        if let Some(slot) = slot_right {
+            scan.right_count[slot] = scan.right_count[slot].saturating_add(1);
+            if scan.right_bases[slot].is_none() {
+                let span = index.right_span[slot];
+                let from = start.saturating_sub(span);
+                if start >= span {
+                    scan.right_bases[slot] = Some(bytes[from..start].to_vec());
+                }
+            }
+        }
+    };
+
+    match (left, right) {
+        (KmerLookup::Encoded(left), KmerLookup::Encoded(right)) => {
+            for (start, bitkmer, _) in bytes.bit_kmers(a as u8, false) {
+                let l = left.get(&bitkmer.0).copied();
+                let r = right.get(&bitkmer.0).copied();
+                if l.is_some() || r.is_some() {
+                    record(l, r, start);
+                }
+            }
+        }
+        (KmerLookup::Text(left), KmerLookup::Text(right)) => {
+            for start in 0..=(seq_len - a) {
+                let window = &genome_sequence[start..start + a];
+                let l = left.get(window).copied();
+                let r = right.get(window).copied();
+                if l.is_some() || r.is_some() {
+                    record(l, r, start);
+                }
+            }
+        }
+        _ => unreachable!("anchor lookups built with different storage"),
+    }
 }
 
 impl MarkerIndex {
@@ -105,6 +303,10 @@ impl MarkerIndex {
 
     pub fn site_count(&self) -> usize {
         self.site_count
+    }
+
+    pub fn anchors(&self) -> &AnchorIndex {
+        &self.anchors
     }
 }
 
@@ -248,6 +450,14 @@ pub fn generate_markerkmer(
     };
 
     let effective_max_allele = k.saturating_sub(2 * min_flank_bases);
+    // One base short of a k-mer, entirely on one side of the variant. Half that
+    // length tolerates a neighbour slightly further away, but 4^15 is only a few
+    // hundred times the size of a bacterial genome, so some anchors then occur
+    // somewhere else by chance; when the real one is broken and the chance one
+    // is not, the allele gets read from the wrong locus. At k-1 that stops
+    // happening, and a single neighbour on either side still leaves one anchor
+    // standing, which is the point of having two.
+    let anchor_len = k - 1;
     let mut skipped_flank: usize = 0;
 
     let seq_bytes = ref_seq.as_bytes();
@@ -323,9 +533,28 @@ pub fn generate_markerkmer(
             String::from_utf8_lossy(&ref_bytes).into_owned()
         }).filter(|r| r.len() == k);
 
+        // Anchors are half a k-mer on each side of the variant, the same length
+        // for every marker so one pass over the genome reads them all. Only
+        // substitutions get them: with an indel the allele's own length is what
+        // is in question, so counting bases from an anchor cannot resolve it.
+        let (left_anchor, right_anchor) = if ref_len == alt_len
+            && anchor_len > 0
+            && pos0 >= anchor_len
+            && right_flank_start + anchor_len <= seq_len
+        {
+            (
+                Some(String::from_utf8_lossy(&seq_bytes[pos0 - anchor_len..pos0]).into_owned()),
+                Some(String::from_utf8_lossy(&seq_bytes[right_flank_start..right_flank_start + anchor_len]).into_owned()),
+            )
+        } else {
+            (None, None)
+        };
+
         let entry = MarkerKmerEntry {
             kmer: new_kmer.clone(),
             ref_kmer,
+            left_anchor,
+            right_anchor,
             ref_position: pos,
             lineage: marker.lineage.clone(),
             ref_allele_len: ref_len,
@@ -370,14 +599,14 @@ pub fn generate_markerkmer(
         }
         text_index.into_values().collect()
     };
-    build_index(entries, use_encoded_index)
+    build_index(entries, use_encoded_index, anchor_len)
 }
 
 /// Turns the final set of markers into the two-way index.
 ///
 /// Built from the markers that survived duplicate alternative k-mers, so the
 /// overwrite rule above decides which marker owns a k-mer, as it always has.
-fn build_index(mut markers: Vec<MarkerKmerEntry>, encoded: bool) -> MarkerIndex {
+fn build_index(mut markers: Vec<MarkerKmerEntry>, encoded: bool, anchor_len: usize) -> MarkerIndex {
     markers.sort_by(|a, b| a.ref_position.cmp(&b.ref_position).then_with(|| a.kmer.cmp(&b.kmer)));
 
     let mut alt_encoded: FxHashMap<u64, usize> = FxHashMap::default();
@@ -451,7 +680,78 @@ fn build_index(mut markers: Vec<MarkerKmerEntry>, encoded: bool) -> MarkerIndex 
     } else {
         (KmerLookup::Text(alt_text), KmerLookup::Text(ref_text))
     };
-    MarkerIndex { markers, alt, reference, marker_site, site_count }
+    let anchors = build_anchor_index(&markers, encoded, anchor_len);
+    MarkerIndex { markers, alt, reference, marker_site, site_count, anchors }
+}
+
+/// Collects the anchors of every substitution marker into their own lookups.
+fn build_anchor_index(markers: &[MarkerKmerEntry], encoded: bool, anchor_len: usize) -> AnchorIndex {
+    let mut index = AnchorIndex {
+        len: anchor_len,
+        marker_left: vec![None; markers.len()],
+        marker_right: vec![None; markers.len()],
+        ..Default::default()
+    };
+    if anchor_len == 0 {
+        return index;
+    }
+    let mut left_encoded: FxHashMap<u64, usize> = FxHashMap::default();
+    let mut left_text: FxHashMap<String, usize> = FxHashMap::default();
+    let mut right_encoded: FxHashMap<u64, usize> = FxHashMap::default();
+    let mut right_text: FxHashMap<String, usize> = FxHashMap::default();
+
+    for (id, marker) in markers.iter().enumerate() {
+        let allele_len = marker.alt_allele_len;
+        for side in [true, false] {
+            let anchor = if side { &marker.left_anchor } else { &marker.right_anchor };
+            let Some(anchor) = anchor.as_deref() else { continue };
+            let (slots, spans) = if side {
+                (&mut index.left_markers, &mut index.left_span)
+            } else {
+                (&mut index.right_markers, &mut index.right_span)
+            };
+            let next = slots.len();
+            let slot = if encoded {
+                let Some(key) = encode_kmer_2bit(anchor.as_bytes()) else { continue };
+                let map = if side { &mut left_encoded } else { &mut right_encoded };
+                *map.entry(key).or_insert(next)
+            } else {
+                let map = if side { &mut left_text } else { &mut right_text };
+                *map.entry(anchor.to_string()).or_insert(next)
+            };
+            if slot == next {
+                slots.push(Vec::new());
+                spans.push(0);
+            }
+            slots[slot].push(id);
+            spans[slot] = spans[slot].max(allele_len);
+            if side {
+                index.marker_left[id] = Some(slot);
+            } else {
+                index.marker_right[id] = Some(slot);
+            }
+        }
+    }
+
+    if index.left_markers.is_empty() && index.right_markers.is_empty() {
+        index.len = 0;
+        return index;
+    }
+    let (left, right) = if encoded {
+        (KmerLookup::Encoded(left_encoded), KmerLookup::Encoded(right_encoded))
+    } else {
+        (KmerLookup::Text(left_text), KmerLookup::Text(right_text))
+    };
+    index.left = Some(left);
+    index.right = Some(right);
+    debug!(
+        "Indexed {}-base anchors for {} markers at {} left and {} right slots.",
+        anchor_len,
+        index.marker_left.iter().filter(|s| s.is_some()).count(),
+        index.left_markers.len(),
+        index.right_markers.len()
+    );
+    index
 }
 
 // ---------------------------------------------------------------------------

@@ -12,8 +12,9 @@ pub mod masking;
 // Re-export public types for backward compatibility with Tauri and other modules.
 pub use annotation::{Gene, Strand, parse_gff_and_build_tree};
 pub use markers::{
-    find_markers, generate_markerkmer, get_positions, scan_markers, MarkerIndex, MarkerKmerEntry,
-    MarkerMatch, MarkerScan, MarkerVariant,
+    find_markers, generate_markerkmer, get_positions, scan_anchors, scan_markers, AnchorEvidence,
+    AnchorIndex, AnchorRead, AnchorScan, MarkerIndex, MarkerKmerEntry, MarkerMatch, MarkerScan,
+    MarkerVariant,
 };
 pub use masking::{collect_mask_positions, mask_sequence, write_masked_fasta};
 
@@ -252,15 +253,16 @@ pub fn get_genomes_from_fasta(fasta_file: &str) -> AppResult<Vec<(String, String
 
 /// Columns of the detailed output, one row per marker whose alternative allele
 /// was found.
-const DETAIL_HEADERS: [&str; 14] = [
+const DETAIL_HEADERS: [&str; 15] = [
     "genome", "k-mer", "k-merPOS", "SNPgenome", "SNPreference", "REF", "ALT", "lineage",
-    "Gene", "Gene_Start", "Gene_End", "AA_Pos", "AA_Change", "alleles_found",
+    "Gene", "Gene_Start", "Gene_End", "AA_Pos", "AA_Change", "alleles_found", "evidence",
 ];
 
 /// Columns of the undetermined output, one row per marker that could be read
 /// neither way.
-const UNDETERMINED_HEADERS: [&str; 8] = [
+const UNDETERMINED_HEADERS: [&str; 9] = [
     "genome", "SNPreference", "REF", "ALT", "lineage", "Gene", "mutation", "reason",
+    "observed_allele",
 ];
 
 /// Output rows for one genome.
@@ -270,9 +272,8 @@ const UNDETERMINED_HEADERS: [&str; 8] = [
 /// reference k-mer was found as well (two copies of the region that disagree,
 /// or a k-mer that also occurs elsewhere in the genome). Its reference k-mer
 /// found alone: no row, because the genome carries the reference allele.
-/// Neither found: an `undetermined` row, because some other change inside the
-/// window, a missing region or a contig break hides the position, and the
-/// marker can be neither confirmed nor ruled out.
+/// Neither found: the anchors are consulted, and the marker is reported
+/// present, absent or, when they cannot read it either, as `undetermined`.
 #[derive(Clone, Debug, Default)]
 pub struct GenomeLines {
     pub detail: Vec<String>,
@@ -350,6 +351,8 @@ fn collect_marker_lines<'a>(
     ref_seq: &str,
     ref_seq_rc: &str,
 ) -> GenomeLines {
+    // Collected because the anchors need a second look at the same contigs.
+    let contigs: Vec<String> = contigs.map(str::to_string).collect();
     let mut alt_found = vec![false; marker_index.len()];
     let mut reference_found = vec![false; marker_index.site_count()];
     // A site is read when any k-mer of it turned up: its reference allele, or
@@ -358,9 +361,9 @@ fn collect_marker_lines<'a>(
     let mut site_read = vec![false; marker_index.site_count()];
     let mut observed: Vec<(MarkerMatch, String)> = Vec::new();
 
-    for contig_seq in contigs {
+    for contig_seq in &contigs {
         let contig_rc = reverse_complement_sequence(contig_seq);
-        for seq in [contig_seq, contig_rc.as_str()] {
+        for seq in [contig_seq.as_str(), contig_rc.as_str()] {
             let scan = scan_markers(seq, marker_index, k);
             for site in scan.reference_sites {
                 reference_found[site] = true;
@@ -384,6 +387,22 @@ fn collect_marker_lines<'a>(
         }
     }
 
+    // Whatever the k-mers could not read, the anchors try to. The pass only
+    // happens when something is actually missing, so a genome the panel reads
+    // whole costs nothing extra.
+    let unread: Vec<usize> = (0..marker_index.len())
+        .filter(|&id| !alt_found[id] && !marker_index.site_of(id).is_some_and(|s| site_read[s]))
+        .collect();
+    let anchor_scan = (!unread.is_empty() && !marker_index.anchors().is_empty()).then(|| {
+        let mut scan = AnchorScan::new(marker_index.anchors());
+        for contig_seq in &contigs {
+            for seq in [contig_seq.as_str(), reverse_complement_sequence(contig_seq).as_str()] {
+                scan_anchors(seq, marker_index.anchors(), &mut scan);
+            }
+        }
+        scan
+    });
+
     let mut lines = GenomeLines::default();
     for (m, alt_bases) in &observed {
         let reference_too = marker_index
@@ -396,25 +415,45 @@ fn collect_marker_lines<'a>(
             annotations,
             alt_bases,
             alleles_found,
+            "kmer",
             ref_seq,
             ref_seq_rc,
         ));
     }
-    if lines.detail.is_empty() {
-        lines.detail.push(format!("{}{}\n", genome_name, "\t".repeat(DETAIL_HEADERS.len() - 1)));
-    }
 
-    for (id, entry) in marker_index.markers().iter().enumerate() {
-        if alt_found[id] {
-            continue;
-        }
-        let reason = match marker_index.site_of(id) {
-            Some(site) if site_read[site] => continue,
-            Some(_) => "not_found",
-            None => "no_reference_kmer",
+    for id in unread {
+        let entry = &marker_index.markers()[id];
+        let read = anchor_scan
+            .as_ref()
+            .map(|scan| scan.allele_of(marker_index.anchors(), id, entry.alt_allele_len))
+            .unwrap_or(AnchorRead::Unusable);
+        let (reason, observed_allele) = match read {
+            // The allele is the variant: a change in a flank hid the k-mer, and
+            // without the anchors this marker would have passed as absent.
+            AnchorRead::Allele(allele, evidence) if allele == entry.alt_allele => {
+                lines.detail.push(format_anchor_match(
+                    genome_name,
+                    entry,
+                    annotations,
+                    evidence,
+                    ref_seq,
+                    ref_seq_rc,
+                ));
+                continue;
+            }
+            // The genome carries the reference allele, so the marker is absent
+            // after all and needs no row.
+            AnchorRead::Allele(allele, _) if allele == entry.ref_allele => continue,
+            // Something nobody catalogued sits at a catalogued position.
+            AnchorRead::Allele(allele, _) => ("other_allele", allele),
+            AnchorRead::Conflict => ("anchors_disagree", String::new()),
+            AnchorRead::Unusable => (
+                if marker_index.site_of(id).is_some() { "not_found" } else { "no_reference_kmer" },
+                String::new(),
+            ),
         };
         lines.undetermined.push(format!(
-            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
             genome_name,
             entry.ref_position,
             entry.ref_allele,
@@ -422,8 +461,13 @@ fn collect_marker_lines<'a>(
             entry.lineage,
             entry.gene.as_deref().unwrap_or(""),
             entry.mutation.as_deref().unwrap_or(""),
-            reason
+            reason,
+            observed_allele
         ));
+    }
+
+    if lines.detail.is_empty() {
+        lines.detail.push(format!("{}{}\n", genome_name, "\t".repeat(DETAIL_HEADERS.len() - 1)));
     }
     lines
 }
@@ -450,19 +494,19 @@ pub fn analyze_genome_seq(
     )
 }
 
-fn format_marker_match(
-    genome_name: &str,
-    m: &MarkerMatch,
+/// Gene and amino-acid columns for one variant, from the GFF when there is one
+/// and from the marker's own fields otherwise.
+fn annotate(
     annotations: &Option<&Lapper<usize, Gene>>,
+    ref_position: usize,
+    ref_len: usize,
     alt_bases: &str,
-    alleles_found: &str,
+    marker_gene: Option<&str>,
+    marker_mutation: Option<&str>,
     ref_seq: &str,
     ref_seq_rc: &str,
-) -> String {
-    let ref_pos_0based = m.ref_position.saturating_sub(1);
-    let ref_len = m.ref_allele_len;
-    let variant_start = m.genome_position + m.left_flank_len;
-
+) -> (String, String, String, String, String) {
+    let ref_pos_0based = ref_position.saturating_sub(1);
     let (gff_gene_id, gene_start, gene_end, gff_aa_pos, gff_aa_change) = if let Some(tree) = annotations {
         if let Some(gene_interval) = tree.find(ref_pos_0based, ref_pos_0based + ref_len).next() {
             let (gene_id, aa_pos, aa_change) = translate_variant_info(
@@ -482,12 +526,40 @@ fn format_marker_match(
         (None, None, None, None, None)
     };
 
-    let gene_id = gff_gene_id.or_else(|| m.gene.clone());
-    let aa_pos = gff_aa_pos;
-    let aa_change = gff_aa_change.or_else(|| m.mutation.clone());
+    let gene_id = gff_gene_id.or_else(|| marker_gene.map(str::to_string));
+    let aa_change = gff_aa_change.or_else(|| marker_mutation.map(str::to_string));
+    (
+        gene_id.unwrap_or_default(),
+        gene_start.unwrap_or_default(),
+        gene_end.unwrap_or_default(),
+        gff_aa_pos.unwrap_or_default(),
+        aa_change.unwrap_or_default(),
+    )
+}
 
+fn format_marker_match(
+    genome_name: &str,
+    m: &MarkerMatch,
+    annotations: &Option<&Lapper<usize, Gene>>,
+    alt_bases: &str,
+    alleles_found: &str,
+    evidence: &str,
+    ref_seq: &str,
+    ref_seq_rc: &str,
+) -> String {
+    let variant_start = m.genome_position + m.left_flank_len;
+    let (gene, gene_start, gene_end, aa_pos, aa_change) = annotate(
+        annotations,
+        m.ref_position,
+        m.ref_allele_len,
+        alt_bases,
+        m.gene.as_deref(),
+        m.mutation.as_deref(),
+        ref_seq,
+        ref_seq_rc,
+    );
     format!(
-        "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+        "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
         genome_name,
         m.kmer,
         m.genome_position + 1,
@@ -496,12 +568,51 @@ fn format_marker_match(
         m.ref_allele,
         m.alt_allele,
         m.lineage,
-        gene_id.as_deref().unwrap_or(""),
-        gene_start.as_deref().unwrap_or(""),
-        gene_end.as_deref().unwrap_or(""),
-        aa_pos.as_deref().unwrap_or(""),
-        aa_change.as_deref().unwrap_or(""),
-        alleles_found
+        gene,
+        gene_start,
+        gene_end,
+        aa_pos,
+        aa_change,
+        alleles_found,
+        evidence
+    )
+}
+
+/// A marker the anchors read as present. The k-mer never matched, so there are
+/// no genome coordinates to report: those columns stay empty rather than
+/// carrying a position no match established.
+fn format_anchor_match(
+    genome_name: &str,
+    entry: &MarkerKmerEntry,
+    annotations: &Option<&Lapper<usize, Gene>>,
+    evidence: AnchorEvidence,
+    ref_seq: &str,
+    ref_seq_rc: &str,
+) -> String {
+    let (gene, gene_start, gene_end, aa_pos, aa_change) = annotate(
+        annotations,
+        entry.ref_position,
+        entry.ref_allele_len,
+        &entry.alt_allele,
+        entry.gene.as_deref(),
+        entry.mutation.as_deref(),
+        ref_seq,
+        ref_seq_rc,
+    );
+    format!(
+        "{}\t\t\t\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+        genome_name,
+        entry.ref_position,
+        entry.ref_allele,
+        entry.alt_allele,
+        entry.lineage,
+        gene,
+        gene_start,
+        gene_end,
+        aa_pos,
+        aa_change,
+        "ALT",
+        evidence.as_str()
     )
 }
 
@@ -1342,8 +1453,22 @@ mod tests {
         analyze_genome_seq("g", genome, &index, &None, k, REF60, &ref_rc)
     }
 
+    /// Column of a row, by its name in the header.
+    fn col<'a>(headers: &[&str], row: &'a str, name: &str) -> &'a str {
+        let i = headers.iter().position(|h| *h == name).expect("column exists");
+        row.trim_end_matches('\n').split('\t').nth(i).unwrap_or("")
+    }
+
     fn alleles_found(row: &str) -> &str {
-        row.trim_end().rsplit('\t').next().unwrap_or("")
+        col(&super::DETAIL_HEADERS, row, "alleles_found")
+    }
+
+    fn evidence(row: &str) -> &str {
+        col(&super::DETAIL_HEADERS, row, "evidence")
+    }
+
+    fn reason(row: &str) -> &str {
+        col(&super::UNDETERMINED_HEADERS, row, "reason")
     }
 
     #[test]
@@ -1366,29 +1491,7 @@ mod tests {
         assert!(lines.undetermined.is_empty());
     }
 
-    #[test]
-    fn a_nearby_change_makes_a_present_marker_undetermined_instead_of_absent() {
-        // The variant is there, and a second change three bases away is inside
-        // the window, so neither k-mer occurs. With only the alternative k-mer
-        // this genome read exactly like one without the variant.
-        assert_eq!(&REF60[32..33], "A");
-        let genome = edited(REF60, &[(30, "A"), (33, "T")]);
-        let lines = classify_one(&genome, &[snp_marker("A")]);
-        assert!(!lines.detail.iter().any(|l| l.contains("L9.9")));
-        assert_eq!(lines.undetermined.len(), 1);
-        assert!(lines.undetermined[0].trim_end().ends_with("\tnot_found"));
-    }
 
-    #[test]
-    fn a_nearby_change_hides_the_reference_allele_as_well() {
-        let genome = edited(REF60, &[(33, "T")]);
-        let lines = classify_one(&genome, &[snp_marker("A")]);
-        assert_eq!(
-            lines.undetermined.len(),
-            1,
-            "with neither k-mer found the marker cannot be ruled out"
-        );
-    }
 
     #[test]
     fn a_change_outside_the_window_changes_nothing() {
@@ -1432,17 +1535,28 @@ mod tests {
     }
 
     #[test]
-    fn undetermined_markers_come_out_the_same_on_a_reverse_oriented_contig() {
-        let hidden = reverse_complement_sequence(&edited(REF60, &[(30, "A"), (33, "T")]));
-        assert_eq!(classify_one(&hidden, &[snp_marker("A")]).undetermined.len(), 1);
-        let reference = reverse_complement_sequence(REF60);
-        assert!(classify_one(&reference, &[snp_marker("A")]).undetermined.is_empty());
+    fn the_anchors_read_the_same_allele_on_a_reverse_oriented_contig() {
+        let reference = long_ref();
+        let alt = other_base(&reference[299..300]);
+        let marker = marker_at(&reference, 300, alt);
+        let neighbour = other_base(&reference[304..305]);
+        let forward = edited(&reference, &[(300, alt), (305, neighbour)]);
+        let reverse = reverse_complement_sequence(&forward);
+
+        for genome in [forward.as_str(), reverse.as_str()] {
+            let lines = classify_long(genome, &reference, std::slice::from_ref(&marker));
+            assert!(
+                lines.detail.iter().any(|l| l.contains("RIF;RIF-R;test")),
+                "contig orientation must not change the anchor read"
+            );
+        }
     }
 
     #[test]
     fn a_marker_without_a_usable_reference_kmer_is_never_called_absent() {
         // A reference allele the 2-bit index cannot hold leaves the marker with
-        // an alternative k-mer only: it can be seen present, never confirmed absent.
+        // an alternative k-mer only, so it can be seen present but never
+        // confirmed absent from the k-mers. It still must not pass as absent.
         let marker = MarkerVariant {
             pos: 30,
             ref_allele: "N".to_string(),
@@ -1452,17 +1566,188 @@ mod tests {
             mutation: None,
         };
         let lines = classify_one(REF60, &[marker]);
+        assert!(!lines.detail.iter().any(|l| l.contains("L9.9")));
         assert_eq!(lines.undetermined.len(), 1);
-        assert!(lines.undetermined[0].trim_end().ends_with("\tno_reference_kmer"));
+        // The anchors read the base that is really there, which beats saying
+        // nothing: the marker's own REF of "N" is what cannot be matched.
+        let row = &lines.undetermined[0];
+        assert_eq!(reason(row), "other_allele");
+        assert_eq!(col(&super::UNDETERMINED_HEADERS, row, "observed_allele"), "G");
+    }
+
+    // -----------------------------------------------------------------------
+    // The anchors: reading the allele the k-mer could not
+    // -----------------------------------------------------------------------
+
+    /// A long reference, so a 15-base anchor is unique in it the way it is in
+    /// a real genome. The marker sits at 1-based position 300.
+    fn long_ref() -> String {
+        // Deterministic pseudo-random sequence: a linear congruential walk.
+        let mut seq = String::with_capacity(600);
+        let mut x: u64 = 12345;
+        for _ in 0..600 {
+            x = x.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            seq.push(['A', 'C', 'G', 'T'][(x >> 33) as usize % 4]);
+        }
+        seq
+    }
+
+    fn classify_long(genome: &str, reference: &str, markers: &[MarkerVariant]) -> GenomeLines {
+        let k = 31;
+        let index = generate_markerkmer(markers, reference, k, 10);
+        let ref_rc = reverse_complement_sequence(reference);
+        analyze_genome_seq("g", genome, &index, &None, k, reference, &ref_rc)
+    }
+
+    fn marker_at(reference: &str, pos: usize, alt: &str) -> MarkerVariant {
+        MarkerVariant {
+            pos,
+            ref_allele: reference[pos - 1..pos].to_string(),
+            alt_allele: alt.to_string(),
+            lineage: "RIF;RIF-R;test".to_string(),
+            gene: None,
+            mutation: None,
+        }
+    }
+
+    /// A base other than the one already there.
+    fn other_base(current: &str) -> &'static str {
+        match current {
+            "A" => "C",
+            "C" => "G",
+            "G" => "T",
+            _ => "A",
+        }
+    }
+
+    #[test]
+    fn the_anchors_read_a_variant_the_kmer_cannot_see() {
+        let reference = long_ref();
+        let alt = other_base(&reference[299..300]);
+        let marker = marker_at(&reference, 300, alt);
+        // The variant, plus a neighbour five bases away, inside the k-mer
+        // window but outside the left anchor.
+        let neighbour = other_base(&reference[304..305]);
+        let genome = edited(&reference, &[(300, alt), (305, neighbour)]);
+
+        let lines = classify_long(&genome, &reference, std::slice::from_ref(&marker));
+        let row = lines
+            .detail
+            .iter()
+            .find(|l| l.contains("RIF;RIF-R;test"))
+            .expect("the anchors must find the variant the k-mer missed");
+        assert_eq!((alleles_found(row), evidence(row)), ("ALT", "left_anchor"));
+        assert!(lines.undetermined.is_empty());
+    }
+
+    #[test]
+    fn a_neighbour_on_the_left_leaves_the_right_anchor_to_read_it() {
+        let reference = long_ref();
+        let alt = other_base(&reference[299..300]);
+        let marker = marker_at(&reference, 300, alt);
+        let neighbour = other_base(&reference[294..295]);
+        let genome = edited(&reference, &[(295, neighbour), (300, alt)]);
+
+        let lines = classify_long(&genome, &reference, std::slice::from_ref(&marker));
+        let row = lines.detail.iter().find(|l| l.contains("RIF;RIF-R;test")).expect("found");
+        assert_eq!((alleles_found(row), evidence(row)), ("ALT", "right_anchor"));
+    }
+
+    #[test]
+    fn the_anchors_rule_a_marker_out_instead_of_leaving_it_unread() {
+        let reference = long_ref();
+        let alt = other_base(&reference[299..300]);
+        let marker = marker_at(&reference, 300, alt);
+        // Only the neighbour: the genome keeps the reference allele, so the
+        // marker is absent, not undetermined.
+        let neighbour = other_base(&reference[304..305]);
+        let genome = edited(&reference, &[(305, neighbour)]);
+
+        let lines = classify_long(&genome, &reference, std::slice::from_ref(&marker));
+        assert!(!lines.detail.iter().any(|l| l.contains("RIF;RIF-R;test")));
+        assert!(
+            lines.undetermined.is_empty(),
+            "the anchors read the reference allele, so nothing is undetermined: {:?}",
+            lines.undetermined
+        );
+    }
+
+    #[test]
+    fn an_uncatalogued_allele_is_reported_with_the_bases_found() {
+        let reference = long_ref();
+        let alt = other_base(&reference[299..300]);
+        let marker = marker_at(&reference, 300, alt);
+        // A third base at the marker's own position, which the panel does not
+        // list, plus a neighbour so the k-mers cannot match either.
+        let third = other_base(alt);
+        let neighbour = other_base(&reference[304..305]);
+        let genome = edited(&reference, &[(300, third), (305, neighbour)]);
+
+        let lines = classify_long(&genome, &reference, std::slice::from_ref(&marker));
+        assert!(!lines.detail.iter().any(|l| l.contains("RIF;RIF-R;test")));
+        let row = lines.undetermined.first().expect("one undetermined row");
+        assert_eq!(reason(row), "other_allele");
+        assert_eq!(
+            col(&super::UNDETERMINED_HEADERS, row, "observed_allele"),
+            third,
+            "the bases actually found are reported"
+        );
+    }
+
+    #[test]
+    fn a_repeated_anchor_is_not_trusted() {
+        let reference = long_ref();
+        let alt = other_base(&reference[299..300]);
+        let marker = marker_at(&reference, 300, alt);
+        let neighbour = other_base(&reference[304..305]);
+        let genome = edited(&reference, &[(300, alt), (305, neighbour)]);
+        // The same contig twice over: every anchor now occurs twice, so none of
+        // them says which copy was read.
+        let doubled = format!("{genome}{genome}");
+
+        let lines = classify_long(&doubled, &reference, std::slice::from_ref(&marker));
+        assert!(!lines.detail.iter().any(|l| l.contains("RIF;RIF-R;test")));
+        assert_eq!(reason(&lines.undetermined[0]), "not_found");
+    }
+
+    #[test]
+    fn an_indel_keeps_the_kmer_answer() {
+        let reference = long_ref();
+        let marker = MarkerVariant {
+            pos: 300,
+            ref_allele: reference[299..301].to_string(),
+            alt_allele: reference[299..300].to_string(),
+            lineage: "RIF;RIF-R;del".to_string(),
+            gene: None,
+            mutation: None,
+        };
+        // A neighbour hides both k-mers. The allele's own length is what is in
+        // question, so the anchors must not guess: the marker stays unread.
+        let neighbour = other_base(&reference[309..310]);
+        let genome = edited(&reference, &[(310, neighbour)]);
+        let lines = classify_long(&genome, &reference, std::slice::from_ref(&marker));
+        assert_eq!(reason(&lines.undetermined[0]), "not_found");
+    }
+
+    #[test]
+    fn a_genome_read_whole_by_the_kmers_never_runs_the_anchor_pass() {
+        // Nothing to resolve, so `collect_marker_lines` must not pay for the
+        // second pass. Asserted through the result it would change: a clean
+        // genome has no undetermined rows either way.
+        let reference = long_ref();
+        let alt = other_base(&reference[299..300]);
+        let lines = classify_long(&reference, &reference, &[marker_at(&reference, 300, alt)]);
+        assert!(lines.undetermined.is_empty());
+        assert!(!lines.detail.iter().any(|l| l.contains("RIF;RIF-R;test")));
     }
 
     #[test]
     fn undetermined_rows_are_tallied_under_the_first_level_of_the_path() {
         let mut map: HashMap<String, HashMap<String, usize>> = HashMap::new();
         for line in [
-            "g1\t761155\tC\tT\tRIF;RIF-R;rpoB_S450L\trpoB\tS450L\tnot_found",
-            "g1\t761150\tA\tC\tRIF;RIF-R;rpoB_R448S\trpoB\tR448S\tnot_found",
-            "g1\t1673425\tC\tT\tINH;INH-R;fabG1_c.-15C>T\tfabG1\tc.-15C>T\tnot_found",
+            "g1\t761155\tC\tT\tRIF;RIF-R;rpoB_S450L\trpoB\tS450L\tnot_found\t",
+            "g1\t761150\tA\tC\tRIF;RIF-R;rpoB_R448S\trpoB\tR448S\tnot_found\t",
+            "g1\t1673425\tC\tT\tINH;INH-R;fabG1_c.-15C>T\tfabG1\tc.-15C>T\tnot_found\t",
         ] {
             super::update_undetermined_from_line(&mut map, line);
         }
