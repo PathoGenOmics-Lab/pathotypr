@@ -84,3 +84,36 @@ area:ci:
   - changed-files:
       - any-glob-to-any-file:
           - ".github/**"
+
+# A top-level part of the repository that no rule above claims: a file at the
+# root, or a directory that was never given a label of its own. `**` on its own
+# matches every pull request, so the negated list names the directories that are
+# already covered, and what survives is what nobody has thought about.
+#
+# `.*` is there because `**` does not match a leading dot, so without it a
+# change to `.gitignore` alone still arrives bare. It matches root dotfiles only,
+# never `.github/`, which has a label already.
+#
+# Directories are worth naming here where files were not. There are a handful of
+# them, adding one is a deliberate act, and the failure mode runs the right way:
+# someone who adds a directory and does not come back here gets this label on it
+# rather than no label at all, which is what a rule for things that fell through
+# the gaps should do when it is itself out of date.
+#
+# This is the rule that was missing. A directory of Rust that nothing compiled
+# sat in `src/` at the root for more than a year, and every pull request that
+# touched it arrived with nothing to notice it by. `benchmarks/`, `logo/` and
+# `markers/` arrive the same way today.
+area:repo:
+  - all:
+      - changed-files:
+          - any-glob-to-any-file:
+              - "**"
+              - ".*"
+          - all-globs-to-all-files:
+              - "!.github/**"
+              - "!docs/**"
+              - "!frontend/**"
+              - "!galaxy/**"
+              - "!pathotypr-core/**"
+              - "!src-tauri/**"
