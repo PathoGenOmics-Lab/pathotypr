@@ -37,6 +37,14 @@ jobs:
       - name: Check (core)
         run: cargo check -p pathotypr-core
 
+      # Neither cargo check nor cargo test builds bench targets, which is how
+      # benches/benchmarks.rs reached main calling a CountVectorizer and a
+      # parallel_kmer_discovery that only ever existed in the pre-workspace
+      # src/ tree. It never compiled against pathotypr-core and CI stayed green
+      # for seven months. One check keeps the harness buildable.
+      - name: Check (benches)
+        run: cargo check -p pathotypr-core --benches
+
       - name: Test (core)
         run: cargo test -p pathotypr-core
 
