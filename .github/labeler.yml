@@ -48,6 +48,7 @@ area:markers:
   - changed-files:
       - any-glob-to-any-file:
           - "pathotypr-core/src/classify/markers.rs"
+          - "markers/**"
           - "docs/marker_format.md"
           - ".github/scripts/validate-marker-tsv*.js"
           - ".github/DISCUSSION_TEMPLATE/**"
@@ -102,8 +103,8 @@ area:ci:
 #
 # This is the rule that was missing. A directory of Rust that nothing compiled
 # sat in `src/` at the root for more than a year, and every pull request that
-# touched it arrived with nothing to notice it by. `benchmarks/`, `logo/` and
-# `markers/` arrive the same way today.
+# touched it arrived with nothing to notice it by. `benchmarks/` and `logo/`
+# arrive the same way today.
 area:repo:
   - all:
       - changed-files:
@@ -115,5 +116,6 @@ area:repo:
               - "!docs/**"
               - "!frontend/**"
               - "!galaxy/**"
+              - "!markers/**"
               - "!pathotypr-core/**"
               - "!src-tauri/**"
