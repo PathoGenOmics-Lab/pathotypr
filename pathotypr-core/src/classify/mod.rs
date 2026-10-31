@@ -12,8 +12,8 @@ pub mod masking;
 // Re-export public types for backward compatibility with Tauri and other modules.
 pub use annotation::{Gene, Strand, parse_gff_and_build_tree};
 pub use markers::{
-    find_markers, generate_markerkmer, get_positions, MarkerIndex, MarkerKmerEntry, MarkerMatch,
-    MarkerVariant,
+    find_markers, generate_markerkmer, get_positions, scan_markers, MarkerIndex, MarkerKmerEntry,
+    MarkerMatch, MarkerScan, MarkerVariant,
 };
 pub use masking::{collect_mask_positions, mask_sequence, write_masked_fasta};
 
@@ -250,6 +250,35 @@ pub fn get_genomes_from_fasta(fasta_file: &str) -> AppResult<Vec<(String, String
 // Genome analysis
 // ---------------------------------------------------------------------------
 
+/// Columns of the detailed output, one row per marker whose alternative allele
+/// was found.
+const DETAIL_HEADERS: [&str; 14] = [
+    "genome", "k-mer", "k-merPOS", "SNPgenome", "SNPreference", "REF", "ALT", "lineage",
+    "Gene", "Gene_Start", "Gene_End", "AA_Pos", "AA_Change", "alleles_found",
+];
+
+/// Columns of the undetermined output, one row per marker that could be read
+/// neither way.
+const UNDETERMINED_HEADERS: [&str; 8] = [
+    "genome", "SNPreference", "REF", "ALT", "lineage", "Gene", "mutation", "reason",
+];
+
+/// Output rows for one genome.
+///
+/// A marker ends up in one of four states. Its alternative k-mer found:
+/// a `detail` row, with `alleles_found` saying `ALT`, or `ALT,REF` when the
+/// reference k-mer was found as well (two copies of the region that disagree,
+/// or a k-mer that also occurs elsewhere in the genome). Its reference k-mer
+/// found alone: no row, because the genome carries the reference allele.
+/// Neither found: an `undetermined` row, because some other change inside the
+/// window, a missing region or a contig break hides the position, and the
+/// marker can be neither confirmed nor ruled out.
+#[derive(Clone, Debug, Default)]
+pub struct GenomeLines {
+    pub detail: Vec<String>,
+    pub undetermined: Vec<String>,
+}
+
 fn analyze_genome(
     genome_name: &str,
     fasta_path: &str,
@@ -259,7 +288,7 @@ fn analyze_genome(
     k: usize,
     ref_seq: &str,
     ref_seq_rc: &str,
-) -> AppResult<Vec<String>> {
+) -> AppResult<GenomeLines> {
     if !Path::new(fasta_path).exists() {
         return Err(AppError::Io(std::io::Error::new(
             std::io::ErrorKind::NotFound,
@@ -299,15 +328,19 @@ fn analyze_genome(
     ))
 }
 
-/// Collects the detail lines for one genome, scanning every contig on **both
+/// Collects the output rows for one genome, scanning every contig on **both
 /// strands** and reporting each marker only once.
 ///
 /// Contig orientation in a draft assembly is arbitrary, so a marker sitting on
 /// a reverse-oriented contig only matches the reverse complement; scanning the
 /// forward strand alone silently loses it (the FASTQ path already indexes both
-/// orientations). Matches are deduplicated by marker k-mer, so a marker seen on
-/// several contigs — or on both strands of one contig — counts as a single
+/// orientations). Matches are deduplicated per marker, so a marker seen on
+/// several contigs, or on both strands of one contig, counts as a single
 /// observation rather than inflating the lineage tally.
+///
+/// A marker's state is only known once every contig has been scanned, since
+/// its two alleles can turn up on different contigs, so rows are written at
+/// the end.
 fn collect_marker_lines<'a>(
     genome_name: &str,
     contigs: impl Iterator<Item = &'a str>,
@@ -316,33 +349,83 @@ fn collect_marker_lines<'a>(
     k: usize,
     ref_seq: &str,
     ref_seq_rc: &str,
-) -> Vec<String> {
-    let mut result = Vec::new();
-    let mut seen: HashSet<String> = HashSet::new();
+) -> GenomeLines {
+    let mut alt_found = vec![false; marker_index.len()];
+    let mut reference_found = vec![false; marker_index.site_count()];
+    // A site is read when any k-mer of it turned up: its reference allele, or
+    // the alternative allele of any marker there. Reading one allele of a
+    // site rules out the others at the same position.
+    let mut site_read = vec![false; marker_index.site_count()];
+    let mut observed: Vec<(MarkerMatch, String)> = Vec::new();
+
     for contig_seq in contigs {
         let contig_rc = reverse_complement_sequence(contig_seq);
         for seq in [contig_seq, contig_rc.as_str()] {
-            for m in find_markers(seq, marker_index, k) {
-                if !seen.insert(m.kmer.clone()) {
+            let scan = scan_markers(seq, marker_index, k);
+            for site in scan.reference_sites {
+                reference_found[site] = true;
+                site_read[site] = true;
+            }
+            for m in scan.matches {
+                if alt_found[m.marker_id] {
                     continue;
+                }
+                alt_found[m.marker_id] = true;
+                if let Some(site) = marker_index.site_of(m.marker_id) {
+                    site_read[site] = true;
                 }
                 // `seq` is the strand that produced the match, so the positions
                 // and the ALT bases sliced out of it stay self-consistent.
-                result.extend(format_marker_match(
-                    genome_name,
-                    &m,
-                    annotations,
-                    seq,
-                    ref_seq,
-                    ref_seq_rc,
-                ));
+                let variant_start = m.genome_position + m.left_flank_len;
+                let variant_end = (variant_start + m.alt_allele_len).min(seq.len());
+                let alt_bases = seq[variant_start..variant_end].to_string();
+                observed.push((m, alt_bases));
             }
         }
     }
-    if result.is_empty() {
-        result.push(format!("{}\t\t\t\t\t\t\t\t\t\t\t\t\n", genome_name));
+
+    let mut lines = GenomeLines::default();
+    for (m, alt_bases) in &observed {
+        let reference_too = marker_index
+            .site_of(m.marker_id)
+            .is_some_and(|site| reference_found[site]);
+        let alleles_found = if reference_too { "ALT,REF" } else { "ALT" };
+        lines.detail.push(format_marker_match(
+            genome_name,
+            m,
+            annotations,
+            alt_bases,
+            alleles_found,
+            ref_seq,
+            ref_seq_rc,
+        ));
     }
-    result
+    if lines.detail.is_empty() {
+        lines.detail.push(format!("{}{}\n", genome_name, "\t".repeat(DETAIL_HEADERS.len() - 1)));
+    }
+
+    for (id, entry) in marker_index.markers().iter().enumerate() {
+        if alt_found[id] {
+            continue;
+        }
+        let reason = match marker_index.site_of(id) {
+            Some(site) if site_read[site] => continue,
+            Some(_) => "not_found",
+            None => "no_reference_kmer",
+        };
+        lines.undetermined.push(format!(
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+            genome_name,
+            entry.ref_position,
+            entry.ref_allele,
+            entry.alt_allele,
+            entry.lineage,
+            entry.gene.as_deref().unwrap_or(""),
+            entry.mutation.as_deref().unwrap_or(""),
+            reason
+        ));
+    }
+    lines
 }
 
 pub fn analyze_genome_seq(
@@ -353,7 +436,7 @@ pub fn analyze_genome_seq(
     k: usize,
     ref_seq: &str,
     ref_seq_rc: &str,
-) -> Vec<String> {
+) -> GenomeLines {
     info!("Analyzing genome {} (from provided sequence)", genome_name);
     let ann_ref: Option<&Lapper<usize, Gene>> = annotations.as_ref();
     collect_marker_lines(
@@ -371,16 +454,14 @@ fn format_marker_match(
     genome_name: &str,
     m: &MarkerMatch,
     annotations: &Option<&Lapper<usize, Gene>>,
-    genome_seq: &str,
+    alt_bases: &str,
+    alleles_found: &str,
     ref_seq: &str,
     ref_seq_rc: &str,
-) -> Vec<String> {
+) -> String {
     let ref_pos_0based = m.ref_position.saturating_sub(1);
-    let alt_len = m.alt_allele_len;
     let ref_len = m.ref_allele_len;
     let variant_start = m.genome_position + m.left_flank_len;
-    let variant_end = (variant_start + alt_len).min(genome_seq.len());
-    let alt_bases = &genome_seq[variant_start..variant_end];
 
     let (gff_gene_id, gene_start, gene_end, gff_aa_pos, gff_aa_change) = if let Some(tree) = annotations {
         if let Some(gene_interval) = tree.find(ref_pos_0based, ref_pos_0based + ref_len).next() {
@@ -405,8 +486,8 @@ fn format_marker_match(
     let aa_pos = gff_aa_pos;
     let aa_change = gff_aa_change.or_else(|| m.mutation.clone());
 
-    vec![format!(
-        "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+    format!(
+        "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
         genome_name,
         m.kmer,
         m.genome_position + 1,
@@ -419,8 +500,9 @@ fn format_marker_match(
         gene_start.as_deref().unwrap_or(""),
         gene_end.as_deref().unwrap_or(""),
         aa_pos.as_deref().unwrap_or(""),
-        aa_change.as_deref().unwrap_or("")
-    )]
+        aa_change.as_deref().unwrap_or(""),
+        alleles_found
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -462,6 +544,25 @@ fn find_matching_gff<'a>(fasta_file: &str, gff_files: &'a [String]) -> Option<&'
 
 const PARALLEL_PROCESS_CHUNK_SIZE: usize = 256;
 
+/// One output row, tagged with the file it belongs to.
+enum OutputRow<'a> {
+    Detail(&'a str),
+    Undetermined(&'a str),
+}
+
+fn emit_genome<F>(lines: &GenomeLines, emit_line: &mut F) -> AppResult<()>
+where
+    F: FnMut(OutputRow<'_>) -> AppResult<()>,
+{
+    for line in &lines.detail {
+        emit_line(OutputRow::Detail(line))?;
+    }
+    for line in &lines.undetermined {
+        emit_line(OutputRow::Undetermined(line))?;
+    }
+    Ok(())
+}
+
 fn process_genomes<F>(
     args: &Args,
     marker_index: &MarkerIndex,
@@ -471,7 +572,7 @@ fn process_genomes<F>(
     mut emit_line: F,
 ) -> AppResult<()>
 where
-    F: FnMut(&str) -> AppResult<()>,
+    F: FnMut(OutputRow<'_>) -> AppResult<()>,
 {
     let cancel_token = &args.cancel_token;
 
@@ -493,10 +594,10 @@ where
             None
         };
         for chunk in genome_paths_vec.chunks(PARALLEL_PROCESS_CHUNK_SIZE) {
-            let res_nested: AppResult<Vec<Vec<String>>> = chunk
+            let res_nested: AppResult<Vec<GenomeLines>> = chunk
                 .par_iter()
                 .map(|(genome_name, (fasta_path, gff_path))| {
-                    if cancellation.is_cancelled() { return Ok(Vec::new()); }
+                    if cancellation.is_cancelled() { return Ok(GenomeLines::default()); }
                     let (effective_gff, shared_ann) = if gff_path.is_some() {
                         (gff_path, None)
                     } else {
@@ -509,9 +610,7 @@ where
                 .collect();
             cancellation.check_after()?;
             for genome_lines in res_nested? {
-                for line in genome_lines {
-                    emit_line(&line)?;
-                }
+                emit_genome(&genome_lines, &mut emit_line)?;
             }
         }
         pb.finish_with_message("Done!");
@@ -556,10 +655,10 @@ where
                 }
             }
             if batch.is_empty() { break; }
-            let chunk_results: Vec<Vec<String>> = batch
+            let chunk_results: Vec<GenomeLines> = batch
                 .par_iter()
                 .map(|(genome_name, genome_seq)| {
-                    if cancellation.is_cancelled() { return Vec::new(); }
+                    if cancellation.is_cancelled() { return GenomeLines::default(); }
                     let lines = analyze_genome_seq(genome_name, genome_seq, marker_index, &annotations, k, ref_seq, ref_seq_rc);
                     pb.inc(1);
                     lines
@@ -567,9 +666,7 @@ where
                 .collect();
             cancellation.check_after()?;
             for genome_lines in chunk_results {
-                for line in genome_lines {
-                    emit_line(&line)?;
-                }
+                emit_genome(&genome_lines, &mut emit_line)?;
             }
         }
         pb.finish_with_message("Done!");
@@ -623,18 +720,16 @@ where
                 .map(|(name, seq)| (format!("[{}] {}", filename, name), seq))
                 .collect();
             for chunk in file_genomes.chunks(PARALLEL_PROCESS_CHUNK_SIZE) {
-                let chunk_results: Vec<Vec<String>> = chunk
+                let chunk_results: Vec<GenomeLines> = chunk
                     .par_iter()
                     .map(|(genome_name, genome_seq)| {
-                        if cancellation.is_cancelled() { return Vec::new(); }
+                        if cancellation.is_cancelled() { return GenomeLines::default(); }
                         analyze_genome_seq(genome_name, genome_seq, marker_index, annotations.as_ref(), k, ref_seq, ref_seq_rc)
                     })
                     .collect();
                 cancellation.check_after()?;
                 for genome_lines in chunk_results {
-                    for line in genome_lines {
-                        emit_line(&line)?;
-                    }
+                    emit_genome(&genome_lines, &mut emit_line)?;
                 }
             }
             pb.inc(1);
@@ -676,21 +771,65 @@ fn update_summary_from_detail_line(
     }
 }
 
+/// Tallies an undetermined row under the first level of its marker's path:
+/// the drug for a resistance panel, the main lineage for a lineage panel.
+fn update_undetermined_from_line(
+    undetermined_count_map: &mut HashMap<String, HashMap<String, usize>>,
+    line: &str,
+) {
+    let mut fields = line.split('\t');
+    let genome_name = match fields.next() {
+        Some(value) if !value.is_empty() => value,
+        _ => return,
+    };
+    let label = fields
+        .nth(3)
+        .and_then(|path| path.split(';').next())
+        .unwrap_or("");
+    *undetermined_count_map
+        .entry(genome_name.to_string())
+        .or_default()
+        .entry(label.to_string())
+        .or_default() += 1;
+}
+
+/// `label:count` pairs, most frequent first and then by name, space-joined.
+fn format_label_counts(counts: &HashMap<String, usize>) -> String {
+    let mut sorted: Vec<(&String, &usize)> = counts.iter().collect();
+    sorted.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
+    sorted
+        .iter()
+        .map(|(label, count)| format!("{}:{}", label, count))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// The two undetermined summary columns: the total and the per-label tally.
+fn undetermined_columns(counts: Option<&HashMap<String, usize>>) -> (usize, String) {
+    match counts {
+        Some(counts) => (counts.values().sum(), format_label_counts(counts)),
+        None => (0, String::new()),
+    }
+}
+
 fn write_summary(
     summary_out: &mut BufWriter<File>,
     genome: String,
     lineage_counts: &HashMap<String, usize>,
+    undetermined_counts: Option<&HashMap<String, usize>>,
     nested_classification: bool,
 ) -> AppResult<()> {
-    let mut sorted_lineages: Vec<(&String, &usize)> = lineage_counts.iter().collect();
-    sorted_lineages.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
-    let lineage_count_str = sorted_lineages
-        .iter()
-        .map(|(lin, cnt)| format!("{}:{}", lin, cnt))
-        .collect::<Vec<_>>()
-        .join(" ");
     let majority_lineage = determine_major_lineage(lineage_counts, nested_classification);
-    writeln!(summary_out, "{}\t{}\t{}", genome, lineage_count_str, majority_lineage)?;
+    let (undetermined_total, undetermined_by_label) = undetermined_columns(undetermined_counts);
+    writeln!(
+        summary_out,
+        "{}\t{}\t{}\t{}\t{}",
+        genome,
+        format_label_counts(lineage_counts),
+        majority_lineage,
+        undetermined_total,
+        undetermined_by_label
+    )?;
     Ok(())
 }
 
@@ -747,7 +886,7 @@ pub fn run(args: Args) -> AppResult<()> {
 
     info!("Generating marker k-mers...");
     let marker_index = generate_markerkmer(&marker_variants, &ref_seq, k, args.min_flank_bases);
-    if marker_index.len() == 0 {
+    if marker_index.is_empty() {
         return Err(AppError::NotEnoughData(format!(
             "No usable marker k-mers could be built from '{}' (k={}, --min-flank-bases={}). \
              Every marker was skipped, so no genome could be classified.",
@@ -760,6 +899,7 @@ pub fn run(args: Args) -> AppResult<()> {
     info!("Processing genomes...");
     let mut generated_outputs: Vec<String> = Vec::new();
     let detailed_file = if args.ofile.ends_with(".tsv") { args.ofile.clone() } else { format!("{}.tsv", args.ofile) };
+    let base_name = if args.ofile.ends_with(".tsv") { args.ofile.trim_end_matches(".tsv").to_string() } else { args.ofile.clone() };
     generated_outputs.push(detailed_file.clone());
 
     info!("Writing detailed output to: {}", &detailed_file);
@@ -767,57 +907,104 @@ pub fn run(args: Args) -> AppResult<()> {
         Ok(f) => BufWriter::new(f),
         Err(e) => { cleanup_generated_outputs(&generated_outputs); return Err(AppError::Io(e)); }
     };
-    if let Err(e) = writeln!(outfile, "genome\tk-mer\tk-merPOS\tSNPgenome\tSNPreference\tREF\tALT\tlineage\tGene\tGene_Start\tGene_End\tAA_Pos\tAA_Change") {
+    if let Err(e) = writeln!(outfile, "{}", DETAIL_HEADERS.join("\t")) {
         drop(outfile);
         cleanup_generated_outputs(&generated_outputs);
         return Err(AppError::Io(e));
     }
 
-    let detail_headers = ["genome", "k-mer", "k-merPOS", "SNPgenome", "SNPreference", "REF", "ALT", "lineage", "Gene", "Gene_Start", "Gene_End", "AA_Pos", "AA_Change"];
+    // Markers that could be read neither way. Without this file a marker the
+    // genome hides behind a nearby change looks exactly like one it lacks.
+    let undetermined_file = format!("{}_undetermined.tsv", base_name);
+    generated_outputs.push(undetermined_file.clone());
+    info!("Writing undetermined markers to: {}", &undetermined_file);
+    let mut undetermined_out = match File::create(&undetermined_file) {
+        Ok(f) => BufWriter::new(f),
+        Err(e) => { drop(outfile); cleanup_generated_outputs(&generated_outputs); return Err(AppError::Io(e)); }
+    };
+    if let Err(e) = writeln!(undetermined_out, "{}", UNDETERMINED_HEADERS.join("\t")) {
+        drop(outfile);
+        drop(undetermined_out);
+        cleanup_generated_outputs(&generated_outputs);
+        return Err(AppError::Io(e));
+    }
+
     let mut detail_excel_writer = if args.excel {
-        match crate::common::ExcelStreamWriter::new(&detailed_file, &detail_headers) {
+        match crate::common::ExcelStreamWriter::new(&detailed_file, &DETAIL_HEADERS) {
             Ok(writer) => Some(writer),
             Err(e) => { warn!("⚠️ Could not initialize detailed Excel writer: {}", e); None }
         }
     } else {
         None
     };
+    let mut undetermined_excel_writer = if args.excel {
+        match crate::common::ExcelStreamWriter::new(&undetermined_file, &UNDETERMINED_HEADERS) {
+            Ok(writer) => Some(writer),
+            Err(e) => { warn!("⚠️ Could not initialize undetermined Excel writer: {}", e); None }
+        }
+    } else {
+        None
+    };
     let mut lineage_count_map: HashMap<String, HashMap<String, usize>> = HashMap::new();
+    let mut undetermined_count_map: HashMap<String, HashMap<String, usize>> = HashMap::new();
     let mut emitted_lines = 0usize;
-    let process_result = process_genomes(&args, &marker_index, k, &ref_seq, &ref_seq_rc, |line| {
+    let process_result = process_genomes(&args, &marker_index, k, &ref_seq, &ref_seq_rc, |row| {
         emitted_lines += 1;
         if emitted_lines % 2048 == 0 { check_cancelled(cancel_token)?; }
-        write!(outfile, "{}", line).map_err(AppError::Io)?;
-        // Trim the newline only, not the trailing tabs: a genome with no marker
-        // hits emits a row of empty columns, and trimming those away leaves a
-        // bare name that the summary parser rejects as malformed — which is how
-        // such genomes used to vanish from the summary entirely.
-        let trimmed = line.trim_end_matches(['\n', '\r']);
-        if !trimmed.trim().is_empty() {
-            update_summary_from_detail_line(&mut lineage_count_map, trimmed);
-        }
-        let mut disable_detail_excel = false;
-        if let Some(writer) = detail_excel_writer.as_mut() {
-            if !trimmed.is_empty() {
-                let row: Vec<String> = trimmed.split('\t').map(String::from).collect();
-                if let Err(e) = writer.write_row(&row) {
-                    warn!("⚠️ Could not append detailed Excel row: {}", e);
-                    disable_detail_excel = true;
+        match row {
+            OutputRow::Detail(line) => {
+                write!(outfile, "{}", line).map_err(AppError::Io)?;
+                // Trim the newline only, not the trailing tabs: a genome with no marker
+                // hits emits a row of empty columns, and trimming those away leaves a
+                // bare name that the summary parser rejects as malformed, which is how
+                // such genomes used to vanish from the summary entirely.
+                let trimmed = line.trim_end_matches(['\n', '\r']);
+                if !trimmed.trim().is_empty() {
+                    update_summary_from_detail_line(&mut lineage_count_map, trimmed);
                 }
+                let mut disable_detail_excel = false;
+                if let Some(writer) = detail_excel_writer.as_mut() {
+                    if !trimmed.is_empty() {
+                        let row: Vec<String> = trimmed.split('\t').map(String::from).collect();
+                        if let Err(e) = writer.write_row(&row) {
+                            warn!("⚠️ Could not append detailed Excel row: {}", e);
+                            disable_detail_excel = true;
+                        }
+                    }
+                }
+                if disable_detail_excel { detail_excel_writer = None; }
+            }
+            OutputRow::Undetermined(line) => {
+                write!(undetermined_out, "{}", line).map_err(AppError::Io)?;
+                let trimmed = line.trim_end_matches(['\n', '\r']);
+                update_undetermined_from_line(&mut undetermined_count_map, trimmed);
+                let mut disable_undetermined_excel = false;
+                if let Some(writer) = undetermined_excel_writer.as_mut() {
+                    let row: Vec<String> = trimmed.split('\t').map(String::from).collect();
+                    if let Err(e) = writer.write_row(&row) {
+                        warn!("⚠️ Could not append undetermined Excel row: {}", e);
+                        disable_undetermined_excel = true;
+                    }
+                }
+                if disable_undetermined_excel { undetermined_excel_writer = None; }
             }
         }
-        if disable_detail_excel { detail_excel_writer = None; }
         Ok(())
     });
     if let Err(e) = process_result {
         drop(outfile);
+        drop(undetermined_out);
         cleanup_generated_outputs(&generated_outputs);
         return Err(e);
     }
     if let Err(e) = outfile.flush() {
-        drop(outfile); cleanup_generated_outputs(&generated_outputs); return Err(AppError::Io(e));
+        drop(outfile); drop(undetermined_out); cleanup_generated_outputs(&generated_outputs); return Err(AppError::Io(e));
     }
     drop(outfile);
+    if let Err(e) = undetermined_out.flush() {
+        drop(undetermined_out); cleanup_generated_outputs(&generated_outputs); return Err(AppError::Io(e));
+    }
+    drop(undetermined_out);
     if let Err(e) = check_cancelled(cancel_token) {
         cleanup_generated_outputs(&generated_outputs); return Err(e);
     }
@@ -828,9 +1015,31 @@ pub fn run(args: Args) -> AppResult<()> {
                 Err(e) => warn!("⚠️ Could not write detailed Excel file: {}", e),
             }
         }
+        if let Some(writer) = undetermined_excel_writer.take() {
+            match writer.finish() {
+                Ok(xlsx_path) => info!("📊 Undetermined Excel file written to {}", xlsx_path),
+                Err(e) => warn!("⚠️ Could not write undetermined Excel file: {}", e),
+            }
+        }
     }
 
-    let base_name = if args.ofile.ends_with(".tsv") { args.ofile.trim_end_matches(".tsv").to_string() } else { args.ofile.clone() };
+    let undetermined_total: usize = undetermined_count_map
+        .values()
+        .map(|counts| counts.values().sum::<usize>())
+        .sum();
+    if undetermined_total > 0 {
+        info!(
+            "{} markers could be read neither way, in {} of {} genomes: some other change inside the \
+             k-mer window, a missing region or a contig break hides them. They are listed in {}.",
+            undetermined_total,
+            undetermined_count_map.len(),
+            lineage_count_map.len(),
+            &undetermined_file
+        );
+    } else {
+        info!("Every marker was read in every genome, as present or as reference.");
+    }
+
     let summary_file = format!("{}_summary.tsv", base_name);
     generated_outputs.push(summary_file.clone());
     info!("Writing summary output to: {}", &summary_file);
@@ -838,13 +1047,13 @@ pub fn run(args: Args) -> AppResult<()> {
         Ok(f) => BufWriter::new(f),
         Err(e) => { cleanup_generated_outputs(&generated_outputs); return Err(AppError::Io(e)); }
     };
-    if let Err(e) = writeln!(summary_out, "genome\tlineage:count\tmajor_lineage") {
+    let summary_headers = ["genome", "lineage:count", "major_lineage", "undetermined", "undetermined:count"];
+    if let Err(e) = writeln!(summary_out, "{}", summary_headers.join("\t")) {
         drop(summary_out); cleanup_generated_outputs(&generated_outputs); return Err(AppError::Io(e));
     }
 
     let mut ordered_lineages: Vec<(String, HashMap<String, usize>)> = lineage_count_map.into_iter().collect();
     ordered_lineages.sort_by(|(a, _), (b, _)| a.cmp(b));
-    let summary_headers = ["genome", "lineage:count", "major_lineage"];
     let mut summary_excel_writer = if args.excel {
         match crate::common::ExcelStreamWriter::new(&summary_file, &summary_headers) {
             Ok(writer) => Some(writer),
@@ -863,23 +1072,27 @@ pub fn run(args: Args) -> AppResult<()> {
         // Match the TSV exactly: sorted by count (then name) and space-joined.
         // Iterating the HashMap directly made the Excel column disagree with
         // its own TSV and vary between otherwise identical runs.
-        let mut sorted_lineages: Vec<(&String, &usize)> = lineage_map.iter().collect();
-        sorted_lineages.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
-        let lineage_counts_str: String = sorted_lineages.iter()
-            .map(|(lin, count)| format!("{}:{}", lin, count))
-            .collect::<Vec<_>>().join(" ");
+        let lineage_counts_str = format_label_counts(&lineage_map);
         let major_lineage = determine_major_lineage(&lineage_map, args.nested_classification);
+        let undetermined_counts = undetermined_count_map.get(&genome);
+        let (undetermined_total, undetermined_by_label) = undetermined_columns(undetermined_counts);
 
         let mut disable_summary_excel = false;
         if let Some(writer) = summary_excel_writer.as_mut() {
-            let row = vec![genome.clone(), lineage_counts_str.clone(), major_lineage.clone()];
+            let row = vec![
+                genome.clone(),
+                lineage_counts_str,
+                major_lineage,
+                undetermined_total.to_string(),
+                undetermined_by_label,
+            ];
             if let Err(e) = writer.write_row(&row) {
                 warn!("⚠️ Could not append summary Excel row: {}", e); disable_summary_excel = true;
             }
         }
         if disable_summary_excel { summary_excel_writer = None; }
 
-        if let Err(e) = write_summary(&mut summary_out, genome, &lineage_map, args.nested_classification) {
+        if let Err(e) = write_summary(&mut summary_out, genome.clone(), &lineage_map, undetermined_counts, args.nested_classification) {
             drop(summary_out); cleanup_generated_outputs(&generated_outputs); return Err(e);
         }
     }
@@ -1028,7 +1241,7 @@ mod tests {
         forward.replace_range(29..30, "A");
         let hit_fwd = analyze_genome_seq("fwd", &forward, &index, &None, k, ref_seq, &ref_rc);
         assert!(
-            hit_fwd.iter().any(|l| l.contains("L9.9")),
+            hit_fwd.detail.iter().any(|l| l.contains("L9.9")),
             "marker must be found on a forward-oriented contig"
         );
 
@@ -1037,7 +1250,7 @@ mod tests {
         let reverse = reverse_complement_sequence(&forward);
         let hit_rev = analyze_genome_seq("rev", &reverse, &index, &None, k, ref_seq, &ref_rc);
         assert!(
-            hit_rev.iter().any(|l| l.contains("L9.9")),
+            hit_rev.detail.iter().any(|l| l.contains("L9.9")),
             "marker must also be found when the contig is reverse-oriented"
         );
     }
@@ -1067,7 +1280,7 @@ mod tests {
         // Same sequence twice over: the marker is one observation, not two.
         let doubled = format!("{}{}", forward, forward);
         let lines = analyze_genome_seq("dup", &doubled, &index, &None, k, ref_seq, &ref_rc);
-        let hits = lines.iter().filter(|l| l.contains("L9.9")).count();
+        let hits = lines.detail.iter().filter(|l| l.contains("L9.9")).count();
         assert_eq!(hits, 1, "a repeated marker must not inflate the lineage tally");
     }
 
@@ -1078,7 +1291,7 @@ mod tests {
         // The exact row analyze_genome emits when nothing matched: the name
         // followed by empty columns. It must register the genome, or the sample
         // silently disappears from the summary.
-        let line = format!("{}\t\t\t\t\t\t\t\t\t\t\t\t", "sampleX");
+        let line = format!("{}{}", "sampleX", "\t".repeat(super::DETAIL_HEADERS.len() - 1));
         let mut map: HashMap<String, HashMap<String, usize>> = HashMap::new();
         super::update_summary_from_detail_line(&mut map, &line);
         assert!(map.contains_key("sampleX"), "the genome must appear in the summary");
@@ -1089,4 +1302,173 @@ mod tests {
         );
     }
 
+    // -----------------------------------------------------------------------
+    // The reference k-mer: present, absent, both, and undetermined
+    // -----------------------------------------------------------------------
+
+    use crate::classify::markers::{generate_markerkmer, MarkerVariant};
+    use crate::classify::{analyze_genome_seq, reverse_complement_sequence, GenomeLines};
+
+    /// 60 bp reference shared by the tests below. With k = 11 the window of a
+    /// single-base marker at position 30 covers positions 25 to 35.
+    const REF60: &str = concat!(
+        "ACGTTGCAAG", "GCTTAACCGG", "ATCGATTCAG", "CTAGCCATGG", "TACGTTAACG", "GCATTGCAGT",
+    );
+
+    fn snp_marker(alt: &str) -> MarkerVariant {
+        MarkerVariant {
+            pos: 30,
+            ref_allele: "G".to_string(),
+            alt_allele: alt.to_string(),
+            lineage: format!("L9.9;{}", alt),
+            gene: None,
+            mutation: None,
+        }
+    }
+
+    /// The reference with single-base edits at 1-based positions.
+    fn edited(base: &str, edits: &[(usize, &str)]) -> String {
+        let mut genome = base.to_string();
+        for (pos, bases) in edits {
+            genome.replace_range(pos - 1..*pos, bases);
+        }
+        genome
+    }
+
+    fn classify_one(genome: &str, markers: &[MarkerVariant]) -> GenomeLines {
+        let k = 11;
+        let index = generate_markerkmer(markers, REF60, k, 5);
+        let ref_rc = reverse_complement_sequence(REF60);
+        analyze_genome_seq("g", genome, &index, &None, k, REF60, &ref_rc)
+    }
+
+    fn alleles_found(row: &str) -> &str {
+        row.trim_end().rsplit('\t').next().unwrap_or("")
+    }
+
+    #[test]
+    fn a_genome_like_the_reference_confirms_the_marker_absent() {
+        assert_eq!(&REF60[29..30], "G");
+        let lines = classify_one(REF60, &[snp_marker("A")]);
+        assert!(!lines.detail.iter().any(|l| l.contains("L9.9")));
+        assert!(
+            lines.undetermined.is_empty(),
+            "the reference k-mer was found, so the marker is absent, not undetermined"
+        );
+    }
+
+    #[test]
+    fn a_genome_with_the_variant_reports_only_the_alternative_allele() {
+        let genome = edited(REF60, &[(30, "A")]);
+        let lines = classify_one(&genome, &[snp_marker("A")]);
+        let row = lines.detail.iter().find(|l| l.contains("L9.9")).expect("marker found");
+        assert_eq!(alleles_found(row), "ALT");
+        assert!(lines.undetermined.is_empty());
+    }
+
+    #[test]
+    fn a_nearby_change_makes_a_present_marker_undetermined_instead_of_absent() {
+        // The variant is there, and a second change three bases away is inside
+        // the window, so neither k-mer occurs. With only the alternative k-mer
+        // this genome read exactly like one without the variant.
+        assert_eq!(&REF60[32..33], "A");
+        let genome = edited(REF60, &[(30, "A"), (33, "T")]);
+        let lines = classify_one(&genome, &[snp_marker("A")]);
+        assert!(!lines.detail.iter().any(|l| l.contains("L9.9")));
+        assert_eq!(lines.undetermined.len(), 1);
+        assert!(lines.undetermined[0].trim_end().ends_with("\tnot_found"));
+    }
+
+    #[test]
+    fn a_nearby_change_hides_the_reference_allele_as_well() {
+        let genome = edited(REF60, &[(33, "T")]);
+        let lines = classify_one(&genome, &[snp_marker("A")]);
+        assert_eq!(
+            lines.undetermined.len(),
+            1,
+            "with neither k-mer found the marker cannot be ruled out"
+        );
+    }
+
+    #[test]
+    fn a_change_outside_the_window_changes_nothing() {
+        assert_eq!(&REF60[39..40], "G");
+        let lines = classify_one(&edited(REF60, &[(40, "C")]), &[snp_marker("A")]);
+        assert!(lines.undetermined.is_empty());
+        let lines = classify_one(&edited(REF60, &[(30, "A"), (40, "C")]), &[snp_marker("A")]);
+        assert!(lines.detail.iter().any(|l| l.contains("L9.9")));
+        assert!(lines.undetermined.is_empty());
+    }
+
+    #[test]
+    fn both_alleles_are_reported_when_two_copies_disagree() {
+        // Two contigs, one with each allele, as in a duplicated region.
+        let k = 11;
+        let index = generate_markerkmer(&[snp_marker("A")], REF60, k, 5);
+        let ref_rc = reverse_complement_sequence(REF60);
+        let variant = edited(REF60, &[(30, "A")]);
+        let lines = super::collect_marker_lines(
+            "g",
+            [REF60, variant.as_str()].into_iter(),
+            &index,
+            &None,
+            k,
+            REF60,
+            &ref_rc,
+        );
+        let row = lines.detail.iter().find(|l| l.contains("L9.9")).expect("marker found");
+        assert_eq!(alleles_found(row), "ALT,REF");
+    }
+
+    #[test]
+    fn reading_one_allele_of_a_position_rules_out_the_others() {
+        // Two markers at one position share their reference k-mer. A genome
+        // carrying one of them has been read there, so the other is absent.
+        let genome = edited(REF60, &[(30, "A")]);
+        let lines = classify_one(&genome, &[snp_marker("A"), snp_marker("T")]);
+        assert!(lines.detail.iter().any(|l| l.contains("L9.9;A")));
+        assert!(!lines.detail.iter().any(|l| l.contains("L9.9;T")));
+        assert!(lines.undetermined.is_empty());
+    }
+
+    #[test]
+    fn undetermined_markers_come_out_the_same_on_a_reverse_oriented_contig() {
+        let hidden = reverse_complement_sequence(&edited(REF60, &[(30, "A"), (33, "T")]));
+        assert_eq!(classify_one(&hidden, &[snp_marker("A")]).undetermined.len(), 1);
+        let reference = reverse_complement_sequence(REF60);
+        assert!(classify_one(&reference, &[snp_marker("A")]).undetermined.is_empty());
+    }
+
+    #[test]
+    fn a_marker_without_a_usable_reference_kmer_is_never_called_absent() {
+        // A reference allele the 2-bit index cannot hold leaves the marker with
+        // an alternative k-mer only: it can be seen present, never confirmed absent.
+        let marker = MarkerVariant {
+            pos: 30,
+            ref_allele: "N".to_string(),
+            alt_allele: "A".to_string(),
+            lineage: "L9.9".to_string(),
+            gene: None,
+            mutation: None,
+        };
+        let lines = classify_one(REF60, &[marker]);
+        assert_eq!(lines.undetermined.len(), 1);
+        assert!(lines.undetermined[0].trim_end().ends_with("\tno_reference_kmer"));
+    }
+
+    #[test]
+    fn undetermined_rows_are_tallied_under_the_first_level_of_the_path() {
+        let mut map: HashMap<String, HashMap<String, usize>> = HashMap::new();
+        for line in [
+            "g1\t761155\tC\tT\tRIF;RIF-R;rpoB_S450L\trpoB\tS450L\tnot_found",
+            "g1\t761150\tA\tC\tRIF;RIF-R;rpoB_R448S\trpoB\tR448S\tnot_found",
+            "g1\t1673425\tC\tT\tINH;INH-R;fabG1_c.-15C>T\tfabG1\tc.-15C>T\tnot_found",
+        ] {
+            super::update_undetermined_from_line(&mut map, line);
+        }
+        let (total, by_label) = super::undetermined_columns(map.get("g1"));
+        assert_eq!(total, 3);
+        assert_eq!(by_label, "RIF:2 INH:1");
+        assert_eq!(super::undetermined_columns(map.get("g2")), (0, String::new()));
+    }
 }

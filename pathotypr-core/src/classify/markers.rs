@@ -6,8 +6,7 @@
 use csv::ReaderBuilder;
 use log::{debug, info, trace, warn};
 use needletail::Sequence;
-use rustc_hash::FxHashMap;
-use std::collections::HashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::errors::AppResult;
 
@@ -31,6 +30,10 @@ const MAX_ENCODED_MARKER_K: usize = 32;
 #[derive(Clone, Debug)]
 pub struct MarkerKmerEntry {
     pub kmer: String,
+    /// The same window with the reference allele where the alternative one
+    /// sits, or `None` when it cannot be built or looked up. Without it the
+    /// marker can be seen present but never confirmed absent.
+    pub ref_kmer: Option<String>,
     pub ref_position: usize,
     pub lineage: String,
     pub ref_allele_len: usize,
@@ -42,31 +45,74 @@ pub struct MarkerKmerEntry {
     pub mutation: Option<String>,
 }
 
+/// A k-mer lookup, 2-bit encoded when every k-mer of the panel fits in a u64.
 #[derive(Clone, Debug)]
-pub enum MarkerIndex {
-    Encoded(FxHashMap<u64, MarkerKmerEntry>),
-    Text(FxHashMap<String, MarkerKmerEntry>),
+enum KmerLookup {
+    Encoded(FxHashMap<u64, usize>),
+    Text(FxHashMap<String, usize>),
+}
+
+/// Every marker k-mer of a panel, indexed both ways.
+///
+/// Each marker has an alternative k-mer, which says the variant is there, and
+/// where it can be built a reference k-mer, which says it is not. A genome
+/// that shows neither has some other change inside the window, and the marker
+/// is then undetermined rather than absent.
+///
+/// Markers whose reference k-mers are identical share a *site*: same position,
+/// same reference allele, same window. Reading any one allele of a site reads
+/// the position for all of them, so a marker is only undetermined when nothing
+/// at its site was found.
+#[derive(Clone, Debug)]
+pub struct MarkerIndex {
+    /// Sorted by reference position, then by alternative k-mer, so every walk
+    /// over the panel comes out in the same order.
+    markers: Vec<MarkerKmerEntry>,
+    /// Alternative k-mer to marker id.
+    alt: KmerLookup,
+    /// Reference k-mer to site id.
+    reference: KmerLookup,
+    /// The site each marker belongs to; `None` when it has no reference k-mer.
+    marker_site: Vec<Option<usize>>,
+    site_count: usize,
 }
 
 impl MarkerIndex {
     pub fn len(&self) -> usize {
-        match self {
-            MarkerIndex::Encoded(map) => map.len(),
-            MarkerIndex::Text(map) => map.len(),
-        }
+        self.markers.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.markers.is_empty()
     }
 
     pub fn storage_name(&self) -> &'static str {
-        match self {
-            MarkerIndex::Encoded(_) => "u64-encoded",
-            MarkerIndex::Text(_) => "string",
+        match self.alt {
+            KmerLookup::Encoded(_) => "u64-encoded",
+            KmerLookup::Text(_) => "string",
         }
+    }
+
+    /// Markers in index order; a marker id is its position in this slice.
+    pub fn markers(&self) -> &[MarkerKmerEntry] {
+        &self.markers
+    }
+
+    /// The site of a marker, or `None` when it has no reference k-mer.
+    pub fn site_of(&self, marker_id: usize) -> Option<usize> {
+        self.marker_site.get(marker_id).copied().flatten()
+    }
+
+    pub fn site_count(&self) -> usize {
+        self.site_count
     }
 }
 
 /// Result of a marker k-mer match against a genome sequence.
 #[derive(Clone, Debug)]
 pub struct MarkerMatch {
+    /// Position of the marker in [`MarkerIndex::markers`].
+    pub marker_id: usize,
     pub kmer: String,
     pub genome_position: usize,
     pub ref_position: usize,
@@ -264,8 +310,22 @@ pub fn generate_markerkmer(
         let new_kmer = String::from_utf8_lossy(&kmer_bytes).into_owned();
         trace!("Generated marker k-mer '{}' for position {} (ref={}, alt={})", new_kmer, pos, marker.ref_allele, marker.alt_allele);
 
+        // The reference k-mer uses the same left flank and the reference
+        // allele from the marker file, the way split-fastq builds its pair. An
+        // insertion needs more right flank for the shorter reference allele,
+        // which can run off the end of the reference.
+        let ref_right_needed = k.saturating_sub(left_flank_len + ref_len);
+        let ref_kmer = (right_flank_start + ref_right_needed <= seq_len).then(|| {
+            let mut ref_bytes = Vec::with_capacity(k);
+            ref_bytes.extend_from_slice(&seq_bytes[kmer_start..pos0]);
+            ref_bytes.extend_from_slice(ref_allele);
+            ref_bytes.extend_from_slice(&seq_bytes[right_flank_start..right_flank_start + ref_right_needed]);
+            String::from_utf8_lossy(&ref_bytes).into_owned()
+        }).filter(|r| r.len() == k);
+
         let entry = MarkerKmerEntry {
             kmer: new_kmer.clone(),
+            ref_kmer,
             ref_position: pos,
             lineage: marker.lineage.clone(),
             ref_allele_len: ref_len,
@@ -302,77 +362,200 @@ pub fn generate_markerkmer(
             skipped_flank, effective_max_allele, min_flank_bases, k);
     }
 
-    if use_encoded_index {
-        MarkerIndex::Encoded(encoded_index)
+    let entries: Vec<MarkerKmerEntry> = if use_encoded_index {
+        encoded_index.into_values().collect()
     } else {
         if let Some(reason) = fallback_reason {
             info!("Using string marker index fallback: {}", reason);
         }
-        MarkerIndex::Text(text_index)
+        text_index.into_values().collect()
+    };
+    build_index(entries, use_encoded_index)
+}
+
+/// Turns the final set of markers into the two-way index.
+///
+/// Built from the markers that survived duplicate alternative k-mers, so the
+/// overwrite rule above decides which marker owns a k-mer, as it always has.
+fn build_index(mut markers: Vec<MarkerKmerEntry>, encoded: bool) -> MarkerIndex {
+    markers.sort_by(|a, b| a.ref_position.cmp(&b.ref_position).then_with(|| a.kmer.cmp(&b.kmer)));
+
+    let mut alt_encoded: FxHashMap<u64, usize> = FxHashMap::default();
+    let mut alt_text: FxHashMap<String, usize> = FxHashMap::default();
+    let mut ref_encoded: FxHashMap<u64, usize> = FxHashMap::default();
+    let mut ref_text: FxHashMap<String, usize> = FxHashMap::default();
+    let mut marker_site = Vec::with_capacity(markers.len());
+    let mut site_count = 0usize;
+    let mut without_reference = 0usize;
+    let mut indistinguishable = 0usize;
+
+    for (id, marker) in markers.iter_mut().enumerate() {
+        if encoded {
+            if let Some(key) = encode_kmer_2bit(marker.kmer.as_bytes()) {
+                alt_encoded.insert(key, id);
+            }
+            // The flanks were encodable for the alternative k-mer, so only a
+            // reference allele outside A, C, G and T can fail here.
+            if marker.ref_kmer.as_deref().is_some_and(|r| encode_kmer_2bit(r.as_bytes()).is_none()) {
+                marker.ref_kmer = None;
+            }
+        } else {
+            alt_text.insert(marker.kmer.clone(), id);
+        }
+
+        let site = match marker.ref_kmer.as_deref() {
+            None => {
+                without_reference += 1;
+                None
+            }
+            Some(ref_kmer) => {
+                if ref_kmer == marker.kmer {
+                    indistinguishable += 1;
+                }
+                let next = site_count;
+                let site = if encoded {
+                    let key = encode_kmer_2bit(ref_kmer.as_bytes())
+                        .expect("non-encodable reference k-mers were dropped above");
+                    *ref_encoded.entry(key).or_insert(next)
+                } else {
+                    *ref_text.entry(ref_kmer.to_string()).or_insert(next)
+                };
+                if site == next {
+                    site_count += 1;
+                }
+                Some(site)
+            }
+        };
+        marker_site.push(site);
     }
+
+    if without_reference > 0 {
+        warn!(
+            "{} markers have no reference k-mer (the window runs past the end of the reference, or the \
+             reference allele holds a base other than A, C, G or T). They can be found present but never \
+             confirmed absent, so a genome without them lists them as undetermined.",
+            without_reference
+        );
+    }
+    if indistinguishable > 0 {
+        warn!(
+            "{} markers have the same k-mer for both alleles, so the two cannot be told apart. A genome \
+             carrying either is reported with both alleles found.",
+            indistinguishable
+        );
+    }
+    debug!("Indexed {} markers at {} reference sites.", markers.len(), site_count);
+
+    let (alt, reference) = if encoded {
+        (KmerLookup::Encoded(alt_encoded), KmerLookup::Encoded(ref_encoded))
+    } else {
+        (KmerLookup::Text(alt_text), KmerLookup::Text(ref_text))
+    };
+    MarkerIndex { markers, alt, reference, marker_site, site_count }
 }
 
 // ---------------------------------------------------------------------------
 // Genome scanning
 // ---------------------------------------------------------------------------
 
-/// Scan a genome sequence for marker k-mer matches.
+/// What one pass over one sequence found.
+#[derive(Clone, Debug, Default)]
+pub struct MarkerScan {
+    /// Markers whose alternative k-mer occurs, once each, in sequence order.
+    pub matches: Vec<MarkerMatch>,
+    /// Sites whose reference k-mer occurs, once each.
+    pub reference_sites: Vec<usize>,
+}
+
+/// Records what one k-mer of the genome turned out to be.
+fn record_hit(
+    marker_index: &MarkerIndex,
+    marker: Option<usize>,
+    site: Option<usize>,
+    genome_position: usize,
+    seen_markers: &mut FxHashSet<usize>,
+    seen_sites: &mut FxHashSet<usize>,
+    scan: &mut MarkerScan,
+) {
+    if let Some(id) = marker {
+        if seen_markers.insert(id) {
+            let entry = &marker_index.markers[id];
+            trace!("Found marker {} at genome position {}", entry.kmer, genome_position);
+            scan.matches.push(MarkerMatch {
+                marker_id: id,
+                kmer: entry.kmer.clone(),
+                genome_position,
+                ref_position: entry.ref_position,
+                lineage: entry.lineage.clone(),
+                ref_allele_len: entry.ref_allele_len,
+                alt_allele_len: entry.alt_allele_len,
+                left_flank_len: entry.left_flank_len,
+                ref_allele: entry.ref_allele.clone(),
+                alt_allele: entry.alt_allele.clone(),
+                gene: entry.gene.clone(),
+                mutation: entry.mutation.clone(),
+            });
+        }
+    }
+    if let Some(site) = site {
+        if seen_sites.insert(site) {
+            scan.reference_sites.push(site);
+        }
+    }
+}
+
+/// Scan a genome sequence for both k-mers of every marker in a single pass.
+pub fn scan_markers(
+    genome_sequence: &str,
+    marker_index: &MarkerIndex,
+    k: usize,
+) -> MarkerScan {
+    debug!("Scanning genome for marker k-mer matches.");
+    let mut scan = MarkerScan::default();
+
+    let seq_len = genome_sequence.len();
+    if k == 0 || seq_len < k {
+        return scan;
+    }
+
+    let mut seen_markers: FxHashSet<usize> = FxHashSet::default();
+    let mut seen_sites: FxHashSet<usize> = FxHashSet::default();
+    match (&marker_index.alt, &marker_index.reference) {
+        (KmerLookup::Encoded(alt), KmerLookup::Encoded(reference)) => {
+            for (genome_position, bitkmer, _) in genome_sequence.as_bytes().bit_kmers(k as u8, false) {
+                let marker = alt.get(&bitkmer.0).copied();
+                let site = reference.get(&bitkmer.0).copied();
+                if marker.is_some() || site.is_some() {
+                    record_hit(marker_index, marker, site, genome_position, &mut seen_markers, &mut seen_sites, &mut scan);
+                }
+            }
+        }
+        (KmerLookup::Text(alt), KmerLookup::Text(reference)) => {
+            for genome_position in 0..=(seq_len - k) {
+                let kmer = &genome_sequence[genome_position..genome_position + k];
+                let marker = alt.get(kmer).copied();
+                let site = reference.get(kmer).copied();
+                if marker.is_some() || site.is_some() {
+                    record_hit(marker_index, marker, site, genome_position, &mut seen_markers, &mut seen_sites, &mut scan);
+                }
+            }
+        }
+        // `build_index` always builds both lookups with the same storage.
+        _ => unreachable!("marker lookups built with different storage"),
+    }
+    debug!(
+        "Found {} alternative and {} reference k-mers in genome.",
+        scan.matches.len(),
+        scan.reference_sites.len()
+    );
+    scan
+}
+
+/// Scan a genome sequence for marker k-mer matches (alternative alleles only).
 pub fn find_markers(
     genome_sequence: &str,
     marker_index: &MarkerIndex,
     k: usize,
 ) -> Vec<MarkerMatch> {
-    debug!("Scanning genome for marker k-mer matches.");
-    let mut matched_markers: HashMap<String, MarkerMatch> = HashMap::new();
-
-    let seq_len = genome_sequence.len();
-    if k == 0 || seq_len < k {
-        return Vec::new();
-    }
-
-    match marker_index {
-        MarkerIndex::Encoded(encoded_index) => {
-            for (genome_position, bitkmer, _) in genome_sequence.as_bytes().bit_kmers(k as u8, false) {
-                if let Some(entry) = encoded_index.get(&bitkmer.0) {
-                    trace!("Found marker {} at genome position {}", entry.kmer, genome_position);
-                    matched_markers.entry(entry.kmer.clone()).or_insert(MarkerMatch {
-                        kmer: entry.kmer.clone(),
-                        genome_position,
-                        ref_position: entry.ref_position,
-                        lineage: entry.lineage.clone(),
-                        ref_allele_len: entry.ref_allele_len,
-                        alt_allele_len: entry.alt_allele_len,
-                        left_flank_len: entry.left_flank_len,
-                        ref_allele: entry.ref_allele.clone(),
-                        alt_allele: entry.alt_allele.clone(),
-                        gene: entry.gene.clone(),
-                        mutation: entry.mutation.clone(),
-                    });
-                }
-            }
-        }
-        MarkerIndex::Text(text_index) => {
-            for genome_position in 0..=(seq_len - k) {
-                let kmer = &genome_sequence[genome_position..genome_position + k];
-                if let Some(entry) = text_index.get(kmer) {
-                    trace!("Found marker {} at genome position {}", entry.kmer, genome_position);
-                    matched_markers.entry(entry.kmer.clone()).or_insert(MarkerMatch {
-                        kmer: entry.kmer.clone(),
-                        genome_position,
-                        ref_position: entry.ref_position,
-                        lineage: entry.lineage.clone(),
-                        ref_allele_len: entry.ref_allele_len,
-                        alt_allele_len: entry.alt_allele_len,
-                        left_flank_len: entry.left_flank_len,
-                        ref_allele: entry.ref_allele.clone(),
-                        alt_allele: entry.alt_allele.clone(),
-                        gene: entry.gene.clone(),
-                        mutation: entry.mutation.clone(),
-                    });
-                }
-            }
-        }
-    }
-    debug!("Found {} matched markers in genome.", matched_markers.len());
-    matched_markers.into_values().collect()
+    scan_markers(genome_sequence, marker_index, k).matches
 }
