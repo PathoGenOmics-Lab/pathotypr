@@ -108,7 +108,7 @@ struct MarkerMatch {
 When GFF files are provided, each called variant is annotated:
 
 1. **GFF parsing**: Reads `CDS` features and stores each one's strand and gene name (taken from the `gene`, `locus_tag`, `Name`, or `ID` attribute) in an interval tree (`rust_lapper::Lapper`) for O(log n) position lookups
-2. **Amino acid translation**: Determines the codon position, extracts the codon from the reference and query, translates both to amino acids
+2. **Amino acid translation**: Determines the codon position and translates the reference codon against the **sample's own codon**. A marker usually describes one base of three, so building the alternative codon from the reference and that one allele asserts the other two are reference. When the sample carries a second change in the same codon that assertion is false, and the amino acid reported is one nobody has: a sample reading TTC at rpoB 435 used to be reported as Tyr by the marker for its first base and as Val by the marker for its second. The bases around the variant are carried from wherever the marker was matched, so the codon is read rather than assumed
 3. **Output**: for each affected codon the change is written as `REF_AA{position}ALT_AA(REF_codon>ALT_codon)` using three-letter amino-acid codes (e.g. `Ser450Leu(TCG>TTG)`); synonymous changes get a trailing ` syn`, an MNV spanning several codons joins its per-codon changes with `;`, and a length-changing (indel) variant is reported as `frameshift_pos{N}`. The gene name and first affected codon are written to the separate `Gene` and `AA_Pos` columns.
 
 Supports:

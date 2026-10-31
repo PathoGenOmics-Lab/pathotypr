@@ -311,7 +311,7 @@ Header: `genome	k-mer	k-merPOS	SNPgenome	SNPreference	REF	ALT	lineage	Gene	Gene_
 | `Gene_Start` | 1-based start coordinate of that gene. |
 | `Gene_End` | End coordinate of that gene. |
 | `AA_Pos` | Amino-acid position of the change within the gene. |
-| `AA_Change` | Amino-acid change (from the GFF annotation, otherwise from the marker definition if present). |
+| `AA_Change` | Amino-acid change, translated from the **sample's own codon** when a GFF is given, otherwise the marker definition's. A codon holds three bases and a marker usually describes one, so a second change in the same codon makes the marker's own label wrong: a genome whose codon 435 of rpoB reads TTC is reported as `Asp435Phe(GAC>TTC)` by every marker that matches there, including the single-base ones the catalogue labels D435Y and D435V. |
 | `alleles_found` | `ALT` when only the variant was found; `ALT,REF` when both k-mers turned up and an anchor then read this locus as the variant. |
 | `evidence` | `kmer` when the whole k-mer matched, or `left_anchor`, `right_anchor` or `both_anchors` when the allele was read from the flanks. The `k-mer`, `k-merPOS` and `SNPgenome` columns are empty for an anchor read, which establishes no genome coordinate. |
 

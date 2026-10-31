@@ -135,7 +135,7 @@ Marker-based variant calling on assemblies. Writes a detailed per-marker table, 
 | `Gene_Start` | 1-based gene start from the GFF; empty if no annotation. |
 | `Gene_End` | Gene end from the GFF; empty if no annotation. |
 | `AA_Pos` | Amino-acid position of the change; empty if not resolvable. |
-| `AA_Change` | Amino-acid change — from GFF translation, otherwise the marker's mutation field; empty if neither. |
+| `AA_Change` | Amino-acid change, translated from the sample's own codon when a GFF is given, otherwise the marker's mutation field; empty if neither. The sample's codon is used rather than the reference with this marker's allele dropped into it, so a second change in the same codon does not produce an amino acid nobody carries. |
 | `alleles_found` | `ALT` when only the marker's alternative k-mer was found; `ALT,REF` when both turned up, meaning two copies of the region disagree or the alternative k-mer also occurs elsewhere, and an anchor then read this locus as carrying the variant. Both k-mers turning up is never on its own reported as the marker being present. |
 | `evidence` | `kmer` when the whole k-mer matched, or `left_anchor` / `right_anchor` / `both_anchors` when the allele was read from the flanks because a nearby change hid the k-mer. An anchor read establishes no genome coordinate, so `k-mer`, `k-merPOS` and `SNPgenome` are empty on those rows. |
 
