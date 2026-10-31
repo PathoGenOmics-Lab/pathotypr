@@ -368,6 +368,10 @@ pub struct SplitFastqParams {
     pub nested_classification: Option<bool>,
     pub kmer_size: Option<usize>,
     pub excel: Option<bool>,
+    /// Skip reading the loci the k-mers could not from their anchors. Left
+    /// unset it stays off, so those markers are read rather than reported
+    /// unread.
+    pub no_anchor_rescue: Option<bool>,
 }
 
 #[tauri::command]
@@ -434,6 +438,7 @@ pub async fn run_split_fastq(
             min_depth: params.min_depth.unwrap_or(10),
             min_alt_percent: params.min_alt_percent.unwrap_or(95),
             nested_classification: params.nested_classification.unwrap_or(false),
+            no_anchor_rescue: params.no_anchor_rescue.unwrap_or(false),
             kmer_size: params.kmer_size.unwrap_or(pathotypr_core::split_kmer::DEFAULT_MARKER_KMER_LEN),
             excel: params.excel.unwrap_or(true),
             cancel_token: Some(cancel_token.clone()),

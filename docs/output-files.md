@@ -231,7 +231,7 @@ Alignment-free genotyping from FASTQ reads. Writes one detailed table **per samp
 
 ### Detailed table — `<prefix>_<sample>_mutations.tsv`
 
-**Header:** `pos  ref_allele  alt_allele  ref_count  alt_count  alt_fraction  lineage_path  extra_annotations...`
+**Header:** `pos  ref_allele  alt_allele  ref_count  alt_count  alt_fraction  lineage_path  evidence  extra_annotations...`
 
 Only markers meeting `--min-depth` coverage **and** `--min-alt-percent` are written.
 
@@ -240,10 +240,11 @@ Only markers meeting `--min-depth` coverage **and** `--min-alt-percent` are writ
 | `pos` | 1-based marker position. |
 | `ref_allele` | Reference allele. |
 | `alt_allele` | Alternate allele. |
-| `ref_count` | Reads supporting the REF k-mer. |
-| `alt_count` | Reads supporting the ALT k-mer. |
+| `ref_count` | Reads reading the reference allele. |
+| `alt_count` | Reads reading the alternate allele. |
 | `alt_fraction` | ALT as a percentage of `ref_count + alt_count` (2 decimals, `0`–`100`). |
 | `lineage_path` | `;`-joined lineage path for the marker. |
+| `evidence` | `kmer` when the marker's own k-mer matched, or `left_anchor` / `right_anchor` / `both_anchors` when its locus was read by counting from one side because a nearby change hid both k-mers. The counts on that row are then the anchor's. |
 | `extra_annotations…` | Zero or more **additional tab-separated columns** copied verbatim from the marker's annotation fields — present only when the marker defines them. |
 
 !!! tip "Excel colour coding"
@@ -253,11 +254,10 @@ Only markers meeting `--min-depth` coverage **and** `--min-alt-percent` are writ
 
 **Header:** `pos  ref_allele  alt_allele  ref_count  alt_count  lineage_path  reason`
 
-One row per marker the reads could answer neither way: `not_found` when no read
-carried either allele, `low_depth` when together they fall below `--min-depth`.
-A marker read through a neighbour's window is not listed, because both k-mers
-of a marker come from the same window and a read matching either one reads
-every base of it. See
+One row per marker the reads could answer neither way, with `reason` one of
+`not_found`, `low_depth`, `no_unique_anchor` or `anchors_disagree`. A marker
+read through a neighbour's window, or read from one of its own anchors, is not
+listed: it was answered. See
 [split-fastq](split-fastq.md#per-sample-undetermined-tsv).
 
 ### Summary table — `<prefix>_summary.tsv`

@@ -135,14 +135,27 @@ alike, and reads that stop short of the marker do the same. Those markers go to
 `<prefix>_<sample>_undetermined.tsv` with the reason, and their count goes in
 the summary, instead of joining the markers that were read and found absent.
 
-The exception is a marker read through a neighbour: both k-mers of a marker are
-cut from the same window, so a read matching either one matches it exactly and
-therefore reads every base of that window. The windows with at least
-`--min-depth` reads are merged into the stretches of the reference the sample
-read, and a marker lying inside one of them is absent rather than unread. This
-is what keeps a called variant from turning the other markers of its own
-position (ten of them at rpoB 450 in the WHO catalogue) into markers the run
-claims not to have looked at.
+There are two exceptions, both of them loci that were read after all.
+
+**Read through a neighbour.** Both k-mers of a marker are cut from the same
+window, so a read matching either one matches it exactly and therefore reads
+every base of that window. The windows with at least `--min-depth` reads are
+merged into the stretches of the reference the sample read, and a marker lying
+inside one of them is absent rather than unread. This is what keeps a called
+variant from turning the other markers of its own position (ten of them at
+rpoB 450 in the WHO catalogue) into markers the run claims not to have looked
+at.
+
+**Read from its own anchor.** The `k-1` bases on each side of each variant are
+indexed on their own, and a marker the k-mers missed is read again by counting
+bases from whichever side still matches. Only anchors that occur exactly once in
+the reference are used, counting both strands, because an anchor says nothing
+about where it matched; a marker left without one is reported as
+`no_unique_anchor`. A read spanning the whole locus matches both anchors, so the
+two sides are never added up: the deeper one answers, and the other has to agree
+if it was read deeply enough to have an opinion, or the marker is reported as
+`anchors_disagree`. The pass runs over the reads a second time, with an index
+holding only the markers still unsettled, and `--no-anchor-rescue` skips it.
 
 ### Marker TSV format
 
