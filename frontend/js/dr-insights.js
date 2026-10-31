@@ -174,7 +174,15 @@ export function isDrPanel(lineagePaths) {
  */
 let undeterminedBySample = new Map();
 
-/** Parses `<prefix>_undetermined.tsv` into sample -> drug -> count. */
+/**
+ * Parses `<prefix>_undetermined.tsv` into sample -> drug -> count.
+ *
+ * Only WHO grade 1 and 2 markers are counted. Those are the ones that would
+ * have established resistance had they been read, so they are the ones whose
+ * absence is not established either. Counting grade 3 to 5 as well flags drugs
+ * whose unread markers could never have changed the call, which turns the
+ * warning into noise and teaches the reader to skip it.
+ */
 export function parseUndeterminedTsv(text) {
   const out = new Map();
   const lines = String(text || '').split(/\r?\n/);
@@ -188,8 +196,10 @@ export function parseUndeterminedTsv(text) {
     if (!lines[i]) continue;
     const cols = lines[i].split('\t');
     const sample = (cols[sampleIdx] || '').trim();
-    const drug = (cols[pathIdx] || '').split(';')[0].trim().toUpperCase();
+    const parts = (cols[pathIdx] || '').split(';');
+    const drug = (parts[0] || '').trim().toUpperCase();
     if (!sample || !drug) continue;
+    if (classifyGrade(parts[3] || '') !== GRADE.RESISTANT) continue;
     if (!out.has(sample)) out.set(sample, new Map());
     const byDrug = out.get(sample);
     byDrug.set(drug, (byDrug.get(drug) || 0) + 1);
@@ -202,12 +212,19 @@ export function setUndeterminedCounts(bySample) {
   undeterminedBySample = bySample instanceof Map ? bySample : new Map();
 }
 
-/** Counts for one sample, or the only sample when the name is not known. */
+/**
+ * Counts for one sample. The name has to match: guessing "the only sample in
+ * the map" would put one genome's unread markers on another genome's profile,
+ * and both names come from the same run, so they do match.
+ */
 export function undeterminedFor(sample) {
-  if (undeterminedBySample.size === 0) return new Map();
-  if (sample && undeterminedBySample.has(sample)) return undeterminedBySample.get(sample);
-  if (undeterminedBySample.size === 1) return undeterminedBySample.values().next().value;
-  return new Map();
+  if (!sample) return new Map();
+  return undeterminedBySample.get(sample) || new Map();
+}
+
+/** Every sample the run has counts for. */
+export function undeterminedSamples() {
+  return Array.from(undeterminedBySample.keys());
 }
 
 /**
@@ -226,20 +243,43 @@ export function drugsNotDetermined(profile, counts) {
     .sort((a, b) => b.count - a.count || a.drug.localeCompare(b.drug));
 }
 
+/**
+ * Drugs not determined across a batch: how many samples each one affects.
+ * `pending` is the per-sample result of `drugsNotDetermined`.
+ */
+export function mergeNotDetermined(perSample) {
+  const bySample = new Map();
+  for (const [sample, pending] of perSample || []) {
+    for (const entry of pending) {
+      if (!bySample.has(entry.drug)) bySample.set(entry.drug, new Set());
+      bySample.get(entry.drug).add(sample);
+    }
+  }
+  return Array.from(bySample.entries())
+    .map(([drug, samples]) => ({ drug, samples: samples.size }))
+    .sort((a, b) => b.samples - a.samples || a.drug.localeCompare(b.drug));
+}
+
 /** The banner shown above a resistance profile when something went unread. */
 export function renderUndeterminedWarningHtml(pending) {
   if (!Array.isArray(pending) || pending.length === 0) return '';
   const items = pending
-    .map(p => `<li><strong>${escapeHtml(drugLabel(p.drug))}</strong> <span class="dr-und-count">${p.count} marker${p.count === 1 ? '' : 's'}</span></li>`)
+    .map(p => {
+      const n = p.samples ?? p.count;
+      const unit = p.samples === undefined
+        ? `${n} marker${n === 1 ? '' : 's'}`
+        : `${n} sample${n === 1 ? '' : 's'}`;
+      return `<li><strong>${escapeHtml(drugLabel(p.drug))}</strong> <span class="dr-und-count">${unit}</span></li>`;
+    })
     .join('');
   return `
     <section class="viz-dr-undetermined" role="note">
       <header><h4>Not determined</h4></header>
       <p>
-        No resistance marker was found for these drugs, but some of their markers could be
-        read neither as present nor as absent. A change next to a marker, a missing region or
-        a contig break hides it, so these drugs have <strong>not</strong> been shown susceptible
-        by this run.
+        No resistance marker was found for these drugs, but some of their WHO grade 1 or 2
+        markers could be read neither as present nor as absent. A change on both sides of a
+        marker, a missing region or a contig break hides it, so these drugs have
+        <strong>not</strong> been shown susceptible by this run.
       </p>
       <ul class="dr-und-list">${items}</ul>
     </section>

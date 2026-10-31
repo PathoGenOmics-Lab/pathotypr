@@ -11,6 +11,7 @@ import {
   isDrPanel,
   buildDrProfile,
   drugsNotDetermined,
+  mergeNotDetermined,
   renderUndeterminedWarningHtml,
   undeterminedFor,
   buildLineageLevels,
@@ -1781,13 +1782,21 @@ function buildGenotypingInsightSections(data) {
     // buildResistanceMatrix returns null for a single sample, where the cards
     // are the right form and a one-row grid would not be.
     const matrix = buildResistanceMatrix(records);
-    const samples = new Set(records.map(r => r.sample));
-    // The warning goes first: a reader who stops at the profile must not stop
-    // before learning that some markers were never read.
     const profile = buildDrProfile(records);
-    const pending = samples.size === 1
-      ? drugsNotDetermined(profile, undeterminedFor(records[0]?.sample))
-      : [];
+    // The warning goes first: a reader who stops at the profile must not stop
+    // before learning that some markers were never read. A batch needs it as
+    // much as a single sample, so it is worked out per sample either way.
+    const bySample = new Map();
+    records.forEach(r => {
+      if (!bySample.has(r.sample)) bySample.set(r.sample, []);
+      bySample.get(r.sample).push(r);
+    });
+    const perSample = Array.from(bySample.entries()).map(
+      ([sample, rows]) => [sample, drugsNotDetermined(buildDrProfile(rows), undeterminedFor(sample))]
+    );
+    const pending = bySample.size === 1
+      ? perSample[0][1]
+      : mergeNotDetermined(perSample);
     html += renderUndeterminedWarningHtml(pending);
     if (matrix) {
       html += renderResistanceMatrixHtml(matrix);
