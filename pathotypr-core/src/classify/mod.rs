@@ -855,6 +855,24 @@ where
 // Summary output
 // ---------------------------------------------------------------------------
 
+/// The strongest verdict per drug, per genome, for a resistance panel.
+type ResistanceMap = HashMap<String, HashMap<String, crate::resistance::Verdict>>;
+
+/// Folds one detail row into the per-drug verdicts of its genome.
+fn update_resistance_from_detail_line(resistance_map: &mut ResistanceMap, line: &str) {
+    let mut fields = line.split('\t');
+    let genome_name = match fields.next() {
+        Some(value) if !value.is_empty() => value,
+        _ => return,
+    };
+    // Register the genome even when it matched nothing, so it still gets a
+    // call rather than dropping out of the summary.
+    let entry = resistance_map.entry(genome_name.to_string()).or_default();
+    if let Some(path) = fields.nth(6).filter(|p| !p.is_empty()) {
+        crate::resistance::fold_marker(entry, path);
+    }
+}
+
 fn update_summary_from_detail_line(
     lineage_count_map: &mut HashMap<String, HashMap<String, usize>>,
     line: &str,
@@ -923,14 +941,28 @@ fn undetermined_columns(counts: Option<&HashMap<String, usize>>) -> (usize, Stri
     }
 }
 
+/// The call for one genome: a lineage, or the resistance verdict when the
+/// panel is the WHO catalogue, where tallying paths answers the wrong question.
+fn genome_call(
+    lineage_counts: &HashMap<String, usize>,
+    resistance_counts: Option<&HashMap<String, crate::resistance::Verdict>>,
+    nested_classification: bool,
+) -> String {
+    match resistance_counts {
+        Some(per_drug) => crate::resistance::call(per_drug),
+        None => determine_major_lineage(lineage_counts, nested_classification),
+    }
+}
+
 fn write_summary(
     summary_out: &mut BufWriter<File>,
     genome: String,
     lineage_counts: &HashMap<String, usize>,
     undetermined_counts: Option<&HashMap<String, usize>>,
+    resistance_counts: Option<&HashMap<String, crate::resistance::Verdict>>,
     nested_classification: bool,
 ) -> AppResult<()> {
-    let majority_lineage = determine_major_lineage(lineage_counts, nested_classification);
+    let majority_lineage = genome_call(lineage_counts, resistance_counts, nested_classification);
     let (undetermined_total, undetermined_by_label) = undetermined_columns(undetermined_counts);
     writeln!(
         summary_out,
@@ -982,6 +1014,16 @@ pub fn run(args: Args) -> AppResult<()> {
     debug!("Reference sequence loaded, length: {}", ref_seq.len());
     let marker_variants = get_positions(&args.tsv_pos)?;
     debug!("Found {} marker entries.", marker_variants.len());
+
+    // A WHO resistance catalogue is not a hierarchy, so tallying its paths the
+    // lineage way answers "which drug has the most markers", and most markers
+    // of the catalogue are graded as not associated with resistance. Recognise
+    // it once here and answer it on its own terms.
+    let resistance_panel =
+        crate::resistance::is_resistance_panel(marker_variants.iter().map(|m| m.lineage.as_str()));
+    if resistance_panel {
+        info!("The panel is a drug-resistance catalogue; the summary reports the drugs with a WHO grade 1 or 2 marker.");
+    }
 
     // A k-mer needs room for the allele between the two flanks; otherwise every
     // marker is skipped and the run silently reports every genome as
@@ -1058,6 +1100,7 @@ pub fn run(args: Args) -> AppResult<()> {
     };
     let mut lineage_count_map: HashMap<String, HashMap<String, usize>> = HashMap::new();
     let mut undetermined_count_map: HashMap<String, HashMap<String, usize>> = HashMap::new();
+    let mut resistance_map: ResistanceMap = HashMap::new();
     let mut emitted_lines = 0usize;
     let process_result = process_genomes(&args, &marker_index, k, &ref_seq, &ref_seq_rc, |row| {
         emitted_lines += 1;
@@ -1072,6 +1115,9 @@ pub fn run(args: Args) -> AppResult<()> {
                 let trimmed = line.trim_end_matches(['\n', '\r']);
                 if !trimmed.trim().is_empty() {
                     update_summary_from_detail_line(&mut lineage_count_map, trimmed);
+                    if resistance_panel {
+                        update_resistance_from_detail_line(&mut resistance_map, trimmed);
+                    }
                 }
                 let mut disable_detail_excel = false;
                 if let Some(writer) = detail_excel_writer.as_mut() {
@@ -1184,7 +1230,8 @@ pub fn run(args: Args) -> AppResult<()> {
         // Iterating the HashMap directly made the Excel column disagree with
         // its own TSV and vary between otherwise identical runs.
         let lineage_counts_str = format_label_counts(&lineage_map);
-        let major_lineage = determine_major_lineage(&lineage_map, args.nested_classification);
+        let resistance_counts = resistance_panel.then(|| resistance_map.get(&genome)).flatten();
+        let major_lineage = genome_call(&lineage_map, resistance_counts, args.nested_classification);
         let undetermined_counts = undetermined_count_map.get(&genome);
         let (undetermined_total, undetermined_by_label) = undetermined_columns(undetermined_counts);
 
@@ -1203,7 +1250,7 @@ pub fn run(args: Args) -> AppResult<()> {
         }
         if disable_summary_excel { summary_excel_writer = None; }
 
-        if let Err(e) = write_summary(&mut summary_out, genome.clone(), &lineage_map, undetermined_counts, args.nested_classification) {
+        if let Err(e) = write_summary(&mut summary_out, genome.clone(), &lineage_map, undetermined_counts, resistance_counts, args.nested_classification) {
             drop(summary_out); cleanup_generated_outputs(&generated_outputs); return Err(e);
         }
     }

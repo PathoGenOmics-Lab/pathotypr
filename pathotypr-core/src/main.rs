@@ -32,6 +32,7 @@ use std::io::Write;
 #[allow(dead_code)] mod model;
 #[allow(dead_code)] mod paired_end;
 #[allow(dead_code)] mod predict;
+#[allow(dead_code)] mod resistance;
 #[allow(dead_code)] mod sparse_tree;
 #[allow(dead_code)] mod split_kmer;
 #[allow(dead_code)] mod train;
