@@ -387,11 +387,22 @@ fn collect_marker_lines<'a>(
         }
     }
 
-    // Whatever the k-mers could not read, the anchors try to. The pass only
-    // happens when something is actually missing, so a genome the panel reads
+    // Both k-mers of a marker turning up means a second copy of the region
+    // disagrees with the first, or one of the two k-mers matched a paralogue.
+    // In a haploid genome that is not a variant call, it is a question: which
+    // copy did we read? So the k-mers do not answer for these markers either.
+    let both_alleles = |id: usize| {
+        alt_found[id] && marker_index.site_of(id).is_some_and(|site| reference_found[site])
+    };
+
+    // Whatever the k-mers could not settle, the anchors try to. The pass only
+    // happens when something is actually open, so a genome the panel reads
     // whole costs nothing extra.
     let unread: Vec<usize> = (0..marker_index.len())
-        .filter(|&id| !alt_found[id] && !marker_index.site_of(id).is_some_and(|s| site_read[s]))
+        .filter(|&id| {
+            both_alleles(id)
+                || (!alt_found[id] && !marker_index.site_of(id).is_some_and(|s| site_read[s]))
+        })
         .collect();
     let anchor_scan = (!unread.is_empty() && !marker_index.anchors().is_empty()).then(|| {
         let mut scan = AnchorScan::new(marker_index.anchors());
@@ -405,16 +416,15 @@ fn collect_marker_lines<'a>(
 
     let mut lines = GenomeLines::default();
     for (m, alt_bases) in &observed {
-        let reference_too = marker_index
-            .site_of(m.marker_id)
-            .is_some_and(|site| reference_found[site]);
-        let alleles_found = if reference_too { "ALT,REF" } else { "ALT" };
+        if both_alleles(m.marker_id) {
+            continue; // the anchors answer for it below
+        }
         lines.detail.push(format_marker_match(
             genome_name,
             m,
             annotations,
             alt_bases,
-            alleles_found,
+            "ALT",
             "kmer",
             ref_seq,
             ref_seq_rc,
@@ -423,18 +433,22 @@ fn collect_marker_lines<'a>(
 
     for id in unread {
         let entry = &marker_index.markers()[id];
+        let ambiguous = both_alleles(id);
+        let alleles_found = if ambiguous { "ALT,REF" } else { "ALT" };
         let read = anchor_scan
             .as_ref()
             .map(|scan| scan.allele_of(marker_index.anchors(), id, entry.alt_allele_len))
             .unwrap_or(AnchorRead::Unusable);
         let (reason, observed_allele) = match read {
-            // The allele is the variant: a change in a flank hid the k-mer, and
-            // without the anchors this marker would have passed as absent.
+            // The allele is the variant: a change in a flank hid the k-mer, or
+            // a second copy of the region made the k-mers disagree. Either way
+            // the anchor read this locus, and it carries the variant.
             AnchorRead::Allele(allele, evidence) if allele == entry.alt_allele => {
                 lines.detail.push(format_anchor_match(
                     genome_name,
                     entry,
                     annotations,
+                    alleles_found,
                     evidence,
                     ref_seq,
                     ref_seq_rc,
@@ -447,6 +461,9 @@ fn collect_marker_lines<'a>(
             // Something nobody catalogued sits at a catalogued position.
             AnchorRead::Allele(allele, _) => ("other_allele", allele),
             AnchorRead::Conflict => ("anchors_disagree", String::new()),
+            // Both alleles turned up and no anchor could say which one this
+            // locus carries. Reporting the marker present would be a guess.
+            AnchorRead::Unusable if ambiguous => ("ambiguous_both_alleles", String::new()),
             AnchorRead::Unusable => (
                 if marker_index.site_of(id).is_some() { "not_found" } else { "no_reference_kmer" },
                 String::new(),
@@ -585,6 +602,7 @@ fn format_anchor_match(
     genome_name: &str,
     entry: &MarkerKmerEntry,
     annotations: &Option<&Lapper<usize, Gene>>,
+    alleles_found: &str,
     evidence: AnchorEvidence,
     ref_seq: &str,
     ref_seq_rc: &str,
@@ -611,7 +629,7 @@ fn format_anchor_match(
         gene_end,
         aa_pos,
         aa_change,
-        "ALT",
+        alleles_found,
         evidence.as_str()
     )
 }
@@ -1551,8 +1569,10 @@ mod tests {
     }
 
     #[test]
-    fn both_alleles_are_reported_when_two_copies_disagree() {
-        // Two contigs, one with each allele, as in a duplicated region.
+    fn two_copies_that_disagree_are_not_a_variant_call() {
+        // One contig with each allele. In a haploid genome that is a question,
+        // not a call: which copy is the marker's own locus? With a 60 bp
+        // reference both anchors occur twice, so nothing can answer it.
         let k = 11;
         let index = generate_markerkmer(&[snp_marker("A")], REF60, k, 5);
         let ref_rc = reverse_complement_sequence(REF60);
@@ -1566,8 +1586,43 @@ mod tests {
             REF60,
             &ref_rc,
         );
-        let row = lines.detail.iter().find(|l| l.contains("L9.9")).expect("marker found");
-        assert_eq!(alleles_found(row), "ALT,REF");
+        assert!(
+            !lines.detail.iter().any(|l| l.contains("L9.9")),
+            "an ambiguous marker must not be reported present"
+        );
+        assert_eq!(reason(&lines.undetermined[0]), "ambiguous_both_alleles");
+    }
+
+    #[test]
+    fn a_paralogous_alt_kmer_does_not_make_the_marker_present() {
+        // The marker's ALT k-mer also occurs far away, as happens in the
+        // resistance panel where a PE/PPE copy carries it. The genome holds
+        // the reference allele at the marker's own locus, and an anchor, being
+        // unique there, says so: the marker is absent, not present.
+        let reference = long_ref();
+        let alt = other_base(&reference[299..300]);
+        let marker = marker_at(&reference, 300, alt);
+        let k = 31;
+        let index = generate_markerkmer(std::slice::from_ref(&marker), reference.as_str(), k, 10);
+        let ref_rc = reverse_complement_sequence(&reference);
+        // The reference genome, with the marker's own ALT k-mer pasted over a
+        // distant stretch: the ALT k-mer now occurs once, far from the marker,
+        // while the marker's own locus and its anchors are untouched.
+        let paralogue = index.markers()[0].kmer.clone();
+        let mut genome = reference.clone();
+        genome.replace_range(500..500 + paralogue.len(), &paralogue);
+        assert_eq!(&genome[299..300], &reference[299..300], "the locus itself is unchanged");
+
+        let lines = analyze_genome_seq("g", &genome, &index, &None, k, &reference, &ref_rc);
+        assert!(
+            !lines.detail.iter().any(|l| l.contains("RIF;RIF-R;test")),
+            "a paralogous hit must not be read as the marker being present"
+        );
+        assert!(
+            lines.undetermined.is_empty(),
+            "the anchors read the real locus, so the marker is absent, not unresolved: {:?}",
+            lines.undetermined
+        );
     }
 
     #[test]
