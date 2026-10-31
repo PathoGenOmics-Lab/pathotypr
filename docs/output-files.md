@@ -136,7 +136,7 @@ Marker-based variant calling on assemblies. Writes a detailed per-marker table, 
 | `Gene_End` | Gene end from the GFF; empty if no annotation. |
 | `AA_Pos` | Amino-acid position of the change; empty if not resolvable. |
 | `AA_Change` | Amino-acid change — from GFF translation, otherwise the marker's mutation field; empty if neither. |
-| `alleles_found` | `ALT` when only the marker's alternative k-mer was found; `ALT,REF` when its reference k-mer was found too, meaning two copies of the region disagree or the alternative k-mer also occurs elsewhere in the genome. |
+| `alleles_found` | `ALT` when only the marker's alternative k-mer was found; `ALT,REF` when both turned up, meaning two copies of the region disagree or the alternative k-mer also occurs elsewhere, and an anchor then read this locus as carrying the variant. Both k-mers turning up is never on its own reported as the marker being present. |
 | `evidence` | `kmer` when the whole k-mer matched, or `left_anchor` / `right_anchor` / `both_anchors` when the allele was read from the flanks because a nearby change hid the k-mer. An anchor read establishes no genome coordinate, so `k-mer`, `k-merPOS` and `SNPgenome` are empty on those rows. |
 
 !!! note "Genomes with no marker hits still appear"
@@ -173,7 +173,7 @@ rows in a resistance panel.
 | `REF`, `ALT` | Alleles of the marker. |
 | `lineage` | Lineage (or drug) path of the marker. |
 | `Gene`, `mutation` | The marker's own gene and mutation fields; empty when the marker TSV has none. |
-| `reason` | `not_found`: nothing of the marker occurs and no anchor could read it. `other_allele`: the anchors read bases that are neither allele. `anchors_disagree`: the two anchors read different alleles. `no_reference_kmer`: the marker has no usable reference k-mer (a reference allele outside A, C, G and T) and the anchors could not read it either. |
+| `reason` | `not_found`: nothing of the marker occurs and no anchor could read it. `other_allele`: the anchors read bases that are neither allele. `anchors_disagree`: the two anchors read different alleles. `ambiguous_both_alleles`: both k-mers turned up and no anchor could say which allele this locus carries. `no_reference_kmer`: the marker has no usable reference k-mer (a reference allele outside A, C, G and T) and the anchors could not read it either. |
 | `observed_allele` | With `other_allele`, the bases actually found where the allele should be. Empty otherwise. |
 
 === "Detailed"

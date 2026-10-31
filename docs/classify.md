@@ -197,9 +197,17 @@ case apart from a genome that simply lacks the variant:
 | ALT k-mer | REF k-mer | State | Where it is reported |
 |---|---|---|---|
 | found | not found | **present** | detailed TSV, `alleles_found` = `ALT` |
-| found | found | **both alleles** | detailed TSV, `alleles_found` = `ALT,REF` |
 | not found | found | **absent**: the genome carries the reference allele | nowhere, as before |
+| found | found | the **anchors** decide (below) | |
 | not found | not found | the **anchors** decide (below) | |
+
+Both k-mers turning up is not a variant call but a question: a second copy of
+the region disagrees with the first, or one of the two k-mers matched a
+paralogue. In a haploid genome there is no telling which copy the marker's own
+locus is, so these go to the anchors like any other unresolved marker. Two
+markers of the published resistance panel behave this way in every genome,
+including the reference itself, because their ALT k-mer also occurs at an
+unrelated locus.
 
 Markers at the same position with the same reference allele share their REF
 k-mer, so reading any one allele there reads the position for all of them: a
@@ -224,6 +232,7 @@ cannot do:
 | anything else | **undetermined**, `reason` = `other_allele` | undetermined TSV, with the bases in `observed_allele` |
 | nothing usable | **undetermined**, `reason` = `not_found` | undetermined TSV |
 | the two anchors disagree | **undetermined**, `reason` = `anchors_disagree` | undetermined TSV |
+| nothing usable, and both k-mers had turned up | **undetermined**, `reason` = `ambiguous_both_alleles` | undetermined TSV |
 
 An allele is read only from an anchor that occurs **exactly once** in the
 genome; a repeated anchor says nothing about which copy was read. Only
@@ -233,10 +242,6 @@ keep the k-mer answer.
 
 The pass runs only when the k-mers left something unread, so a genome the panel
 reads whole costs nothing extra.
-
-**Both alleles** means two copies of the region disagree, or the ALT k-mer also
-occurs somewhere else in the genome. Treat such a call with care: a marker
-whose ALT k-mer matches a paralogous region is found in every genome.
 
 **Undetermined** means the position could not be read even from the anchors: a
 change on both sides of the variant, a region missing from the assembly, a
@@ -307,7 +312,7 @@ Header: `genome	k-mer	k-merPOS	SNPgenome	SNPreference	REF	ALT	lineage	Gene	Gene_
 | `Gene_End` | End coordinate of that gene. |
 | `AA_Pos` | Amino-acid position of the change within the gene. |
 | `AA_Change` | Amino-acid change (from the GFF annotation, otherwise from the marker definition if present). |
-| `alleles_found` | `ALT` when only the variant was found; `ALT,REF` when the reference allele was found as well. |
+| `alleles_found` | `ALT` when only the variant was found; `ALT,REF` when both k-mers turned up and an anchor then read this locus as the variant. |
 | `evidence` | `kmer` when the whole k-mer matched, or `left_anchor`, `right_anchor` or `both_anchors` when the allele was read from the flanks. The `k-mer`, `k-merPOS` and `SNPgenome` columns are empty for an anchor read, which establishes no genome coordinate. |
 
 `Gene_Start`, `Gene_End` and `AA_Pos` are only populated when a GFF annotation is provided and the marker falls inside an annotated feature. `Gene` and `AA_Change` fall back to the gene and mutation values from the marker TSV when present, so they can be filled even without a GFF; columns with no available value are left empty.
@@ -335,7 +340,7 @@ Header: `genome	SNPreference	REF	ALT	lineage	Gene	mutation	reason`
 | `REF`, `ALT` | Alleles of the marker. |
 | `lineage` | Lineage (or drug) path of the marker. |
 | `Gene`, `mutation` | Gene and mutation from the marker TSV, empty when it has none. |
-| `reason` | `not_found`: nothing of this marker occurs in the genome and no anchor could read it. `other_allele`: the anchors read a base other than either allele of the marker. `anchors_disagree`: the two anchors read different alleles. `no_reference_kmer`: the marker has no usable REF k-mer (its reference allele holds a base other than A, C, G or T) and the anchors could not read it either. |
+| `reason` | `not_found`: nothing of this marker occurs in the genome and no anchor could read it. `other_allele`: the anchors read a base other than either allele of the marker. `anchors_disagree`: the two anchors read different alleles. `ambiguous_both_alleles`: both k-mers turned up and no anchor could say which allele this locus carries. `no_reference_kmer`: the marker has no usable REF k-mer (its reference allele holds a base other than A, C, G or T) and the anchors could not read it either. |
 | `observed_allele` | With `other_allele`, the bases actually found where the allele should be. Empty otherwise. |
 
 ## See also
