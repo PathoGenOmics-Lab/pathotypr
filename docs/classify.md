@@ -255,6 +255,39 @@ it does not mean it is present.
     `undetermined:count` column of the summary gives the count per drug, and
     the undetermined TSV lists every marker involved.
 
+### Resistance panels
+
+A marker panel is a position, two alleles and a path. For a lineage panel that
+path is a hierarchy, and tallying it gives a lineage. The WHO resistance
+catalogue puts something else in the same columns:
+
+```text
+drug ; resistance ; marker ; WHO grade ; gene ; mutation
+```
+
+which is not a hierarchy at all. Counted the lineage way it answers "which drug
+has the most markers", and most markers of the catalogue are graded 4 or 5,
+meaning *not* associated with resistance. A genome carrying rpoB D435Y and
+katG S315T, both grade 1, used to be summarised as `OTHER`, because an ungraded
+marker of another drug happened to be more numerous.
+
+`classify` now recognises a resistance panel (a clear majority of paths whose
+fourth field reads as a WHO grade) and answers it on its own terms. The
+`major_lineage` column then carries one of:
+
+| Call | When |
+|---|---|
+| `Resistant: INH,RIF` | at least one WHO grade 1 or 2 marker, listed per drug |
+| `No resistance markers found; uncertain: EMB` | no grade 1 or 2 marker, some grade 3 |
+| `No resistance markers found` | neither |
+
+It says **found**, not "none": a marker that could not be read is not a marker
+that is absent. The `undetermined` columns beside it say how much was not read,
+and the undetermined table says which markers and why.
+
+A lineage panel is never mistaken for a resistance one; no lineage level reads
+as a WHO grade.
+
 ### Detailed TSV columns
 
 Header: `genome	k-mer	k-merPOS	SNPgenome	SNPreference	REF	ALT	lineage	Gene	Gene_Start	Gene_End	AA_Pos	AA_Change	alleles_found`
@@ -287,7 +320,7 @@ Header: `genome	lineage:count	major_lineage	undetermined	undetermined:count`
 |---|---|
 | `genome` | Sample/genome name. |
 | `lineage:count` | Observed lineages with the number of supporting markers for each. |
-| `major_lineage` | The single lineage called for the genome (respecting `--nested-classification` when enabled). |
+| `major_lineage` | The call for the genome: a lineage (respecting `--nested-classification`), or, when the panel is a WHO resistance catalogue, the resistance verdict. See [Resistance panels](#resistance-panels). |
 | `undetermined` | Number of markers that could be read neither way in this genome. |
 | `undetermined:count` | The same markers counted under the first level of their path: the drug for a resistance panel, the main lineage for a lineage panel. Empty when every marker was read. |
 

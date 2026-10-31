@@ -150,7 +150,7 @@ Marker-based variant calling on assemblies. Writes a detailed per-marker table, 
 |---|---|
 | `genome` | Genome/sample name. |
 | `lineage:count` | Space-separated `lineage:count` pairs at **every hierarchical level** (each ancestor path prefix is counted), sorted by count descending, then by name. |
-| `major_lineage` | Final lineage call. With `--nested-classification`, the deepest fully-supported path wins; otherwise the most abundant lineage wins. |
+| `major_lineage` | Final call. For a lineage panel: with `--nested-classification` the deepest fully-supported path wins, otherwise the most abundant lineage. For a WHO resistance catalogue it is the resistance verdict instead, for example `Resistant: INH,RIF`. See [classify](classify.md#resistance-panels). |
 | `undetermined` | Number of markers that could be read neither way in this genome. |
 | `undetermined:count` | Those markers as `label:count` pairs under the **first level** of their path only (the drug for a resistance panel, the main lineage for a lineage panel), sorted like `lineage:count`. Empty when every marker was read. |
 
@@ -192,6 +192,14 @@ rows in a resistance panel.
     genome	lineage:count	major_lineage	undetermined	undetermined:count
     sampleA	L2:2 L2;L2.2:1	L2	3	L4:2 L1:1
     sampleB		Unclassified	0	
+    ```
+
+=== "Summary, resistance panel"
+
+    ```text
+    genome	lineage:count	major_lineage	undetermined	undetermined:count
+    sampleA	INH:2 RIF:1 …	Resistant: INH,RIF	187	INH:91 RIF:62 EMB:34
+    sampleB	OTHER:1	No resistance markers found	0	
     ```
 
 === "Undetermined"
