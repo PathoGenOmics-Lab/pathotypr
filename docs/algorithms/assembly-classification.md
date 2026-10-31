@@ -60,17 +60,29 @@ For each query genome (parallelized across genomes with rayon):
 4. An ALT hit means the genome carries the variant allele, and the entry's flank lengths then locate the exact variant-spanning bases. A REF hit means some copy of the window carries the reference allele
 5. Once every contig has been scanned, each marker gets one of four states:
 
+A k-mer says *what* it matched but not *where*, so a paralogous copy of either
+allele reads as the marker's own locus. An anchor is only used when it occurs
+once in the genome, so it does say where. Wherever an anchor can read the
+locus, it decides:
+
+| The anchors read | State |
+|---|---|
+| the marker's ALT | present |
+| anything else | absent: the locus was read and does not carry it |
+| nothing usable | the k-mers decide, below |
+
+And when no anchor can read it:
+
 | ALT k-mer | REF k-mer of its site | State |
 |---|---|---|
 | found | not found | present |
-| found | found | both alleles |
+| found | found | undetermined, `ambiguous_both_alleles` |
 | not found | found, or any other marker of the site found | absent |
-| not found | nothing of the site found | undetermined |
+| not found | nothing of the site found | undetermined, `not_found` |
 
 A k-mer is an exact match, so another change anywhere in the window (a
 synonymous substitution, a lineage polymorphism) hides both alleles. Before the
-reference k-mer was indexed that case looked exactly like absence; it is now
-reported as undetermined.
+anchors, that case was reported as absence.
 
 ### Match result
 
@@ -127,7 +139,7 @@ Two modes:
 Per genome, five columns: `genome`, `lineage:count` (marker tallies at **every** hierarchical level, each ancestor path prefix counted separately, space-separated), `major_lineage` (the final call), `undetermined` (how many markers could be read neither way) and `undetermined:count` (those markers per first level of their path).
 
 ### Detailed TSV (`{prefix}.tsv`)
-One row per matched marker per genome, with columns: `genome`, `k-mer`, `k-merPOS`, `SNPgenome`, `SNPreference`, `REF`, `ALT`, `lineage`, `Gene`, `Gene_Start`, `Gene_End`, `AA_Pos`, `AA_Change`, `alleles_found` (`ALT`, or `ALT,REF` when the reference allele was found too).
+One row per matched marker per genome, with columns: `genome`, `k-mer`, `k-merPOS`, `SNPgenome`, `SNPreference`, `REF`, `ALT`, `lineage`, `Gene`, `Gene_Start`, `Gene_End`, `AA_Pos`, `AA_Change`, `alleles_found` (`ALT`, or `ALT,REF` when both k-mers turned up and an anchor settled it) and `evidence` (`kmer`, or the anchor that read the allele).
 
 ### Undetermined TSV (`{prefix}_undetermined.tsv`)
 One row per undetermined marker per genome: `genome`, `SNPreference`, `REF`, `ALT`, `lineage`, `Gene`, `mutation`, `reason`.

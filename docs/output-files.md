@@ -119,7 +119,7 @@ Marker-based variant calling on assemblies. Writes a detailed per-marker table, 
 
 ### Detailed table — `<prefix>.tsv`
 
-**Header:** `genome  k-mer  k-merPOS  SNPgenome  SNPreference  REF  ALT  lineage  Gene  Gene_Start  Gene_End  AA_Pos  AA_Change  alleles_found`
+**Header:** `genome  k-mer  k-merPOS  SNPgenome  SNPreference  REF  ALT  lineage  Gene  Gene_Start  Gene_End  AA_Pos  AA_Change  alleles_found  evidence`
 
 | Column | Description |
 |---|---|
@@ -173,8 +173,7 @@ rows in a resistance panel.
 | `REF`, `ALT` | Alleles of the marker. |
 | `lineage` | Lineage (or drug) path of the marker. |
 | `Gene`, `mutation` | The marker's own gene and mutation fields; empty when the marker TSV has none. |
-| `reason` | `not_found`: nothing of the marker occurs and no anchor could read it. `other_allele`: the anchors read bases that are neither allele. `anchors_disagree`: the two anchors read different alleles. `ambiguous_both_alleles`: both k-mers turned up and no anchor could say which allele this locus carries. `no_reference_kmer`: the marker has no usable reference k-mer (a reference allele outside A, C, G and T) and the anchors could not read it either. |
-| `observed_allele` | With `other_allele`, the bases actually found where the allele should be. Empty otherwise. |
+| `reason` | `not_found`: nothing of the marker occurs and no anchor could read it. `anchors_disagree`: the two anchors read different alleles. `ambiguous_both_alleles`: both k-mers turned up and no anchor could say which allele the locus carries. `no_reference_kmer`: the marker has no usable reference k-mer (a reference allele outside A, C, G and T) and the anchors could not read it either. |
 
 === "Detailed"
 
@@ -205,10 +204,10 @@ rows in a resistance panel.
 === "Undetermined"
 
     ```text
-    genome	SNPreference	REF	ALT	lineage	Gene	mutation	reason	observed_allele
-    sampleA	3836739	A	G	L4;L4.1			not_found	
-    sampleA	3836741	C	T	L4;L4.2			other_allele	A
-    sampleA	1834177	A	C	L1			anchors_disagree	
+    genome	SNPreference	REF	ALT	lineage	Gene	mutation	reason
+    sampleA	3836739	A	G	L4;L4.1			not_found
+    sampleA	3836741	C	T	L4;L4.2			ambiguous_both_alleles
+    sampleA	1834177	A	C	L1			anchors_disagree
     ```
 
 See also: [Assembly classification](algorithms/assembly-classification.md), [Marker format](marker_format.md).
