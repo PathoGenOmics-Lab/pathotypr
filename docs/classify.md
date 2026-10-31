@@ -98,11 +98,12 @@ Available on every subcommand:
 
 ## How it works
 
-1. The reference FASTA and marker TSV are loaded, and one diagnostic k-mer is built per marker: the ALT allele flanked on both sides by reference context (at least `--min-flank-bases` bases per side, total length `--kmer-size`).
+1. The reference FASTA and marker TSV are loaded, and two k-mers are built per marker from the same window: the ALT allele flanked on both sides by reference context (at least `--min-flank-bases` bases per side, total length `--kmer-size`), and the REF allele in the same flanks. The first says the variant is there; the second says it is not.
 2. Every contig of every query genome is scanned on **both strands** — the contig and its reverse complement — because contig orientation in a draft assembly is arbitrary. A marker found more than once (on several contigs, or on both strands) counts as one observation.
 3. If a GFF is supplied for a sample, each match is annotated with the overlapping gene and the resulting amino-acid change.
-4. Per genome, the observed markers are tallied per lineage and a `major_lineage` is called. With `--nested-classification`, multi-level marker columns are used to validate the hierarchical lineage path; without it, the most abundant lineage is reported directly.
-5. Results are streamed to a detailed per-marker TSV and a per-genome summary TSV (plus optional `.xlsx` and masked FASTA outputs).
+4. Each marker ends up in one of four states (see [Present, absent and undetermined](#present-absent-and-undetermined)). Only markers whose ALT k-mer was found count towards the lineage call.
+5. Per genome, the observed markers are tallied per lineage and a `major_lineage` is called. With `--nested-classification`, multi-level marker columns are used to validate the hierarchical lineage path; without it, the most abundant lineage is reported directly.
+6. Results are streamed to a detailed per-marker TSV, a per-genome summary TSV and a TSV of the markers that could not be read (plus optional `.xlsx` and masked FASTA outputs).
 
 ## Examples
 
@@ -166,8 +167,9 @@ All files share the `-o/--output-prefix` value. Given `-o classify_run`:
 | File | When | Content |
 |---|---|---|
 | `classify_run.tsv` | always | Detailed table: one row per marker match per genome. |
-| `classify_run_summary.tsv` | always | Summary table: one row per genome with lineage counts and the major lineage. |
-| `classify_run.xlsx`, `classify_run_summary.xlsx` | `--excel` | Excel (`.xlsx`) versions of the detailed and summary tables, written alongside the TSVs. |
+| `classify_run_summary.tsv` | always | Summary table: one row per genome with lineage counts, the major lineage and how many markers could not be read. |
+| `classify_run_undetermined.tsv` | always | One row per marker per genome that could be read neither as present nor as absent. Header only when every marker was read. |
+| `classify_run.xlsx`, `classify_run_summary.xlsx`, `classify_run_undetermined.xlsx` | `--excel` | Excel (`.xlsx`) versions of the three tables, written alongside the TSVs. |
 | `<input>_masked.fasta` | `--output-masked-fasta` | One masked FASTA per input FASTA file (named after the input file stem), with marker positions replaced by `N`. Colliding stems are disambiguated rather than overwritten. |
 
 !!! warning "Masking needs reference coordinates"
@@ -185,9 +187,47 @@ All files share the `-o/--output-prefix` value. Given `-o classify_run`:
 !!! note
     If the output prefix already ends in `.tsv`, the detailed file uses it as-is and the summary is derived from the trimmed base name. Genomes with no marker hits still appear in the detailed TSV as a single row with empty match columns, and in the summary with an empty `lineage:count` and `Unclassified` as the major lineage — so every input is accounted for.
 
+### Present, absent and undetermined
+
+A k-mer is an exact match, so any other change inside a marker's window,
+however harmless (a synonymous substitution, a lineage polymorphism), stops its
+ALT k-mer from matching. Looking for the REF k-mer as well is what tells that
+case apart from a genome that simply lacks the variant:
+
+| ALT k-mer | REF k-mer | State | Where it is reported |
+|---|---|---|---|
+| found | not found | **present** | detailed TSV, `alleles_found` = `ALT` |
+| found | found | **both alleles** | detailed TSV, `alleles_found` = `ALT,REF` |
+| not found | found | **absent**: the genome carries the reference allele | nowhere, as before |
+| not found | not found | **undetermined** | undetermined TSV |
+
+Markers at the same position with the same reference allele share their REF
+k-mer, so reading any one allele there reads the position for all of them: a
+genome carrying one of them is not reported undetermined for the others.
+
+**Both alleles** means two copies of the region disagree, or the ALT k-mer also
+occurs somewhere else in the genome. Treat such a call with care: a marker
+whose ALT k-mer matches a paralogous region is found in every genome.
+
+**Undetermined** means the position could not be read: another change inside
+the window, a region missing from the assembly, or a contig break. It does not
+mean the variant is absent, and it does not mean it is present.
+
+!!! warning "Reading undetermined markers in a resistance panel"
+    A drug with at least one marker **present** is called the same way whatever
+    else is undetermined: a found variant hides its neighbours inside the same
+    window, so a resistant genome usually lists a few undetermined markers next
+    to the one it carries.
+
+    A drug with **no marker present but some undetermined** is the case to look
+    at. Absence of those markers was not established, so the genome cannot be
+    reported susceptible to that drug on the strength of this run alone. The
+    `undetermined:count` column of the summary gives the count per drug, and
+    the undetermined TSV lists every marker involved.
+
 ### Detailed TSV columns
 
-Header: `genome	k-mer	k-merPOS	SNPgenome	SNPreference	REF	ALT	lineage	Gene	Gene_Start	Gene_End	AA_Pos	AA_Change`
+Header: `genome	k-mer	k-merPOS	SNPgenome	SNPreference	REF	ALT	lineage	Gene	Gene_Start	Gene_End	AA_Pos	AA_Change	alleles_found`
 
 | Column | Description |
 |---|---|
@@ -204,18 +244,34 @@ Header: `genome	k-mer	k-merPOS	SNPgenome	SNPreference	REF	ALT	lineage	Gene	Gene_
 | `Gene_End` | End coordinate of that gene. |
 | `AA_Pos` | Amino-acid position of the change within the gene. |
 | `AA_Change` | Amino-acid change (from the GFF annotation, otherwise from the marker definition if present). |
+| `alleles_found` | `ALT` when only the variant was found; `ALT,REF` when the reference allele was found as well. |
 
 `Gene_Start`, `Gene_End` and `AA_Pos` are only populated when a GFF annotation is provided and the marker falls inside an annotated feature. `Gene` and `AA_Change` fall back to the gene and mutation values from the marker TSV when present, so they can be filled even without a GFF; columns with no available value are left empty.
 
 ### Summary TSV columns
 
-Header: `genome	lineage:count	major_lineage`
+Header: `genome	lineage:count	major_lineage	undetermined	undetermined:count`
 
 | Column | Description |
 |---|---|
 | `genome` | Sample/genome name. |
 | `lineage:count` | Observed lineages with the number of supporting markers for each. |
 | `major_lineage` | The single lineage called for the genome (respecting `--nested-classification` when enabled). |
+| `undetermined` | Number of markers that could be read neither way in this genome. |
+| `undetermined:count` | The same markers counted under the first level of their path: the drug for a resistance panel, the main lineage for a lineage panel. Empty when every marker was read. |
+
+### Undetermined TSV columns
+
+Header: `genome	SNPreference	REF	ALT	lineage	Gene	mutation	reason`
+
+| Column | Description |
+|---|---|
+| `genome` | Sample/genome name. |
+| `SNPreference` | Position the marker refers to in the reference. |
+| `REF`, `ALT` | Alleles of the marker. |
+| `lineage` | Lineage (or drug) path of the marker. |
+| `Gene`, `mutation` | Gene and mutation from the marker TSV, empty when it has none. |
+| `reason` | `not_found`: neither k-mer occurs in the genome. `no_reference_kmer`: the marker has no usable REF k-mer (its reference allele holds a base other than A, C, G or T), so it can be found present but never confirmed absent. |
 
 ## See also
 

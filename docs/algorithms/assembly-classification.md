@@ -29,21 +29,26 @@ For each marker in the TSV (position, REF, ALT):
 2. Build a diagnostic k-mer centered on the variant:
    - For SNPs/MNVs: the k-mer holds the ALT allele at the center with equal flanks
    - For indels: the ALT allele is placed in the k-mer and the flank lengths are adjusted so the k-mer keeps its length of k
-
-3. Index k-mers for fast lookup:
-   - **Encoded index** (`MarkerIndex::Encoded`): For k ≤ 32, marker k-mers are 2-bit encoded into `u64` keys with a hand-rolled `encode_kmer_2bit` (needletail's `bit_kmers` is used to generate the *query* k-mers during genome scanning). Lookup is a single hash table query.
-   - **Text index** (`MarkerIndex::Text`): Used when a marker k-mer contains a non-ACGT base that cannot be 2-bit encoded; k-mers are stored as strings. (The code also falls back for k > 32, but `validate_kmer_size` caps k at 31, so that branch is unreachable in practice.)
+3. Build the matching reference k-mer from the same window: the same left flank, the REF allele, and as much right flank as keeps the length at k. This is how `split-fastq` builds its pair too.
+4. Index both k-mers for fast lookup:
+   - **Encoded index**: For k ≤ 32, marker k-mers are 2-bit encoded into `u64` keys with a hand-rolled `encode_kmer_2bit` (needletail's `bit_kmers` is used to generate the *query* k-mers during genome scanning). Lookup is a single hash table query.
+   - **Text index**: Used when a marker k-mer contains a non-ACGT base that cannot be 2-bit encoded; k-mers are stored as strings. (The code also falls back for k > 32, but `validate_kmer_size` caps k at 31, so that branch is unreachable in practice.)
 
 ### Index structure
 
 ```rust
-enum MarkerIndex {
-    Encoded(FxHashMap<u64, MarkerKmerEntry>),   // k ≤ 32: 2-bit encoded
-    Text(FxHashMap<String, MarkerKmerEntry>),    // k > 32 or non-ACGT: string keys
+struct MarkerIndex {
+    markers: Vec<MarkerKmerEntry>,     // sorted by position; a marker id is an index here
+    alt: KmerLookup,                   // ALT k-mer -> marker id
+    reference: KmerLookup,             // REF k-mer -> site id
+    marker_site: Vec<Option<usize>>,   // the site of each marker, None without a REF k-mer
+    site_count: usize,
 }
 ```
 
-Each entry stores the marker metadata: position, alleles, lineage, gene name, and the flank lengths needed to locate the variant bases within a matching k-mer.
+Each entry stores the marker metadata: position, alleles, both k-mers, lineage, gene name, and the flank lengths needed to locate the variant bases within a matching k-mer.
+
+Markers whose reference k-mers are identical form a **site**: same position, same reference allele, same window. Two markers with the same ALT k-mer cannot both be indexed; the later one in the TSV replaces the earlier, with a warning.
 
 ## Step 2: Genome scanning
 
@@ -51,13 +56,27 @@ For each query genome (parallelized across genomes with rayon):
 
 1. Read every record (contig) of the genome with needletail
 2. Scan each contig on **both strands** — the forward sequence and its reverse complement — because contig orientation in a draft assembly is arbitrary
-3. Extract every k-mer of the same size k used for the marker k-mers and look it up in the `MarkerIndex`; a marker seen on several contigs, or on both strands, counts once
-4. Because only the ALT (variant) k-mer is indexed, any hit means the genome carries the variant allele; the entry's flank lengths then locate the exact variant-spanning bases
+3. Extract every k-mer of the same size k used for the marker k-mers and look it up in both lookups in a single pass; a marker seen on several contigs, or on both strands, counts once
+4. An ALT hit means the genome carries the variant allele, and the entry's flank lengths then locate the exact variant-spanning bases. A REF hit means some copy of the window carries the reference allele
+5. Once every contig has been scanned, each marker gets one of four states:
+
+| ALT k-mer | REF k-mer of its site | State |
+|---|---|---|
+| found | not found | present |
+| found | found | both alleles |
+| not found | found, or any other marker of the site found | absent |
+| not found | nothing of the site found | undetermined |
+
+A k-mer is an exact match, so another change anywhere in the window (a
+synonymous substitution, a lineage polymorphism) hides both alleles. Before the
+reference k-mer was indexed that case looked exactly like absence; it is now
+reported as undetermined.
 
 ### Match result
 
 ```rust
 struct MarkerMatch {
+    marker_id: usize,        // position of the marker in MarkerIndex::markers
     kmer: String,            // the diagnostic (ALT) k-mer that matched
     genome_position: usize,  // 0-based start of the match in the genome
     ref_position: usize,     // 1-based marker position in the reference
@@ -105,10 +124,13 @@ Two modes:
 ## Step 5: Output
 
 ### Summary TSV (`{prefix}_summary.tsv`)
-Per genome, three columns: `genome`, `lineage:count` (marker tallies at **every** hierarchical level — each ancestor path prefix is counted separately, space-separated), and `major_lineage` (the final call).
+Per genome, five columns: `genome`, `lineage:count` (marker tallies at **every** hierarchical level, each ancestor path prefix counted separately, space-separated), `major_lineage` (the final call), `undetermined` (how many markers could be read neither way) and `undetermined:count` (those markers per first level of their path).
 
 ### Detailed TSV (`{prefix}.tsv`)
-One row per matched marker per genome, with columns: `genome`, `k-mer`, `k-merPOS`, `SNPgenome`, `SNPreference`, `REF`, `ALT`, `lineage`, `Gene`, `Gene_Start`, `Gene_End`, `AA_Pos`, `AA_Change`.
+One row per matched marker per genome, with columns: `genome`, `k-mer`, `k-merPOS`, `SNPgenome`, `SNPreference`, `REF`, `ALT`, `lineage`, `Gene`, `Gene_Start`, `Gene_End`, `AA_Pos`, `AA_Change`, `alleles_found` (`ALT`, or `ALT,REF` when the reference allele was found too).
+
+### Undetermined TSV (`{prefix}_undetermined.tsv`)
+One row per undetermined marker per genome: `genome`, `SNPreference`, `REF`, `ALT`, `lineage`, `Gene`, `mutation`, `reason`.
 
 ### Masked FASTA (optional, `--output-masked-fasta`)
 Query sequences with marker positions replaced by `N`, written as `<input-stem>_masked.fasta`. Only produced for sequences in reference coordinates (records whose length matches the reference).

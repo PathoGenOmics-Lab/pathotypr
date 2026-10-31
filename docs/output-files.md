@@ -104,21 +104,22 @@ See also: [Prediction](algorithms/prediction.md), [`train`](train.md).
 
 ## `classify`
 
-Marker-based variant calling on assemblies. Writes a detailed per-marker table and a per-genome summary, plus optional Excel and masked-FASTA outputs. The `--output-prefix` (`-o`) drives all names.
+Marker-based variant calling on assemblies. Writes a detailed per-marker table, a per-genome summary and a table of the markers that could not be read, plus optional Excel and masked-FASTA outputs. The `--output-prefix` (`-o`) drives all names.
 
 | File | When | Content |
 |---|---|---|
 | `<prefix>.tsv` | always | One row per marker match per genome (the **detailed** table). |
-| `<prefix>_summary.tsv` | always | One row per genome with its major-lineage call. |
-| `<prefix>.xlsx`, `<prefix>_summary.xlsx` | with `--excel` | Excel copies of the two tables. |
+| `<prefix>_summary.tsv` | always | One row per genome with its major-lineage call and its count of undetermined markers. |
+| `<prefix>_undetermined.tsv` | always | One row per marker per genome that could be read neither as present nor as absent. Only the header when every marker was read. |
+| `<prefix>.xlsx`, `<prefix>_summary.xlsx`, `<prefix>_undetermined.xlsx` | with `--excel` | Excel copies of the three tables. |
 | `<input-stem>_masked.fasta` | with `--output-masked-fasta` | One file **per input assembly**, marker sites replaced by `N`, written to the prefix's parent directory. Only produced for reference-coordinate sequences (records whose length matches the reference); other inputs are skipped with the reason logged. Two inputs sharing a file stem do not overwrite each other — the second becomes `<stem>_2_masked.fasta`. See [classify](classify.md#output). |
 
 !!! note "Prefix handling"
-    If `--output-prefix` already ends in `.tsv` (e.g. `-o run.tsv`), the detailed file is used verbatim (`run.tsv`) and the summary drops the trailing `.tsv` before appending (`run_summary.tsv`). Otherwise `.tsv` / `_summary.tsv` are appended to the prefix.
+    If `--output-prefix` already ends in `.tsv` (e.g. `-o run.tsv`), the detailed file is used verbatim (`run.tsv`) and the summary and undetermined tables drop the trailing `.tsv` before appending (`run_summary.tsv`, `run_undetermined.tsv`). Otherwise `.tsv`, `_summary.tsv` and `_undetermined.tsv` are appended to the prefix.
 
 ### Detailed table — `<prefix>.tsv`
 
-**Header:** `genome  k-mer  k-merPOS  SNPgenome  SNPreference  REF  ALT  lineage  Gene  Gene_Start  Gene_End  AA_Pos  AA_Change`
+**Header:** `genome  k-mer  k-merPOS  SNPgenome  SNPreference  REF  ALT  lineage  Gene  Gene_Start  Gene_End  AA_Pos  AA_Change  alleles_found`
 
 | Column | Description |
 |---|---|
@@ -135,35 +136,68 @@ Marker-based variant calling on assemblies. Writes a detailed per-marker table a
 | `Gene_End` | Gene end from the GFF; empty if no annotation. |
 | `AA_Pos` | Amino-acid position of the change; empty if not resolvable. |
 | `AA_Change` | Amino-acid change — from GFF translation, otherwise the marker's mutation field; empty if neither. |
+| `alleles_found` | `ALT` when only the marker's alternative k-mer was found; `ALT,REF` when its reference k-mer was found too, meaning two copies of the region disagree or the alternative k-mer also occurs elsewhere in the genome. |
 
 !!! note "Genomes with no marker hits still appear"
     A genome that matches no markers gets a single row containing only its name, with all remaining columns empty — so every input is accounted for.
 
 ### Summary table — `<prefix>_summary.tsv`
 
-**Header:** `genome  lineage:count  major_lineage`
+**Header:** `genome  lineage:count  major_lineage  undetermined  undetermined:count`
 
 | Column | Description |
 |---|---|
 | `genome` | Genome/sample name. |
 | `lineage:count` | Space-separated `lineage:count` pairs at **every hierarchical level** (each ancestor path prefix is counted), sorted by count descending, then by name. |
 | `major_lineage` | Final lineage call. With `--nested-classification`, the deepest fully-supported path wins; otherwise the most abundant lineage wins. |
+| `undetermined` | Number of markers that could be read neither way in this genome. |
+| `undetermined:count` | Those markers as `label:count` pairs under the **first level** of their path only (the drug for a resistance panel, the main lineage for a lineage panel), sorted like `lineage:count`. Empty when every marker was read. |
+
+### Undetermined table (`<prefix>_undetermined.tsv`)
+
+Every marker whose alternative k-mer and reference k-mer were **both** missing
+from a genome: another change inside its window, a region absent from the
+assembly or a contig break hid the position, so the marker is neither present
+nor ruled out. Markers sharing a position and reference allele are read
+together, so carrying one of them does not leave the others undetermined. See
+[classify](classify.md#present-absent-and-undetermined) for how to read these
+rows in a resistance panel.
+
+**Header:** `genome  SNPreference  REF  ALT  lineage  Gene  mutation  reason`
+
+| Column | Description |
+|---|---|
+| `genome` | Genome/sample name. |
+| `SNPreference` | 1-based marker position in the reference genome. |
+| `REF`, `ALT` | Alleles of the marker. |
+| `lineage` | Lineage (or drug) path of the marker. |
+| `Gene`, `mutation` | The marker's own gene and mutation fields; empty when the marker TSV has none. |
+| `reason` | `not_found` when neither k-mer occurs in the genome; `no_reference_kmer` when the marker has no usable reference k-mer (a reference allele outside A, C, G and T), so it can be seen present but never confirmed absent. |
 
 === "Detailed"
 
     ```text
-    genome	k-mer	k-merPOS	SNPgenome	SNPreference	REF	ALT	lineage	Gene	Gene_Start	Gene_End	AA_Pos	AA_Change
-    sampleA	ACGT…GTCA	1523	1533	745	C	T	L2;L2.2	rv0667	759807	763325	450	S450L
-    sampleA	TTGA…CCAG	9021	9031	7362	G	A	L2	katG	2153889	2156111	315	
-    sampleB		Unclassified										
+    genome	k-mer	k-merPOS	SNPgenome	SNPreference	REF	ALT	lineage	Gene	Gene_Start	Gene_End	AA_Pos	AA_Change	alleles_found
+    sampleA	ACGT…GTCA	1523	1533	745	C	T	L2;L2.2	rv0667	759807	763325	450	S450L	ALT
+    sampleA	TTGA…CCAG	9021	9031	7362	G	A	L2	katG	2153889	2156111	315		ALT
+    sampleB													
     ```
 
 === "Summary"
 
     ```text
-    genome	lineage:count	major_lineage
-    sampleA	L2:2 L2;L2.2:1	L2
-    sampleB		
+    genome	lineage:count	major_lineage	undetermined	undetermined:count
+    sampleA	L2:2 L2;L2.2:1	L2	3	L4:2 L1:1
+    sampleB		Unclassified	0	
+    ```
+
+=== "Undetermined"
+
+    ```text
+    genome	SNPreference	REF	ALT	lineage	Gene	mutation	reason
+    sampleA	3836739	A	G	L4;L4.1			not_found
+    sampleA	3836741	C	T	L4;L4.2			not_found
+    sampleA	1834177	A	C	L1			not_found
     ```
 
 See also: [Assembly classification](algorithms/assembly-classification.md), [Marker format](marker_format.md).
