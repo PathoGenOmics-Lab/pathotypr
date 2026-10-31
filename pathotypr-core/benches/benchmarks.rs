@@ -1,31 +1,37 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use std::path::Path;
 
 use pathotypr_core::classify;
+use pathotypr_core::{FeatureHasher, DEFAULT_HASH_BUCKETS};
 
-// Paths to test data — set PATHOTYPR_TEST_DIR env var to override.
-// Defaults to TEST_PATHOTYPR alongside the workspace root.
-// For synthetic data: PATHOTYPR_TEST_DIR=.../TEST_SYNTHETIC cargo bench
-const DEFAULT_TEST_DIR: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../TEST_PATHOTYPR"
-);
+// Paths to test data. Set PATHOTYPR_TEST_DIR to override.
+// Defaults to TEST_PATHOTYPR at the workspace root, which is the directory
+// benches/run_benchmarks.sh looks in for the real data set.
+// For synthetic data: bash pathotypr-core/benches/run_benchmarks.sh --synthetic
+const DEFAULT_TEST_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../TEST_PATHOTYPR");
+
+/// Marker k-mer length, matching the split-fastq default.
+const MARKER_K: usize = pathotypr_core::split_kmer::DEFAULT_MARKER_KMER_LEN;
+
+/// Flanking bases kept on each side of an allele inside a marker k-mer. There
+/// is no library constant for it: this mirrors the `--min-flank-bases` default
+/// of `pathotypr classify`, so the timings describe the configuration people
+/// actually run.
+const MIN_FLANK_BASES: usize = 10;
 
 fn get_test_dir() -> String {
     std::env::var("PATHOTYPR_TEST_DIR").unwrap_or_else(|_| DEFAULT_TEST_DIR.to_string())
 }
 
-fn test_path(name: &str) -> String {
-    let base = get_test_dir();
-    let p = format!("{}/{}", base, name);
-    assert!(Path::new(&p).exists(), "Test file not found: {}", p);
-    p
-}
-
 fn try_test_path(name: &str) -> Option<String> {
     let base = get_test_dir();
     let p = format!("{}/{}", base, name);
-    if Path::new(&p).exists() { Some(p) } else { None }
+    if Path::new(&p).exists() {
+        Some(p)
+    } else {
+        None
+    }
 }
 
 /// Try multiple possible filenames, return the first that exists.
@@ -39,7 +45,7 @@ fn try_test_paths(names: &[&str]) -> Option<String> {
 }
 
 // ===========================================================================
-// Group 1: I/O — FASTA / GFF parsing
+// Group 1: I/O, FASTA and GFF parsing
 // ===========================================================================
 fn bench_io(c: &mut Criterion) {
     let mut group = c.benchmark_group("io");
@@ -77,7 +83,7 @@ fn bench_io(c: &mut Criterion) {
 }
 
 // ===========================================================================
-// Group 2: Marker generation + k-mer indexing
+// Group 2: Marker generation and k-mer indexing
 // ===========================================================================
 fn bench_marker_generation(c: &mut Criterion) {
     let mut group = c.benchmark_group("marker_generation");
@@ -89,19 +95,19 @@ fn bench_marker_generation(c: &mut Criterion) {
         .expect("No markers file found");
 
     let ref_seq = classify::get_ref(&ref_path).unwrap();
-    let (reference_positions, markers_lineage) = classify::get_positions(&markers_path).unwrap();
+    let markers = classify::get_positions(&markers_path).unwrap();
 
-    for &k in &[21, 31] {
+    for &k in &[21, MARKER_K] {
         group.bench_with_input(
             BenchmarkId::new("generate_markerkmer", format!("k={}", k)),
             &k,
             |b, &k| {
                 b.iter(|| {
                     classify::generate_markerkmer(
-                        black_box(&reference_positions),
+                        black_box(&markers),
                         black_box(&ref_seq),
-                        black_box(&markers_lineage),
                         k,
+                        MIN_FLANK_BASES,
                     )
                 })
             },
@@ -124,19 +130,18 @@ fn bench_find_markers(c: &mut Criterion) {
         .expect("No markers file found");
 
     let ref_seq = classify::get_ref(&ref_path).unwrap();
-    let (reference_positions, markers_lineage) = classify::get_positions(&markers_path).unwrap();
-    let k = 31;
-    let marker_index =
-        classify::generate_markerkmer(&reference_positions, &ref_seq, &markers_lineage, k);
+    let markers = classify::get_positions(&markers_path).unwrap();
+    let k = MARKER_K;
+    let marker_index = classify::generate_markerkmer(&markers, &ref_seq, k, MIN_FLANK_BASES);
 
-    group.bench_function("find_markers (reference, k=31)", |b| {
+    group.bench_function(format!("find_markers (reference, k={})", k), |b| {
         b.iter(|| classify::find_markers(black_box(&ref_seq), black_box(&marker_index), k))
     });
 
     let sample_path = try_test_paths(&["sequence_L4.fasta", "synthetic_sample_L4.fasta"])
         .expect("No sample FASTA found");
     let sample_seq = classify::get_ref(&sample_path).unwrap();
-    group.bench_function("find_markers (sample, k=31)", |b| {
+    group.bench_function(format!("find_markers (sample, k={})", k), |b| {
         b.iter(|| classify::find_markers(black_box(&sample_seq), black_box(&marker_index), k))
     });
 
@@ -153,7 +158,10 @@ fn bench_reverse_complement(c: &mut Criterion) {
         .expect("No reference FASTA found");
     let ref_seq = classify::get_ref(&ref_path).unwrap();
 
-    group.bench_function("reverse_complement_sequence (4.3 MB)", |b| {
+    // The input is whichever reference the test directory holds, so the name
+    // carries no size: 4.3 MB for the MTB ancestor, far less for the synthetic
+    // one, and a figure in the name would be wrong for one of them.
+    group.bench_function("reverse_complement_sequence", |b| {
         b.iter(|| classify::reverse_complement_sequence(black_box(&ref_seq)))
     });
 
@@ -174,13 +182,14 @@ fn bench_analyze_genome(c: &mut Criterion) {
 
     let ref_seq = classify::get_ref(&ref_path).unwrap();
     let ref_seq_rc = classify::reverse_complement_sequence(&ref_seq);
-    let (reference_positions, markers_lineage) = classify::get_positions(&markers_path).unwrap();
-    let k = 31;
-    let marker_index =
-        classify::generate_markerkmer(&reference_positions, &ref_seq, &markers_lineage, k);
+    let markers = classify::get_positions(&markers_path).unwrap();
+    let k = MARKER_K;
+    let marker_index = classify::generate_markerkmer(&markers, &ref_seq, k, MIN_FLANK_BASES);
 
     let gff_path = try_test_paths(&["sequence_L4.gff3", "synthetic_annotation.gff3"]);
-    let annotations = gff_path.as_ref().map(|p| classify::parse_gff_and_build_tree(p).unwrap());
+    let annotations = gff_path
+        .as_ref()
+        .map(|p| classify::parse_gff_and_build_tree(p).unwrap());
 
     let sample_path = try_test_paths(&["sequence_L4.fasta", "synthetic_sample_L4.fasta"])
         .expect("No sample FASTA found");
@@ -218,7 +227,7 @@ fn bench_analyze_genome(c: &mut Criterion) {
 }
 
 // ===========================================================================
-// Group 6: split_kmer — marker building + FASTQ scanning
+// Group 6: split_kmer, marker building and FASTQ scanning
 // ===========================================================================
 fn bench_split_kmer(c: &mut Criterion) {
     let mut group = c.benchmark_group("split_kmer");
@@ -235,22 +244,23 @@ fn bench_split_kmer(c: &mut Criterion) {
                 black_box(&ref_path),
                 black_box(&markers_path),
                 &None,
+                MARKER_K,
             )
             .unwrap()
         })
     });
 
     let markers =
-        pathotypr_core::split_kmer::build_markers(&ref_path, &markers_path, &None).unwrap();
+        pathotypr_core::split_kmer::build_markers(&ref_path, &markers_path, &None, MARKER_K)
+            .unwrap();
     group.bench_function("build_marker_index", |b| {
         b.iter(|| pathotypr_core::split_kmer::build_marker_index(black_box(&markers)))
     });
 
     // Try real FASTQ first, then synthetic
-    if let Some(fastq_path) = try_test_paths(&[
-        "SRR36978519.fastq.gz",
-        "synthetic_reads_R1.fastq.gz",
-    ]) {
+    if let Some(fastq_path) =
+        try_test_paths(&["SRR36978519.fastq.gz", "synthetic_reads_R1.fastq.gz"])
+    {
         let (index, bloom) = pathotypr_core::split_kmer::build_marker_index(&markers);
         group.sample_size(10);
         group.measurement_time(std::time::Duration::from_secs(60));
@@ -262,6 +272,7 @@ fn bench_split_kmer(c: &mut Criterion) {
                     black_box(&bloom),
                     markers.len(),
                     &None,
+                    MARKER_K,
                 )
                 .unwrap()
             })
@@ -272,7 +283,7 @@ fn bench_split_kmer(c: &mut Criterion) {
 }
 
 // ===========================================================================
-// Group 7: CountVectorizer (common.rs)
+// Group 7: Feature hashing (vectorizer.rs)
 // ===========================================================================
 fn bench_vectorizer(c: &mut Criterion) {
     let mut group = c.benchmark_group("vectorizer");
@@ -282,36 +293,24 @@ fn bench_vectorizer(c: &mut Criterion) {
         .expect("No sample FASTA found");
     let sample_seq = classify::get_ref(&sample_path).unwrap();
 
-    use needletail::Sequence;
-    use rustc_hash::FxHashMap;
-    let k = 31u8;
-    let mut vocab = FxHashMap::default();
-    let mut idx = 0usize;
-    for (_, bitkmer, _) in sample_seq.as_bytes().bit_kmers(k, true) {
-        vocab.entry(bitkmer.0).or_insert_with(|| {
-            let i = idx;
-            idx += 1;
-            i
-        });
-        if idx >= 10000 {
-            break;
-        }
-    }
-    let vectorizer = pathotypr_core::CountVectorizer {
-        vocabulary: vocab,
-        num_features: idx,
-    };
+    // This group used to time a CountVectorizer built from a 10,000 k-mer
+    // vocabulary. Feature hashing replaced it and needs no vocabulary pass, so
+    // the setup is one constant and the measurement is the transform alone,
+    // which is where train and predict spend their vectorizing time.
+    let hasher = FeatureHasher::new(DEFAULT_HASH_BUCKETS);
+    let sequences = vec![sample_seq.as_str()];
+    let k = MARKER_K;
 
-    let sequences: Vec<&[u8]> = vec![sample_seq.as_bytes()];
-    group.bench_function("transform_sparse (1 seq, 10k features)", |b| {
-        b.iter(|| vectorizer.transform_sparse(black_box(&sequences), k as usize))
-    });
+    group.bench_function(
+        format!("transform_sparse (1 seq, {} buckets)", DEFAULT_HASH_BUCKETS),
+        |b| b.iter(|| hasher.transform_sparse(black_box(&sequences), k)),
+    );
 
     group.finish();
 }
 
 // ===========================================================================
-// Group 8: train — FASTA reading, k-mer counting, data preparation
+// Group 8: train, FASTA reading and data preparation
 // ===========================================================================
 fn bench_train(c: &mut Criterion) {
     let mut group = c.benchmark_group("train");
@@ -322,62 +321,57 @@ fn bench_train(c: &mut Criterion) {
         .expect("No training FASTA found");
 
     group.bench_function("read_fasta", |b| {
-        b.iter(|| pathotypr_core::train::read_fasta(black_box(&training_path)).unwrap())
+        b.iter(|| pathotypr_core::read_fasta(black_box(&training_path)).unwrap())
     });
 
-    // Collect multiple sequences for parallel k-mer counting
+    // Collect several sequences for the vectorizing step
     let mut sequences = Vec::new();
     for name in &[
-        "sequence_L4.fasta", "synthetic_sample_L4.fasta",
-        "MTB_ancestor_reference.fasta", "synthetic_reference.fasta",
-        "L7_DE0090.fasta", "E1ASM0009.circlator.fasta", "E1ASM0057.circlator.fasta",
+        "sequence_L4.fasta",
+        "synthetic_sample_L4.fasta",
+        "MTB_ancestor_reference.fasta",
+        "synthetic_reference.fasta",
+        "L7_DE0090.fasta",
+        "E1ASM0009.circlator.fasta",
+        "E1ASM0057.circlator.fasta",
     ] {
         if let Some(p) = try_test_path(name) {
             sequences.push(classify::get_ref(&p).unwrap());
         }
-        if sequences.len() >= 5 { break; }
+        if sequences.len() >= 5 {
+            break;
+        }
     }
 
-    let n_seqs = sequences.len();
-    group.bench_function(
-        &format!("parallel_kmer_discovery ({} seqs, k=21)", n_seqs),
-        |b| {
-            b.iter(|| {
-                pathotypr_core::train::parallel_kmer_discovery(
-                    black_box(&sequences),
-                    21,
-                    &None,
-                )
-                .unwrap()
-            })
-        },
-    );
-
-    // prepare_data — needs sequences + labels with >=2 classes
+    // prepare_data needs sequences plus labels with at least two classes
     let labels: Vec<String> = (0..sequences.len())
-        .map(|i| if i % 2 == 0 { "L4".to_string() } else { "L7".to_string() })
+        .map(|i| {
+            if i % 2 == 0 {
+                "L4".to_string()
+            } else {
+                "L7".to_string()
+            }
+        })
         .collect();
 
-    group.bench_function(
-        &format!("prepare_data ({} seqs, k=21)", n_seqs),
-        |b| {
-            b.iter(|| {
-                pathotypr_core::train::prepare_data(
-                    black_box(&sequences),
-                    black_box(&labels),
-                    21,
-                    &None,
-                )
-                .unwrap()
-            })
-        },
-    );
+    let n_seqs = sequences.len();
+    group.bench_function(format!("prepare_data ({} seqs, k=21)", n_seqs), |b| {
+        b.iter(|| {
+            pathotypr_core::train::prepare_data(
+                black_box(&sequences),
+                black_box(&labels),
+                21,
+                &None,
+            )
+            .unwrap()
+        })
+    });
 
     group.finish();
 }
 
 // ===========================================================================
-// Group 9: predict — model loading, FASTA reading, prediction
+// Group 9: predict, model loading, FASTA reading and prediction
 // ===========================================================================
 fn bench_predict(c: &mut Criterion) {
     let mut group = c.benchmark_group("predict");
@@ -387,13 +381,21 @@ fn bench_predict(c: &mut Criterion) {
         .expect("No sample FASTA found");
     group.bench_function("read_fasta_for_prediction", |b| {
         b.iter(|| {
-            pathotypr_core::predict::read_fasta_for_prediction(black_box(&sample_path))
-                .unwrap()
+            pathotypr_core::predict::read_fasta_for_prediction(black_box(&sample_path)).unwrap()
         })
     });
 
-    // load_model_bundle — only if compatible model exists
-    if let Some(model_path) = try_test_path("test_bundle.bin.gz") {
+    // A trained model is neither part of the real test directory nor something
+    // the synthetic generator produces, so the three model benchmarks run only
+    // when one is handed to them: PATHOTYPR_BENCH_MODEL, or a model under one
+    // of the names below inside the test directory. Build one with
+    // `pathotypr train`.
+    let model_path = std::env::var("PATHOTYPR_BENCH_MODEL")
+        .ok()
+        .filter(|p| Path::new(p).exists())
+        .or_else(|| try_test_paths(&["test_model.pathotypr", "test_model.pathotypr.zst"]));
+
+    if let Some(model_path) = model_path {
         if let Ok(bundle) = pathotypr_core::predict::load_model_bundle(&model_path) {
             group.bench_function("load_model_bundle", |b| {
                 b.iter(|| {
@@ -401,47 +403,38 @@ fn bench_predict(c: &mut Criterion) {
                 })
             });
 
-            let records =
-                pathotypr_core::predict::read_fasta_for_prediction(&sample_path).unwrap();
+            let records = pathotypr_core::predict::read_fasta_for_prediction(&sample_path).unwrap();
             let sequences: Vec<&str> = records.iter().map(|(_, seq)| seq.as_str()).collect();
+            let k = bundle.config.kmer_size;
 
             group.bench_function("transform_sparse (predict)", |b| {
-                b.iter(|| {
-                    bundle
-                        .vectorizer
-                        .transform_sparse(black_box(&sequences), bundle.config.kmer_size)
-                })
+                b.iter(|| bundle.vectorizer.transform_sparse(black_box(&sequences), k))
             });
 
-            let x_sparse =
-                bundle
-                    .vectorizer
-                    .transform_sparse(&sequences, bundle.config.kmer_size);
-            let n_features = bundle.vectorizer.num_features;
+            let x_sparse = bundle.vectorizer.transform_sparse(&sequences, k);
             let n_classes = bundle.label_encoder.int_to_label.len();
 
-            group.bench_function("forest_predict (100 trees)", |b| {
-                b.iter(|| {
-                    use smartcore::linalg::basic::matrix::DenseMatrix;
-                    for sparse_row in &x_sparse {
-                        let mut dense = vec![0.0_f32; n_features];
-                        for &(idx, val) in sparse_row {
-                            if idx < n_features {
-                                dense[idx] = val;
+            // The trees vote straight off the sparse row, so this is the loop
+            // predict::run takes per record. The dense matrix this benchmark
+            // used to build belonged to the smartcore trees that
+            // SparseDecisionTree replaced.
+            group.bench_function(
+                format!("forest_predict ({} trees)", bundle.trees.len()),
+                |b| {
+                    b.iter(|| {
+                        for sparse_row in &x_sparse {
+                            let mut votes = vec![0u16; n_classes];
+                            for tree in &bundle.trees {
+                                let pred = tree.predict_one(sparse_row);
+                                if pred < n_classes {
+                                    votes[pred] += 1;
+                                }
                             }
+                            black_box(&votes);
                         }
-                        let x = DenseMatrix::new(1, n_features, dense, false).unwrap();
-                        let mut votes = vec![0u16; n_classes];
-                        for tree in &bundle.trees {
-                            let pred = tree.predict(&x).unwrap();
-                            if pred[0] < n_classes {
-                                votes[pred[0]] += 1;
-                            }
-                        }
-                        black_box(&votes);
-                    }
-                })
-            });
+                    })
+                },
+            );
         }
     }
 
@@ -449,7 +442,7 @@ fn bench_predict(c: &mut Criterion) {
 }
 
 // ===========================================================================
-// Group 10: match — reference loading
+// Group 10: match, reference loading
 // ===========================================================================
 fn bench_match(c: &mut Criterion) {
     let mut group = c.benchmark_group("match");

@@ -244,7 +244,7 @@ def main():
 
     print()
     print("Done! Use these with:")
-    print(f"  TEST_DIR={outdir} cargo bench --bench benchmarks")
+    print(f"  PATHOTYPR_TEST_DIR={outdir} cargo bench --bench benchmarks")
 
 
 if __name__ == "__main__":

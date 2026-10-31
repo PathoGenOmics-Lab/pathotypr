@@ -270,7 +270,6 @@ def plot_pipeline_breakdowns(df, out_dir):
         ],
         "train": [
             ("train", "read_fasta", "Read FASTA"),
-            ("train", "parallel_kmer_discovery", "K-mer discovery"),
             ("train", "prepare_data", "Prepare data"),
         ],
         "classify (FASTA)": [
