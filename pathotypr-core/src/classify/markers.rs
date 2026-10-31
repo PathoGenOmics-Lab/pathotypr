@@ -81,6 +81,10 @@ pub struct MarkerIndex {
     /// The site each marker belongs to; `None` when it has no reference k-mer.
     marker_site: Vec<Option<usize>>,
     site_count: usize,
+    /// The alternative alleles the panel lists at each site, so an allele read
+    /// off a genome can be told apart: another marker's allele means this
+    /// marker is absent, while an allele nobody listed is worth reporting.
+    site_alleles: Vec<Vec<String>>,
     /// The half-length anchors, used only to resolve markers the k-mers left
     /// undetermined.
     anchors: AnchorIndex,
@@ -303,6 +307,11 @@ impl MarkerIndex {
 
     pub fn site_count(&self) -> usize {
         self.site_count
+    }
+
+    /// Whether the panel lists `allele` at `site`, under any marker.
+    pub fn site_lists(&self, site: usize, allele: &str) -> bool {
+        self.site_alleles.get(site).is_some_and(|alleles| alleles.iter().any(|a| a == allele))
     }
 
     pub fn anchors(&self) -> &AnchorIndex {
@@ -614,6 +623,7 @@ fn build_index(mut markers: Vec<MarkerKmerEntry>, encoded: bool, anchor_len: usi
     let mut ref_encoded: FxHashMap<u64, usize> = FxHashMap::default();
     let mut ref_text: FxHashMap<String, usize> = FxHashMap::default();
     let mut marker_site = Vec::with_capacity(markers.len());
+    let mut site_alleles: Vec<Vec<String>> = Vec::new();
     let mut site_count = 0usize;
     let mut without_reference = 0usize;
     let mut indistinguishable = 0usize;
@@ -651,6 +661,10 @@ fn build_index(mut markers: Vec<MarkerKmerEntry>, encoded: bool, anchor_len: usi
                 };
                 if site == next {
                     site_count += 1;
+                    site_alleles.push(Vec::new());
+                }
+                if !site_alleles[site].iter().any(|a| *a == marker.alt_allele) {
+                    site_alleles[site].push(marker.alt_allele.clone());
                 }
                 Some(site)
             }
@@ -681,7 +695,7 @@ fn build_index(mut markers: Vec<MarkerKmerEntry>, encoded: bool, anchor_len: usi
         (KmerLookup::Text(alt_text), KmerLookup::Text(ref_text))
     };
     let anchors = build_anchor_index(&markers, encoded, anchor_len);
-    MarkerIndex { markers, alt, reference, marker_site, site_count, anchors }
+    MarkerIndex { markers, alt, reference, marker_site, site_count, site_alleles, anchors }
 }
 
 /// Collects the anchors of every substitution marker into their own lookups.
