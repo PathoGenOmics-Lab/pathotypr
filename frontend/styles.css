@@ -6758,6 +6758,53 @@ body.track-expanded-open {
    Drug-resistance profile, lineage levels and allele-fraction distribution
    ========================================================================== */
 
+/* Markers that could be read neither way. Warning-coloured because a drug
+   listed here has not been shown susceptible, which is easy to miss. */
+.viz-dr-undetermined {
+  margin: 16px 0 4px;
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--warning);
+  border-left-width: 3px;
+  border-radius: 10px;
+}
+
+.viz-dr-undetermined h4 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--warning);
+}
+
+.viz-dr-undetermined p {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.dr-und-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dr-und-list li {
+  padding: 3px 8px;
+  font-size: 11.5px;
+  color: var(--text-primary);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.dr-und-count {
+  color: var(--text-muted);
+}
+
 .viz-dr-profile,
 .viz-lineage-levels,
 .viz-allele-fraction {

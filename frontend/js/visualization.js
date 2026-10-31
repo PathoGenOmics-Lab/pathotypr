@@ -10,6 +10,9 @@ import { readFastaRange, readTextFile } from './tauri.js';
 import {
   isDrPanel,
   buildDrProfile,
+  drugsNotDetermined,
+  renderUndeterminedWarningHtml,
+  undeterminedFor,
   buildLineageLevels,
   buildLineageBranches,
   detectMixedLineages,
@@ -1778,10 +1781,18 @@ function buildGenotypingInsightSections(data) {
     // buildResistanceMatrix returns null for a single sample, where the cards
     // are the right form and a one-row grid would not be.
     const matrix = buildResistanceMatrix(records);
+    const samples = new Set(records.map(r => r.sample));
+    // The warning goes first: a reader who stops at the profile must not stop
+    // before learning that some markers were never read.
+    const profile = buildDrProfile(records);
+    const pending = samples.size === 1
+      ? drugsNotDetermined(profile, undeterminedFor(records[0]?.sample))
+      : [];
+    html += renderUndeterminedWarningHtml(pending);
     if (matrix) {
       html += renderResistanceMatrixHtml(matrix);
     } else {
-      html += renderDrProfileHtml(buildDrProfile(records));
+      html += renderDrProfileHtml(profile);
     }
   } else {
     // Genuine lineage panel: rebuild the hierarchy the flat paths describe.
