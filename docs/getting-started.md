@@ -181,6 +181,7 @@ This writes `sample_prediction.tsv` (plus `sample_prediction.xlsx`) with one row
 | `Gene`, `Gene_Start`, `Gene_End` | Gene context (populated only with `--gff`) |
 | `AA_Pos`, `AA_Change` | Amino-acid position and change (only with `--gff`) |
 | `alleles_found` | `ALT`, or `ALT,REF` when the reference allele was found as well |
+| `evidence` | `kmer`, or the anchor that read the allele when a nearby change hid the k-mer |
 
 The companion `sample_lineage_summary.tsv` collapses this to a single row: the genome, its **major lineage** call (with sub-lineage when `--nested-classification` is on), and how many markers could not be read. Those markers are listed one per row in `sample_lineage_undetermined.tsv`.
 

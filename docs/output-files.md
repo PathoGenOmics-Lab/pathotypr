@@ -137,6 +137,7 @@ Marker-based variant calling on assemblies. Writes a detailed per-marker table, 
 | `AA_Pos` | Amino-acid position of the change; empty if not resolvable. |
 | `AA_Change` | Amino-acid change — from GFF translation, otherwise the marker's mutation field; empty if neither. |
 | `alleles_found` | `ALT` when only the marker's alternative k-mer was found; `ALT,REF` when its reference k-mer was found too, meaning two copies of the region disagree or the alternative k-mer also occurs elsewhere in the genome. |
+| `evidence` | `kmer` when the whole k-mer matched, or `left_anchor` / `right_anchor` / `both_anchors` when the allele was read from the flanks because a nearby change hid the k-mer. An anchor read establishes no genome coordinate, so `k-mer`, `k-merPOS` and `SNPgenome` are empty on those rows. |
 
 !!! note "Genomes with no marker hits still appear"
     A genome that matches no markers gets a single row containing only its name, with all remaining columns empty — so every input is accounted for.
@@ -155,11 +156,11 @@ Marker-based variant calling on assemblies. Writes a detailed per-marker table, 
 
 ### Undetermined table (`<prefix>_undetermined.tsv`)
 
-Every marker whose alternative k-mer and reference k-mer were **both** missing
-from a genome: another change inside its window, a region absent from the
-assembly or a contig break hid the position, so the marker is neither present
-nor ruled out. Markers sharing a position and reference allele are read
-together, so carrying one of them does not leave the others undetermined. See
+Every marker that neither the k-mers nor the anchors could read: a change on
+both sides of the variant, a region absent from the assembly, a contig break or
+a repeated anchor hid the position, so the marker is neither present nor ruled
+out. Markers sharing a position and reference allele are read together, so
+carrying one of them does not leave the others undetermined. See
 [classify](classify.md#present-absent-and-undetermined) for how to read these
 rows in a resistance panel.
 
@@ -172,15 +173,17 @@ rows in a resistance panel.
 | `REF`, `ALT` | Alleles of the marker. |
 | `lineage` | Lineage (or drug) path of the marker. |
 | `Gene`, `mutation` | The marker's own gene and mutation fields; empty when the marker TSV has none. |
-| `reason` | `not_found` when neither k-mer occurs in the genome; `no_reference_kmer` when the marker has no usable reference k-mer (a reference allele outside A, C, G and T), so it can be seen present but never confirmed absent. |
+| `reason` | `not_found`: nothing of the marker occurs and no anchor could read it. `other_allele`: the anchors read bases that are neither allele. `anchors_disagree`: the two anchors read different alleles. `no_reference_kmer`: the marker has no usable reference k-mer (a reference allele outside A, C, G and T) and the anchors could not read it either. |
+| `observed_allele` | With `other_allele`, the bases actually found where the allele should be. Empty otherwise. |
 
 === "Detailed"
 
     ```text
-    genome	k-mer	k-merPOS	SNPgenome	SNPreference	REF	ALT	lineage	Gene	Gene_Start	Gene_End	AA_Pos	AA_Change	alleles_found
-    sampleA	ACGT…GTCA	1523	1533	745	C	T	L2;L2.2	rv0667	759807	763325	450	S450L	ALT
-    sampleA	TTGA…CCAG	9021	9031	7362	G	A	L2	katG	2153889	2156111	315		ALT
-    sampleB													
+    genome	k-mer	k-merPOS	SNPgenome	SNPreference	REF	ALT	lineage	Gene	Gene_Start	Gene_End	AA_Pos	AA_Change	alleles_found	evidence
+    sampleA	ACGT…GTCA	1523	1533	745	C	T	L2;L2.2	rv0667	759807	763325	450	S450L	ALT	kmer
+    sampleA	TTGA…CCAG	9021	9031	7362	G	A	L2	katG	2153889	2156111	315		ALT	kmer
+    sampleA				2155168	C	G	INH;INH-R;katG_S315T	katG	2153889	2156111	315	S315T	ALT	right_anchor
+    sampleB														
     ```
 
 === "Summary"
@@ -194,10 +197,10 @@ rows in a resistance panel.
 === "Undetermined"
 
     ```text
-    genome	SNPreference	REF	ALT	lineage	Gene	mutation	reason
-    sampleA	3836739	A	G	L4;L4.1			not_found
-    sampleA	3836741	C	T	L4;L4.2			not_found
-    sampleA	1834177	A	C	L1			not_found
+    genome	SNPreference	REF	ALT	lineage	Gene	mutation	reason	observed_allele
+    sampleA	3836739	A	G	L4;L4.1			not_found	
+    sampleA	3836741	C	T	L4;L4.2			other_allele	A
+    sampleA	1834177	A	C	L1			anchors_disagree	
     ```
 
 See also: [Assembly classification](algorithms/assembly-classification.md), [Marker format](marker_format.md).
