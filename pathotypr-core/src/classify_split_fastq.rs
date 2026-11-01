@@ -630,6 +630,9 @@ pub fn run(args: SplitFastqArgs) -> AppResult<()> {
             .enumerate()
             .filter(|(marker_id, &[ref_count, alt_count])| {
                 let marker = &markers[*marker_id];
+                if marker.alt_in_reference || marker.ref_repeated {
+                    return true; // only an anchor can settle it, whatever the counts
+                }
                 ref_count + alt_count < args.min_depth
                     && !window_covers(
                         &read_windows,
@@ -1065,7 +1068,11 @@ fn call_marker(
 ) -> Call {
     let [reference, alternate] = kmer_counts;
     let coverage = reference + alternate;
-    if coverage >= min_depth {
+    // A word the reference carries twice is counted from both copies, so no
+    // depth makes it evidence about this locus. Those markers go straight to
+    // the anchors, which say where they matched.
+    let kmers_can_settle = !marker.alt_in_reference && !marker.ref_repeated;
+    if kmers_can_settle && coverage >= min_depth {
         let fraction = (alternate as f32 / coverage as f32) * 100.0;
         return if fraction >= min_alt_percent as f32 {
             Call::Present { reference, alternate, evidence: "kmer" }
@@ -1074,11 +1081,19 @@ fn call_marker(
         };
     }
 
-    if window_covers(read_windows, marker.pos, marker.pos + marker.ref_allele.len()) {
+    if kmers_can_settle
+        && window_covers(read_windows, marker.pos, marker.pos + marker.ref_allele.len())
+    {
         return Call::Absent;
     }
 
-    let depth_reason = if coverage == 0 { "not_found" } else { "low_depth" };
+    let depth_reason = if !kmers_can_settle {
+        if marker.alt_in_reference { "alt_kmer_in_reference" } else { "ref_kmer_repeated" }
+    } else if coverage == 0 {
+        "not_found"
+    } else {
+        "low_depth"
+    };
     let Some(anchors) = anchors else {
         return Call::Unread { reference, alternate, reason: depth_reason };
     };
@@ -1171,6 +1186,8 @@ mod tests {
             lineages: vec!["RIF".to_string()],
             alt_kmer: Vec::new(),
             ref_kmer: Vec::new(),
+            alt_in_reference: false,
+            ref_repeated: false,
             kmer_start: pos,
             annotations: Vec::new(),
         }

@@ -6760,6 +6760,16 @@ body.track-expanded-open {
 
 /* Markers that could be read neither way. Warning-coloured because a drug
    listed here has not been shown susceptible, which is easy to miss. */
+/* The catalogue entry a marker comes from, shown beside the change the
+   sample's own codon reads when the two disagree: a row labelled D435Y on a
+   codon that reads TTC is Phe, and the label is provenance, not the sample. */
+.dr-mut-label {
+  color: var(--text-muted, #6b7280);
+  font-size: 0.85em;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
 .viz-dr-undetermined {
   margin: 16px 0 4px;
   padding: 14px 16px;

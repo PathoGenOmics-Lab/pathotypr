@@ -197,6 +197,12 @@ matched, so only anchors that occur **exactly once** in the reference are used,
 counting both strands. A marker left with no unique anchor is reported as
 `no_unique_anchor` rather than guessed at.
 
+For the same reason a marker whose ALT k-mer the reference already carries, or
+whose window it carries twice, is never settled on read counts at all: reads
+from the other copy count towards it just as well. Five and sixty-seven markers
+of the WHO catalogue are in that position, and only their anchors can speak for
+them.
+
 !!! example "rpoB S450L behind a neighbour"
     A sample carrying S450L and a synonymous change seven bases away matches
     neither k-mer of the marker: 112 reads cover the position and say the
@@ -252,6 +258,8 @@ not answer, with the same columns as the mutations table plus a `reason`.
 | `low_depth` | The locus was read, by fewer than `--min-depth` reads. |
 | `no_unique_anchor` | The k-mers matched nothing and every anchor of the marker occurs more than once in the reference, so none of them can say which copy a read came from. |
 | `anchors_disagree` | The two anchors were both read deeply enough and they do not agree, so neither is believed. |
+| `alt_kmer_in_reference` | The reference itself carries this marker's ALT k-mer, so reads matching it say nothing about this locus, and its anchors could not settle it either. |
+| `ref_kmer_repeated` | The reference carries this marker's window more than once, so reads matching it may come from the other copy. |
 
 The counts in the row are the ones the decision rests on: the k-mer counts when
 the anchors were not consulted, and the counts from the anchor that answered

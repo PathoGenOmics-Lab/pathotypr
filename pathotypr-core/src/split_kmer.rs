@@ -73,6 +73,14 @@ pub struct Marker {
     pub lineages: Vec<String>, // e.g., ["L2", "L2.2", "L2.2.1"]
     pub alt_kmer: Vec<u8>,
     pub ref_kmer: Vec<u8>,
+    /// Whether the reference genome already carries this marker's ALT k-mer
+    /// somewhere else. Reads from that copy count as the alternate allele, so
+    /// the counts cannot settle the marker: only an anchor can.
+    pub alt_in_reference: bool,
+    /// Whether the reference carries this marker's window more than once.
+    /// Reads from the copy count as the reference allele and drown the real
+    /// locus, so again only an anchor can settle it.
+    pub ref_repeated: bool,
     /// 0-based start of the reference window both k-mers were cut from. A read
     /// that matches either k-mer matches it exactly, so it reads every base of
     /// `kmer_start .. kmer_start + k`.
@@ -307,6 +315,10 @@ pub fn build_markers(
                     alt_allele: alt_allele_str,
                     ref_kmer,
                     alt_kmer,
+                    // Filled by one pass over the reference once the panel is
+                    // read: see mark_reference_copies.
+                    alt_in_reference: false,
+                    ref_repeated: false,
                     kmer_start,
                     annotations: annotation_cols,
                 });
@@ -333,6 +345,8 @@ pub fn build_markers(
             return Err(anyhow::anyhow!("Task cancelled by user"));
         }
     }
+
+    mark_reference_copies(&mut markers, &ref_seq, kmer_len);
 
     info!(
         "  Built {} diagnostic k-mers from {} marker lines{}.",
@@ -839,6 +853,74 @@ pub fn scan_fastq_anchors(
     Ok(tallies)
 }
 
+/// Records which markers have a k-mer the reference genome itself carries.
+///
+/// A k-mer says what it matched and never where, so reads from a paralogous
+/// copy count towards the wrong marker. Five markers of the WHO catalogue have
+/// an ALT k-mer that already sits elsewhere in H37Rv, two of them in PPE35, and
+/// sixty-seven have a second copy of their reference window. Marking them here
+/// is what lets the caller refuse to settle them on read counts alone and ask
+/// the anchors, which do say where they matched.
+fn mark_reference_copies(markers: &mut [Marker], ref_seq: &[u8], kmer_len: usize) {
+    if kmer_len == 0 || ref_seq.len() < kmer_len || markers.is_empty() {
+        return;
+    }
+    let mut alt_of: FxHashMap<u64, Vec<usize>> = FxHashMap::default();
+    let mut ref_of: FxHashMap<u64, Vec<usize>> = FxHashMap::default();
+    for (id, marker) in markers.iter().enumerate() {
+        for (word, map) in [(&marker.alt_kmer, &mut alt_of), (&marker.ref_kmer, &mut ref_of)] {
+            if let Some(hash) = hash_kmer(word) {
+                map.entry(hash).or_default().push(id);
+            }
+            if let Some(hash) = hash_reverse_complement(word) {
+                // A palindrome hashes the same both ways; recording it once
+                // keeps one occurrence from counting as two.
+                let entry = map.entry(hash).or_default();
+                if entry.last() != Some(&id) {
+                    entry.push(id);
+                }
+            }
+        }
+    }
+
+    let mut alt_hits = vec![0u32; markers.len()];
+    let mut ref_hits = vec![0u32; markers.len()];
+    for (_, bitkmer, _) in ref_seq.bit_kmers(kmer_len as u8, false) {
+        if let Some(ids) = alt_of.get(&bitkmer.0) {
+            for &id in ids {
+                alt_hits[id] = alt_hits[id].saturating_add(1);
+            }
+        }
+        if let Some(ids) = ref_of.get(&bitkmer.0) {
+            for &id in ids {
+                ref_hits[id] = ref_hits[id].saturating_add(1);
+            }
+        }
+    }
+
+    let (mut with_alt_copy, mut with_ref_copy) = (0usize, 0usize);
+    for (id, marker) in markers.iter_mut().enumerate() {
+        marker.alt_in_reference = alt_hits[id] > 0;
+        marker.ref_repeated = ref_hits[id] > 1;
+        if marker.alt_in_reference {
+            with_alt_copy += 1;
+            debug!(
+                "The reference already carries the ALT k-mer of the marker at pos {} ({}>{}), so only its anchors can settle it",
+                marker.pos + 1, marker.ref_allele, marker.alt_allele
+            );
+        }
+        if marker.ref_repeated {
+            with_ref_copy += 1;
+        }
+    }
+    if with_alt_copy > 0 || with_ref_copy > 0 {
+        info!(
+            "  {} markers have an ALT k-mer the reference already carries and {} a repeated reference window; read counts cannot settle those, so their anchors do.",
+            with_alt_copy, with_ref_copy
+        );
+    }
+}
+
 pub fn build_marker_index(markers: &[Marker]) -> (MarkerIndex, BloomFilter) {
     let mut index: MarkerIndex = FxHashMap::default();
     index.reserve(markers.len().saturating_mul(4));
@@ -1184,6 +1266,8 @@ mod tests {
             lineages: vec!["RIF".to_string(), "rpoB_X1Y".to_string()],
             alt_kmer,
             ref_kmer,
+            alt_in_reference: false,
+            ref_repeated: false,
             kmer_start,
             annotations: Vec::new(),
         }

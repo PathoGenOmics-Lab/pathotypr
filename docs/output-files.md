@@ -173,7 +173,7 @@ rows in a resistance panel.
 | `REF`, `ALT` | Alleles of the marker. |
 | `lineage` | Lineage (or drug) path of the marker. |
 | `Gene`, `mutation` | The marker's own gene and mutation fields; empty when the marker TSV has none. |
-| `reason` | `not_found`: nothing of the marker occurs and no anchor could read it. `anchors_disagree`: the two anchors read different alleles. `ambiguous_both_alleles`: both k-mers turned up and no anchor could say which allele the locus carries. `no_reference_kmer`: the marker has no usable reference k-mer (a reference allele outside A, C, G and T) and the anchors could not read it either. |
+| `reason` | `not_found`: nothing of the marker occurs and no anchor could read it. `anchors_disagree`: the two anchors read different alleles. `ambiguous_both_alleles`: both k-mers turned up and no anchor could say which allele the locus carries. `alt_kmer_in_reference`: the reference itself carries this marker's ALT k-mer, so finding it means nothing, and no anchor could tell the real locus from the copy. `ref_kmer_repeated`: the reference carries the window more than once and the genome did not show every copy. `no_reference_kmer`: the marker has no usable reference k-mer (a reference allele outside A, C, G and T) and the anchors could not read it either. |
 
 === "Detailed"
 
@@ -255,7 +255,8 @@ Only markers meeting `--min-depth` coverage **and** `--min-alt-percent` are writ
 **Header:** `pos  ref_allele  alt_allele  ref_count  alt_count  lineage_path  reason`
 
 One row per marker the reads could answer neither way, with `reason` one of
-`not_found`, `low_depth`, `no_unique_anchor` or `anchors_disagree`. A marker
+`not_found`, `low_depth`, `no_unique_anchor`, `anchors_disagree`,
+`alt_kmer_in_reference` or `ref_kmer_repeated`. A marker
 read through a neighbour's window, or read from one of its own anchors, is not
 listed: it was answered. See
 [split-fastq](split-fastq.md#per-sample-undetermined-tsv).

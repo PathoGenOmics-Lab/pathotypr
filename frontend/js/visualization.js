@@ -1765,6 +1765,9 @@ function buildGenotypingInsightSections(data) {
   const fracIdx = findHeaderIndexByTokens(headers, ['alt_fraction', 'alt_percent', 'alt_pct', 'vaf', 'allele_fraction']);
   const refIdx = findHeaderIndexByTokens(headers, ['ref_count', 'reference_count', 'ref_reads']);
   const altIdx = findHeaderIndexByTokens(headers, ['alt_count', 'alternate_count', 'alt_reads', 'mut_count']);
+  // The amino acid read from the sample's own codon, which a panel label built
+  // from one base of three can contradict.
+  const aaIdx = findHeaderIndexByTokens(headers, ['aa_change', 'amino_acid_change']);
 
   // Summary tables carry no per-marker evidence, only the lineage:count cell.
   if (lineageIdx === -1 && lineageCountIdx === -1) return '';
@@ -1784,7 +1787,13 @@ function buildGenotypingInsightSections(data) {
       if (altFraction === null && coverage > 0 && altCount !== null) {
         altFraction = (altCount / coverage) * 100;
       }
-      records.push({ sample, lineagePath, altFraction, coverage: coverage > 0 ? coverage : null });
+      records.push({
+        sample,
+        lineagePath,
+        altFraction,
+        coverage: coverage > 0 ? coverage : null,
+        aaChange: aaIdx !== -1 ? normalizeValue(row[aaIdx]) : ''
+      });
       if (Number.isFinite(altFraction)) fractions.push(altFraction);
     });
   }

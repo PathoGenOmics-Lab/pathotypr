@@ -361,6 +361,11 @@ fn collect_marker_lines<'a>(
     // the alternative allele of any marker there. Reading one allele of a
     // site rules out the others at the same position.
     let mut site_read = vec![false; marker_index.site_count()];
+    // How many times each site's reference window turned up, summed over every
+    // contig and strand. A window the reference carries twice is proved absent
+    // by finding it twice. Overlapping contigs of a draft assembly can inflate
+    // this, which only takes the marker back to being reported absent.
+    let mut site_hit_counts = vec![0u32; marker_index.site_count()];
     let mut observed: HashMap<usize, (MarkerMatch, String, GenomeContext)> = HashMap::new();
 
     for contig_seq in &contigs {
@@ -370,6 +375,9 @@ fn collect_marker_lines<'a>(
             for site in scan.reference_sites {
                 reference_found[site] = true;
                 site_read[site] = true;
+            }
+            for (site, hits) in scan.site_hits.iter().enumerate() {
+                site_hit_counts[site] = site_hit_counts[site].saturating_add(*hits);
             }
             for m in scan.matches {
                 if alt_found[m.marker_id] {
@@ -452,7 +460,13 @@ fn collect_marker_lines<'a>(
             AnchorRead::Conflict => "anchors_disagree",
             // No anchor could read it, so fall back to what the k-mers saw.
             AnchorRead::Unusable => {
-                if kmer_alt && !kmer_reference {
+                if entry.alt_in_reference && kmer_alt {
+                    // The reference itself carries this alternative k-mer, so
+                    // finding it says nothing: every genome has it. Only an
+                    // anchor could have told the real locus from the copy, and
+                    // none could be read.
+                    "alt_kmer_in_reference"
+                } else if kmer_alt && !kmer_reference {
                     match observed.get(&id) {
                         Some((m, alt_bases, ctx)) => {
                             lines.detail.push(format_marker_match(
@@ -466,6 +480,15 @@ fn collect_marker_lines<'a>(
                     // Both alleles turned up and nothing can say which copy
                     // this locus is. Reporting it present would be a guess.
                     "ambiguous_both_alleles"
+                } else if marker_index
+                    .site_of(id)
+                    .is_some_and(|site| site_read[site] && site_hit_counts[site] < entry.ref_copies)
+                {
+                    // The reference holds this window more than once and the
+                    // genome did not show every copy, so the hit may be the
+                    // other copy and cannot rule the marker out. Showing them
+                    // all does rule it out: every copy was read as reference.
+                    "ref_kmer_repeated"
                 } else if marker_index.site_of(id).is_some_and(|site| site_read[site]) {
                     continue; // read as the reference allele, so absent
                 } else if marker_index.site_of(id).is_some() {
@@ -1631,6 +1654,116 @@ mod tests {
             lines.detail.iter().any(|l| l.contains("RIF;RIF-R;test")),
             "the anchors read the real locus, so the variant must still be reported: {:?}",
             lines.detail
+        );
+    }
+
+    /// The WHO catalogue has five markers whose alternative k-mer H37Rv itself
+    /// carries, two of them in PPE35, so the word turns up in every genome and
+    /// the marker read as present everywhere, the ancestor included. When no
+    /// anchor can tell the real locus from the copy, the only honest answer is
+    /// that the marker was not read.
+    #[test]
+    fn an_alternative_kmer_the_reference_carries_is_not_evidence() {
+        let base = long_ref();
+        let pos = 300;
+        let alt = other_base(&base[pos - 1..pos]);
+        // A stretch holding the locus with the variant already in it, and both
+        // of the marker's anchors, copied elsewhere in the reference. The
+        // alternative k-mer is now in the reference and neither anchor is
+        // unique, so nothing can say which copy a hit came from.
+        let mut stretch = base[250..350].to_string();
+        stretch.replace_range(pos - 1 - 250..pos - 250, alt);
+        let mut reference = base.clone();
+        reference.replace_range(450..550, &stretch);
+
+        let marker = marker_at(&reference, pos, alt);
+        let k = 31;
+        let index = generate_markerkmer(std::slice::from_ref(&marker), reference.as_str(), k, 10);
+        assert!(
+            index.markers()[0].alt_in_reference,
+            "the fixture needs the copy to be in the reference"
+        );
+
+        // A genome identical to the reference: its locus carries the reference
+        // allele, so the marker is not there.
+        let ref_rc = reverse_complement_sequence(&reference);
+        let lines = analyze_genome_seq("g", &reference, &index, &None, k, &reference, &ref_rc);
+        assert!(
+            !lines.detail.iter().any(|l| l.contains("RIF;RIF-R;test")),
+            "a word the reference carries must not be read as the marker being present: {:?}",
+            lines.detail
+        );
+        assert!(
+            lines.undetermined.iter().any(|l| l.contains("alt_kmer_in_reference")),
+            "and the row must say why it could not be read: {:?}",
+            lines.undetermined
+        );
+    }
+
+    /// Sixty-seven markers of the catalogue have a second copy of their
+    /// reference window. A reference hit may be that copy, so it cannot rule
+    /// the marker out: a genome whose real locus carries the variant behind
+    /// another change used to be reported as not carrying it at all.
+    #[test]
+    fn a_repeated_reference_kmer_cannot_rule_a_marker_out() {
+        let base = long_ref();
+        let pos = 300;
+        let alt = other_base(&base[pos - 1..pos]);
+        // The window and both anchors, copied as they are: the reference word
+        // now occurs twice and no anchor is unique.
+        let mut reference = base.clone();
+        let stretch = base[250..350].to_string();
+        reference.replace_range(450..550, &stretch);
+
+        let marker = marker_at(&reference, pos, alt);
+        let k = 31;
+        let index = generate_markerkmer(std::slice::from_ref(&marker), reference.as_str(), k, 10);
+        assert_eq!(index.markers()[0].ref_copies, 2, "the fixture needs the repeated window");
+        assert!(!index.markers()[0].alt_in_reference, "but not the alternative word");
+
+        // The genome carries the variant, with a second change seven bases
+        // along that hides the alternative k-mer. The reference k-mer still
+        // matches, at the copy.
+        let mut genome = reference.clone();
+        genome.replace_range(pos - 1..pos, alt);
+        let neighbour = other_base(&base[pos + 6..pos + 7]);
+        genome.replace_range(pos + 6..pos + 7, neighbour);
+
+        let ref_rc = reverse_complement_sequence(&reference);
+        let lines = analyze_genome_seq("g", &genome, &index, &None, k, &reference, &ref_rc);
+        assert!(
+            lines.undetermined.iter().any(|l| l.contains("ref_kmer_repeated")),
+            "the copy must not be read as this locus holding the reference allele: {:?}",
+            lines.undetermined
+        );
+
+        // A genome that shows both copies as the reference has proved the
+        // marker absent: there is no third copy for it to be hiding in. This
+        // is the ordinary case, and the one that would drown the undetermined
+        // table if a repeated window were treated as unreadable by itself.
+        let lines = analyze_genome_seq("g", &reference, &index, &None, k, &reference, &ref_rc);
+        assert!(
+            lines.undetermined.is_empty(),
+            "a genome showing every copy as the reference must simply be absent: {:?}",
+            lines.undetermined
+        );
+        assert!(
+            !lines.detail.iter().any(|l| l.contains("RIF;RIF-R;test")),
+            "and nothing is called either: {:?}",
+            lines.detail
+        );
+
+        // The same with the neighbour on the other side, so each anchor in
+        // turn is the one left looking unique while the real copy is broken.
+        let mut genome = reference.clone();
+        genome.replace_range(pos - 1..pos, alt);
+        let neighbour = other_base(&base[pos - 8..pos - 7]);
+        genome.replace_range(pos - 8..pos - 7, neighbour);
+        let lines = analyze_genome_seq("g", &genome, &index, &None, k, &reference, &ref_rc);
+        assert!(
+            lines.undetermined.iter().any(|l| l.contains("ref_kmer_repeated")),
+            "nor with the neighbour on the left: {:?}",
+            lines.undetermined
         );
     }
 
