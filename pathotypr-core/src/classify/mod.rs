@@ -169,13 +169,16 @@ pub fn get_ref(fasta_file: &str) -> AppResult<String> {
 // Genome paths from TSV
 // ---------------------------------------------------------------------------
 
-fn get_genomepaths(tsv_file: &str) -> AppResult<HashMap<String, (String, Option<String>)>> {
+/// Samples of an input list, in the order the list gives them: the detailed
+/// table and the masked FASTA names follow it, so a run is reproducible.
+fn get_genomepaths(tsv_file: &str) -> AppResult<Vec<(String, (String, Option<String>))>> {
     let mut rdr = csv::ReaderBuilder::new()
         .delimiter(b'\t')
         .has_headers(false)
         .flexible(true)
         .from_path(tsv_file)?;
-    let mut genome_paths = HashMap::new();
+    let mut genome_paths = Vec::new();
+    let mut seen_names: HashSet<String> = HashSet::new();
     for result in rdr.records() {
         let record = result?;
         if record.len() < 2 { continue; }
@@ -211,12 +214,13 @@ fn get_genomepaths(tsv_file: &str) -> AppResult<HashMap<String, (String, Option<
                 )));
             }
         }
-        if genome_paths.insert(genome_name.clone(), (fasta_path, gff_path)).is_some() {
+        if !seen_names.insert(genome_name.clone()) {
             return Err(AppError::Generic(format!(
                 "Duplicate sample/genome name '{}' in input list '{}'. Sample names must be unique.",
                 genome_name, tsv_file
             )));
         }
+        genome_paths.push((genome_name, (fasta_path, gff_path)));
     }
     if genome_paths.is_empty() {
         return Err(AppError::NotEnoughData(format!(
@@ -739,8 +743,7 @@ where
     let cancel_token = &args.cancel_token;
 
     if let Some(tsv_genomes) = &args.tsv_genomes {
-        let genome_paths_vec: Vec<(String, (String, Option<String>))> =
-            get_genomepaths(tsv_genomes)?.into_iter().collect();
+        let genome_paths_vec = get_genomepaths(tsv_genomes)?;
         debug!("Processing {} genomes from input list.", genome_paths_vec.len());
         let pb = ProgressBar::new(genome_paths_vec.len() as u64);
         pb.set_style(
@@ -1355,7 +1358,7 @@ pub fn run(args: Args) -> AppResult<()> {
             mask_ranges.len(), mask_ranges.iter().map(|(s, e)| e - s).sum::<usize>());
 
         let fasta_sources: Vec<String> = if let Some(tsv_genomes) = &args.tsv_genomes {
-            get_genomepaths(tsv_genomes)?.into_values().map(|(path, _)| path).collect()
+            get_genomepaths(tsv_genomes)?.into_iter().map(|(_, (path, _))| path).collect()
         } else if let Some(fasta_genomes) = &args.fasta_genomes {
             vec![fasta_genomes.clone()]
         } else if let Some(fasta_files) = &args.fasta_files {
@@ -1421,6 +1424,26 @@ mod tests {
         counts.insert("L2".to_string(), 2usize);
         counts.insert("L1".to_string(), 2usize);
         assert_eq!(get_final_lineage_call(&counts), "L1");
+    }
+
+    #[test]
+    fn input_list_keeps_the_order_of_the_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let names = ["zeta", "alpha", "mid", "beta", "omega", "delta", "kappa", "eta"];
+        let mut list = String::new();
+        for name in names {
+            let fasta = dir.path().join(format!("{}.fasta", name));
+            std::fs::write(&fasta, ">x\nACGT\n").unwrap();
+            list.push_str(&format!("{}\t{}\n", name, fasta.display()));
+        }
+        let list_path = dir.path().join("samples.tsv");
+        std::fs::write(&list_path, list).unwrap();
+        let read: Vec<String> = super::get_genomepaths(list_path.to_str().unwrap())
+            .unwrap()
+            .into_iter()
+            .map(|(name, _)| name)
+            .collect();
+        assert_eq!(read, names);
     }
 
     #[test]
