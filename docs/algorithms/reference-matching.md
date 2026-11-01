@@ -23,7 +23,7 @@ All FASTQ files are processed in parallel (one rayon task per file):
 
 Singleton k-mers (count=1) are likely sequencing errors:
 
-- Only applied when total unique k-mers > 100,000
+- Applied whenever `--min-kmer-count` is above 1, and the default is 1, so by default nothing is dropped. It used to switch itself on above 100,000 unique k-mers, which made the score mean two different things either side of a line the user cannot see: 1,450 reads of a 0.15x sample scored 0.8886 and 1,500 scored 1.0000.
 - Default threshold: `min_kmer_count = 2`
 - Typical reduction: ~90-93% of unique k-mers removed
 - Effect: faster scoring and fewer false matches
@@ -55,7 +55,7 @@ For each reference in the batch (parallelized with rayon):
 ### Score calculation
 
 ```text
-Shared_Kmer_Fraction = Σ(query_count for shared k-mers) / Σ(all query k-mer counts)
+Shared_Kmer_Fraction = Σ(query_count for shared k-mers) / Σ(retained query k-mer counts)
 ```
 
 This is a **weighted containment score**: k-mers that appear more frequently in the reads contribute more. A perfect match (all query k-mers present in the reference) gives a score of 1.0.
@@ -77,7 +77,7 @@ This is a **weighted containment score**: k-mers that appear more frequently in 
 | Parameter | Default | Description |
 |---|---|---|
 | `--kmer-size` | 31 | Longer k = more specific matching |
-| `--min-kmer-count` | 2 | Noise filter threshold |
+| `--min-kmer-count` | 1 | Noise filter threshold; 1 keeps every k-mer |
 | `--early-stop-confidence` | 0.0 | Reserved; not read in the current release (no effect) |
 | `--early-stop-min-kmers` | 1,000,000 | Reserved; not read in the current release (no effect) |
 | `--strict-percentages` | true | Reserved; scoring always uses weighted query counts |
@@ -85,7 +85,7 @@ This is a **weighted containment score**: k-mers that appear more frequently in 
 ## Output
 
 ```tsv
-Query_Files	Best_Match_Reference	Shared_Kmer_Fraction
+Query_Files	Best_Match_Reference	Shared_Kmer_Fraction	Query_Kmers
 reads_R1.fastq.gz,...	GCF_000253355.1	0.5440
 ```
 

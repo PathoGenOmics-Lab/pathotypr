@@ -89,10 +89,13 @@ pub struct Args {
     pub excel: bool,
 
     /// Minimum k-mer count to keep when filtering query k-mers.
-    /// K-mers with fewer occurrences than this are discarded as sequencing noise.
-    /// Set to 1 to disable singleton filtering (keep all k-mers).
-    /// Default: 2 (remove singletons). Only applied when total unique k-mers > 100k.
-    #[arg(long = "min-kmer-count", default_value_t = 2)]
+    /// K-mers with fewer occurrences than this are discarded as sequencing
+    /// noise, and both the shared count and the total are then taken over what
+    /// is left. Default: 1, which keeps every k-mer. Raise it for deep data
+    /// where singletons really are error, knowing that it lowers every
+    /// reference's score and that scores from different settings are not
+    /// comparable.
+    #[arg(long = "min-kmer-count", default_value_t = 1)]
     pub min_kmer_count: u32,
 
     /// Cancellation token for stopping the task (GUI only, not CLI).
@@ -205,7 +208,12 @@ fn count_kmers_from_fastqs(
                         break;
                     }
                 };
-                for (_, kmer, _) in seqrec.sequence().bit_kmers(k, true) {
+                // `sequence()` keeps the newlines a wrapped FASTA has in it,
+                // and every k-mer window straddling one is then skipped as
+                // holding an invalid base: the same 1 Mb sequence gave 999,970
+                // k-mers on one line and 571,420 wrapped at 70 columns. The
+                // reference side has always used `seq()`.
+                for (_, kmer, _) in seqrec.seq().bit_kmers(k, true) {
                     *local_counts.entry(kmer.0).or_insert(0) += 1;
 
                     kmer_count += 1;
@@ -238,20 +246,24 @@ fn count_kmers_from_fastqs(
 
     // Filter low-count k-mers (noise reduction).
     // Only applied when dataset is large enough that singletons are likely errors.
+    // The filter applies or it does not. It used to switch itself on above
+    // 100,000 unique k-mers, which made the score mean two different things
+    // either side of a line nobody can see: on 1 Mb of 0.15x reads, 1,450 of
+    // them scored 0.8886 and 1,500 of them scored a perfect 1.0000, because
+    // the second run crossed the threshold, threw away 95% of its k-mers, and
+    // divided by the remainder. Below a few fold coverage a true k-mer is seen
+    // once, so dropping singletons there discards the very evidence that tells
+    // two references apart and leaves repeats, which match both.
+    let before_count = kmer_counts.len();
+    info!("  Unique k-mers in the query: {}", before_count);
     if min_kmer_count > 1 {
-        let before_count = kmer_counts.len();
-        info!("  Raw k-mer count: {}", before_count);
-
-        if before_count > 100_000 {
-            let threshold = min_kmer_count;
-            kmer_counts.retain(|_, &mut count| count >= threshold);
-            let after_count = kmer_counts.len();
-            let reduction = 100.0 * (1.0 - (after_count as f64 / before_count as f64));
-            info!(
-                "📉 Filtered k-mers with count < {} (noise): {} -> {} unique k-mers (reduced by {:.1}%).",
-                threshold, before_count, after_count, reduction
-            );
-        }
+        kmer_counts.retain(|_, &mut count| count >= min_kmer_count);
+        let after_count = kmer_counts.len();
+        let reduction = 100.0 * (1.0 - (after_count as f64 / before_count as f64));
+        warn!(
+            "📉 Dropped k-mers seen fewer than {} times: {} -> {} unique ({:.1}% of them). The score below is a fraction of what is left, not of the data, so it cannot be compared with a run at another setting.",
+            min_kmer_count, before_count, after_count, reduction
+        );
     }
 
     Ok(kmer_counts)
@@ -326,12 +338,15 @@ pub fn run(args: Args) -> AppResult<()> {
                 );
             }
             // Flatten all files back for processing (Match processes all files together)
-            detection_result
-                .samples
-                .values()
-                .flatten()
-                .cloned()
-                .collect()
+            {
+                // The map is a HashMap, whose order varies between processes:
+                // twenty identical runs printed six different orders of
+                // Query_Files. Sorting by sample name settles it, as
+                // classify_split_fastq already does with the same map.
+                let mut samples: Vec<_> = detection_result.samples.iter().collect();
+                samples.sort_by(|(left, _), (right, _)| left.cmp(right));
+                samples.into_iter().flat_map(|(_, files)| files.clone()).collect()
+            }
         } else {
             args.fastqs.clone()
         }
@@ -387,14 +402,14 @@ pub fn run(args: Args) -> AppResult<()> {
 
     writeln!(
         writer,
-        "Query_Files\tBest_Match_Reference\tShared_Kmer_Fraction"
+        "Query_Files\tBest_Match_Reference\tShared_Kmer_Fraction\tQuery_Kmers"
     )?;
     if let Some((best_header, best_score)) = best_match {
         let query_files_str = fastq_files_to_process.join(",");
         writeln!(
             writer,
-            "{}\t{}\t{:.4}",
-            query_files_str, best_header, best_score
+            "{}\t{}\t{:.4}\t{}",
+            query_files_str, best_header, best_score, total_query_kmers as u64
         )?;
 
         if args.excel {
@@ -403,16 +418,19 @@ pub fn run(args: Args) -> AppResult<()> {
                     "Query_Files",
                     "Best_Match_Reference",
                     "Shared_Kmer_Fraction",
+                    "Query_Kmers",
                 ];
                 let rows = vec![vec![
                     query_files_str,
                     best_header,
                     format!("{:.4}", best_score),
+                    (total_query_kmers as u64).to_string(),
                 ]];
-                if let Err(e) = crate::common::write_excel_file(path, &headers, &rows) {
-                    warn!("⚠️ Could not write Excel file: {}", e);
-                } else {
-                    info!("📊 Excel file written to {}", path);
+                match crate::common::write_excel_file(path, &headers, &rows) {
+                    // The workbook is at the .xlsx path the writer returns,
+                    // not at the .tsv path that was asked for.
+                    Ok(xlsx_path) => info!("📊 Excel file written to {}", xlsx_path),
+                    Err(e) => warn!("⚠️ Could not write Excel file: {}", e),
                 }
             }
         }

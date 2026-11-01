@@ -1541,18 +1541,7 @@
                   <h3>Options</h3>
                 </div>
                 <div class="card-body">
-                  <div class="match-options-guide">
-                    <p><strong>Recommended for most runs:</strong> keep <em>Strict percentages</em> enabled for results consistent with previous analyses.</p>
-                    <p>Use advanced speed options only when you want faster runtime and can accept potential score changes.</p>
-                  </div>
-
                   <div class="params-grid match-basic-grid">
-                    <div class="form-group form-group-full">
-                      <label class="checkbox-label">
-                        <input type="checkbox" id="match-strict-percentages" checked>
-                        Strict percentages (legacy-compatible) <span class="help-tooltip">?<span class="tooltip-content">Keeps the historical Shared_Kmer_Fraction behavior so percentages remain comparable with older reports. This is the safest mode for interpretation.</span></span>
-                      </label>
-                    </div>
                     <div class="form-group">
                       <label>K-mer Size <span class="help-tooltip">?<span class="tooltip-content">Length of k-mers used for read-to-reference comparison. Typical range is 21-31.</span></span></label>
                       <input type="number" id="match-kmer" value="31" min="11" max="31">
@@ -1561,37 +1550,11 @@
                       <label>Threads <span class="help-tooltip">?<span class="tooltip-content">Number of CPU threads for matching. Leave empty to use automatic thread selection.</span></span></label>
                       <input type="number" id="match-threads" placeholder="Auto" min="1">
                     </div>
-                  </div>
-
-                  <details class="advanced-options-card">
-                    <summary>
-                      Advanced speed options (optional)
-                      <span class="help-tooltip">?<span class="tooltip-content">These options are applied only when Strict percentages is disabled.</span></span>
-                    </summary>
-                    <div class="advanced-options-body">
-                      <div class="params-grid match-advanced-grid">
-                        <div class="form-group">
-                          <label>Max Ref Freq (%) <span class="help-tooltip">?<span class="tooltip-content">Ignore query k-mers found in too many references. Higher filtering reduces noise and can speed up matching. Set 0 to disable.</span></span></label>
-                          <input type="text" inputmode="decimal" id="match-max-ref-freq" value="0" pattern="[0-9]*[.]?[0-9]+">
-                        </div>
-
-                        <div class="form-group">
-                          <label>Early-stop confidence <span class="help-tooltip">?<span class="tooltip-content">Stop exact scoring early once confidence threshold is reached. Set 0 to disable early-stop.</span></span></label>
-                          <input type="text" inputmode="decimal" id="match-early-stop-confidence" value="0" pattern="[0-9]*[.]?[0-9]+">
-                        </div>
-                        <div class="form-group">
-                          <label>Early-stop min k-mers <span class="help-tooltip">?<span class="tooltip-content">Minimum number of scored k-mers before early-stop can trigger.</span></span></label>
-                          <input type="number" id="match-early-stop-min-kmers" value="1000000" min="1">
-                        </div>
-                        <div class="form-group form-group-full">
-                          <label class="checkbox-label">
-                            <input type="checkbox" id="match-auto-tune" checked>
-                            Auto-tune speed params <span class="help-tooltip">?<span class="tooltip-content">Automatically tunes speed parameters based on FASTQ size and number of references.</span></span>
-                          </label>
-                        </div>
-                      </div>
+                    <div class="form-group">
+                      <label>Minimum k-mer count <span class="help-tooltip">?<span class="tooltip-content">Drops query k-mers seen fewer than this many times, as sequencing noise. 1 keeps every k-mer, which is what you want below a few fold coverage: there a real k-mer is usually seen once, and dropping singletons throws away the evidence that tells two references apart. Raising it lowers every score, so scores from different settings cannot be compared.</span></span></label>
+                      <input type="number" id="match-min-kmer-count" value="1" min="1">
                     </div>
-                  </details>
+                  </div>
 
                   <div class="match-options-footnote">
                     If you need strict reproducibility with old reports, keep <strong>Strict percentages</strong> enabled and leave advanced options untouched.

@@ -51,7 +51,7 @@ pathotypr match
         </conditional>
         <param argument="--references" type="data" format="fasta" label="Reference genomes" help="A single multi-FASTA holding every candidate reference. Each record is one candidate."/>
         <expand macro="kmer_size" default="31"/>
-        <param argument="--min-kmer-count" type="integer" min="1" value="2" label="Minimum k-mer count" help="Query k-mers seen fewer times than this are discarded as sequencing noise. Set to 1 to keep singletons. Only applied once the query has more than 100,000 unique k-mers."/>
+        <param argument="--min-kmer-count" type="integer" min="1" value="1" label="Minimum k-mer count" help="Query k-mers seen fewer times than this are discarded as sequencing noise, and the score is then a fraction of what is left. 1 keeps every k-mer, which is what you want below a few fold coverage: there a real k-mer is usually seen once, so dropping singletons throws away the evidence that tells two references apart."/>
         <param argument="--early-stop-confidence" type="float" min="0" max="1" value="0" label="Early-stop confidence" help="Stop the exact phase once the leader is this far ahead. 0 disables it and scores everything. Useful values are 0.98 to 0.999."/>
         <param argument="--early-stop-min-kmers" type="integer" min="1" value="1000000" label="Minimum k-mers before early stop" help="Ignored unless early-stop confidence is above 0."/>
         <param argument="--strict-percentages" type="boolean" truevalue="--strict-percentages" falsevalue="" checked="false" label="Legacy shared k-mer percentages" help="Reproduces the older weighted-count definition of the shared fraction. For comparing against earlier runs."/>
@@ -99,6 +99,7 @@ Column                         Meaning
 ``Query_Files``                The read files that went in
 ``Best_Match_Reference``       The record name of the winning reference
 ``Shared_Kmer_Fraction``       Fraction of query k-mers contained in it, 0 to 1
+``Query_Kmers``                The denominator: k-mers kept from the query
 =============================  ================================================
 
 A fraction near 1 means the reads are essentially that reference. A low fraction

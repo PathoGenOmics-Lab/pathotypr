@@ -775,7 +775,9 @@ pub async fn run_match(
         early_stop_confidence: params.early_stop_confidence.unwrap_or(0.0),
         early_stop_min_kmers: params.early_stop_min_kmers.unwrap_or(1_000_000),
         strict_percentages: params.strict_percentages.unwrap_or(true),
-        min_kmer_count: params.min_kmer_count.unwrap_or(2),
+        // 1, like the CLI: dropping singletons throws away the evidence that
+        // tells two references apart whenever coverage is low.
+        min_kmer_count: params.min_kmer_count.unwrap_or(1),
         excel: params.excel.unwrap_or(true),
     };
 
