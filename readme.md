@@ -42,7 +42,7 @@ pathotypr is a Rust toolkit that classifies microbial genomes into lineages and 
 |---|---|---|---|
 | **`train`** | Build a Random Forest classifier from labeled genomes | FASTA | [docs](https://pathogenomics-lab.github.io/pathotypr/train/) |
 | **`predict`** | Assign lineages using a trained model | FASTA + model | [docs](https://pathogenomics-lab.github.io/pathotypr/predict/) |
-| **`classify`** | Call known SNP markers in assemblies | FASTA + markers | [docs](https://pathogenomics-lab.github.io/pathotypr/classify/) |
+| **`classify`** | Call known markers (SNPs, MNVs and small indels) in assemblies | FASTA + markers | [docs](https://pathogenomics-lab.github.io/pathotypr/classify/) |
 | **`split-fastq`** | Alignment-free genotyping from reads | FASTQ + markers | [docs](https://pathogenomics-lab.github.io/pathotypr/split-fastq/) |
 | **`match`** | Find the closest reference genome | FASTQ + references | [docs](https://pathogenomics-lab.github.io/pathotypr/match/) |
 
@@ -78,7 +78,8 @@ pathotypr train   -i labeled_genomes.fasta -o model.pathotypr.zst
 pathotypr predict -i query.fasta -m model.pathotypr.zst -o predictions.tsv
 ```
 
-Add `--excel` to any command to also write `.xlsx`. The
+Add `--excel` to `predict`, `classify`, `split-fastq` or `match` to also write `.xlsx`
+(`match` needs `-o` for it). The
 [getting started tutorial](https://pathogenomics-lab.github.io/pathotypr/getting-started/)
 walks through a full MTBC run, from install to reading the output.
 
@@ -89,7 +90,7 @@ Marker panels and a pre-trained model for the *M. tuberculosis* complex are publ
 | File | Contents |
 |---|---|
 | `pathotypr_lineage_markers_*.tsv` | 3,707 lineage SNPs (L1–L10, A1–A4) |
-| `pathotypr_dr_markers_ancestor_*.tsv` | DR mutations from the WHO catalogue (2nd edition, 2023), ancestor coordinates |
+| `pathotypr_dr_markers_ancestor_*.tsv` | DR mutations from the WHO catalogue (2nd edition, 2023) and TB-Profiler's literature set, ancestor coordinates |
 | `pathotypr_dr_markers_H37Rv_*.tsv` | The same catalogue in H37Rv coordinates |
 | `pathotypr_rf_model_*.pathotypr` | Pre-trained Random Forest (k=31, 100 trees) |
 
@@ -147,7 +148,7 @@ pathotypr is developed with ❤️ by:
       <a href="" title="Research">🔬</a>
       <a href="" title="Ideas">🤔</a>
       <a href="" title="Data">🔣</a>
-      <a href="" title="Desing">🎨</a>
+      <a href="" title="Design">🎨</a>
       <a href="" title="Tool">🔧</a>
     </td>
     <td align="center">
