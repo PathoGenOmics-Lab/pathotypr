@@ -251,6 +251,10 @@ pub fn run(args: PredictArgs) -> AppResult<()> {
 
     let cancel_token = &args.cancel_token;
     check_cancelled(cancel_token)?;
+    crate::common::refuse_output_over_input(
+        [args.input.as_str(), args.model.as_str()],
+        &[args.output.clone(), crate::excel::excel_path_from_tsv(&args.output)],
+    )?;
 
     let overall_start = Instant::now();
 

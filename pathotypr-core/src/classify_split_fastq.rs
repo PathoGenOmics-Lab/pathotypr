@@ -332,6 +332,21 @@ fn check_cancelled_with_cleanup(
 }
 
 pub fn run(args: SplitFastqArgs) -> AppResult<()> {
+    {
+        // The per-sample names are only known once the samples are read, but
+        // the summary is fixed, and so are the inputs it could land on.
+        let summary = format!("{}_summary.tsv", args.output_prefix);
+        let inputs = args
+            .input
+            .iter()
+            .map(String::as_str)
+            .chain(args.input_list.as_deref())
+            .chain([args.reference.as_str(), args.markers.as_str()]);
+        crate::common::refuse_output_over_input(
+            inputs,
+            &[summary.clone(), crate::excel::excel_path_from_tsv(&summary)],
+        )?;
+    }
     if args.input.is_empty() && args.input_list.is_none() {
         return Err(AppError::Generic(
             "You must provide an input source: either --input or --input-list.".to_string(),

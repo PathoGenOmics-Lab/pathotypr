@@ -594,6 +594,15 @@ fn stratified_cv(
 
 /// Main execution logic for the `train` subcommand.
 pub fn run(args: Args) -> AppResult<TrainReport> {
+    {
+        let output = std::path::Path::new(&args.output);
+        let outputs = [
+            args.output.clone(),
+            output.with_extension("importance.tsv").to_string_lossy().into_owned(),
+            output.with_extension("importance.coords.tsv").to_string_lossy().into_owned(),
+        ];
+        crate::common::refuse_output_over_input([args.input.as_str()], &outputs)?;
+    }
     if !(0.0..1.0).contains(&args.test_split) {
         return Err(AppError::Generic(
             "--test-split must be between 0.0 and 1.0.".to_string(),

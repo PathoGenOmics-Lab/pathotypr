@@ -1054,6 +1054,27 @@ pub fn run(args: Args) -> AppResult<()> {
     let cancel_token = &args.cancel_token;
     check_cancelled(cancel_token)?;
     check_input_files(&args)?;
+    {
+        let base = args.ofile.strip_suffix(".tsv").unwrap_or(&args.ofile);
+        let mut outputs = vec![
+            if args.ofile.ends_with(".tsv") { args.ofile.clone() } else { format!("{}.tsv", args.ofile) },
+            format!("{}_summary.tsv", base),
+            format!("{}_undetermined.tsv", base),
+        ];
+        if args.excel {
+            let xlsx: Vec<String> = outputs.iter().map(|o| crate::excel::excel_path_from_tsv(o)).collect();
+            outputs.extend(xlsx);
+        }
+        let inputs = [&args.tsv_pos, &args.ref_fasta]
+            .into_iter()
+            .map(String::as_str)
+            .chain(args.tsv_genomes.as_deref())
+            .chain(args.fasta_genomes.as_deref())
+            .chain(args.gff_file.as_deref())
+            .chain(args.fasta_files.iter().flatten().map(String::as_str))
+            .chain(args.gff_files.iter().flatten().map(String::as_str));
+        crate::common::refuse_output_over_input(inputs, &outputs)?;
+    }
 
     let k = crate::common::validate_kmer_size(args.kmer_size)?;
     debug!("k-mer size set to: {}", k);

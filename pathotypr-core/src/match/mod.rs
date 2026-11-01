@@ -309,6 +309,18 @@ pub fn run(args: Args) -> AppResult<()> {
     let cancel_token = &args.cancel_token;
 
     check_cancelled(cancel_token)?;
+    if let Some(output) = &args.output {
+        let inputs = args
+            .fastqs
+            .iter()
+            .map(String::as_str)
+            .chain(args.input_list.as_deref())
+            .chain(args.references.as_deref());
+        crate::common::refuse_output_over_input(
+            inputs,
+            &[output.clone(), crate::excel::excel_path_from_tsv(output)],
+        )?;
+    }
 
     // Determine fastq files
     let fastq_files_to_process = if let Some(list_path) = &args.input_list {
