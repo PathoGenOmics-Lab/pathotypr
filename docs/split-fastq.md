@@ -21,7 +21,7 @@ You must supply markers (`-m`), a reference (`-r`), and exactly one input source
 |---|---|---|
 | Marker panel | `-m, --markers` | [Marker TSV](marker_format.md), tab-separated |
 | Reference genome | `-r, --reference` | **Single-record** FASTA the marker positions are numbered against |
-| Reads | `-i, --input` or `-l, --input-list` | FASTQ, plain or gzipped |
+| Reads | `-i, --input` or `-l, --input-list` | FASTQ, plain or gzipped; a FASTA is read too, wrapped or not, and its sample name keeps the `.fasta` ending |
 
 `-i` takes one or more files that together form **one** sample. `-l` takes a
 [sample list](input-formats.md#sample-list-tsv-split-fastq-and-match-input-list)
@@ -107,6 +107,7 @@ The marker database is built once and cached in memory, then reused for every sa
 
 | Option | Default | Required | Description |
 |---|---|---|---|
+| `--no-anchor-rescue` | `false` | no | Skip the second pass that reads a marker's locus from its anchors when its k-mers could not. Faster, and those markers are then reported as not determined. |
 | `-o, --output-prefix <PREFIX>` | `split` | no | Prefix for output files. |
 | `--excel` | `false` | no | Also write Excel (`.xlsx`) files. |
 | `-t, --threads <N>` | all cores | no | Number of CPU threads. |
@@ -197,17 +198,25 @@ matched, so only anchors that occur **exactly once** in the reference are used,
 counting both strands. A marker left with no unique anchor is reported as
 `no_unique_anchor` rather than guessed at.
 
+For the same reason a marker whose ALT k-mer the reference already carries, or
+whose window it carries twice, is never settled on read counts at all: reads
+from the other copy count towards it just as well. Five and sixty-seven markers
+of the WHO catalogue are in that position, and only their anchors can speak for
+them.
+
 !!! example "rpoB S450L behind a neighbour"
     A sample carrying S450L and a synonymous change seven bases away matches
-    neither k-mer of the marker: 112 reads cover the position and say the
-    variant is there, and the k-mers see none of it. The left anchor sits clear
-    of the neighbour, reads those 112 reads, and the marker is called with
-    `evidence` = `left_anchor`.
+    neither k-mer of the marker: 124 reads cover the position, every one of them
+    showing the variant, and the k-mers see none of it. The left anchor sits
+    clear of the neighbour, the 112 reads that carry it whole are read, and the
+    marker is called with `evidence` = `left_anchor`.
 
 This costs a second pass over the reads, which `--no-anchor-rescue` turns off.
-On a 6x whole-genome read set the run took 1.6 times as long with the pass as
-without it, and the pass resolved 15 of the 190 markers the k-mers had left
-unread.
+On a 6x whole-genome read set made from H37Rv itself, the run took about 1.5
+times as long with the pass, called nothing in either case, and settled all 72
+markers whose words the reference duplicates, which no read count can settle:
+262 markers were left unread without the pass and 190 with it, all of those at
+the edge of the reads' coverage.
 
 ## Output
 
@@ -252,6 +261,8 @@ not answer, with the same columns as the mutations table plus a `reason`.
 | `low_depth` | The locus was read, by fewer than `--min-depth` reads. |
 | `no_unique_anchor` | The k-mers matched nothing and every anchor of the marker occurs more than once in the reference, so none of them can say which copy a read came from. |
 | `anchors_disagree` | The two anchors were both read deeply enough and they do not agree, so neither is believed. |
+| `alt_kmer_in_reference` | The reference itself carries this marker's ALT k-mer, so reads matching it say nothing about this locus, and its anchors could not settle it either. |
+| `ref_kmer_repeated` | The reference carries this marker's window more than once, so reads matching it may come from the other copy. |
 
 The counts in the row are the ones the decision rests on: the k-mer counts when
 the anchors were not consulted, and the counts from the anchor that answered

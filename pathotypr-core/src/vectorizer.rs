@@ -1,6 +1,12 @@
 //! Feature hashing vectorizer for k-mer-based ML.
 //!
-//! Maps k-mers to fixed-size buckets via bitmask (hashing trick).
+//! Maps k-mers to fixed-size buckets by masking their 2-bit code.
+//!
+//! The mask keeps the low 20 bits, which are the last ten bases of the
+//! canonical k-mer, so the feature space is the 4^10 ten-mers whatever k is:
+//! k only decides which strand's ten bases are kept. That costs no accuracy
+//! in the tests behind docs/algorithms/feature-hashing.md, so it stays, but a
+//! bucket is not one k-mer and the importance reports have to be read that way.
 //! Stateless — the same hash function is used at train and predict time.
 
 use log::info;
@@ -140,7 +146,12 @@ impl FeatureHasher {
                     if target_buckets.contains(&idx) {
                         hits.push(KmerCoord {
                             bucket: idx,
-                            kmer: bitkmer_to_string(bitkmer.0, k),
+                            // The bases at `position` as the sequence has
+                            // them. The canonical k-mer is the reverse
+                            // complement of those for about half of all hits,
+                            // which then matched nothing at that coordinate.
+                            kmer: String::from_utf8_lossy(&seq_bytes[pos..pos + k])
+                                .to_ascii_uppercase(),
                             seq_index: seq_idx,
                             position: pos + 1, // 1-based
                         });

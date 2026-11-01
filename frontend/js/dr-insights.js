@@ -120,6 +120,59 @@ function looksLikeGrade(value) {
   return /^[1-5]\s*\)/.test(v) || /^unknown$/i.test(v) || /literature/i.test(v);
 }
 
+/** Three-letter amino acid codes to one, as the translation writes them. */
+const AMINO_ACID_LETTER = {
+  ala: 'A', arg: 'R', asn: 'N', asp: 'D', cys: 'C', gln: 'Q', glu: 'E', gly: 'G',
+  his: 'H', ile: 'I', leu: 'L', lys: 'K', met: 'M', phe: 'F', pro: 'P', ser: 'S',
+  thr: 'T', trp: 'W', tyr: 'Y', val: 'V', ter: '*', stp: '*'
+};
+
+/**
+ * The protein change a string names, in one-letter codes, or null when it names
+ * something else: a nucleotide change (`c.168C>T`), a frameshift, a promoter
+ * position.
+ *
+ * Reads both the catalogue's spelling (`D435Y`) and the translation's
+ * (`Asp435Phe(GAC>TTC)`), so the two can be compared.
+ */
+export function proteinChange(text) {
+  const first = String(text || '').split(';')[0].trim();
+  if (!first) return null;
+  const one = /^([A-Z])(\d+)([A-Z*])(?:[^A-Za-z0-9].*)?$/.exec(first);
+  if (one) return { from: one[1], position: Number(one[2]), to: one[3] };
+  const three = /^([A-Za-z]{3})(\d+)([A-Za-z]{3}|\*)(?:[^A-Za-z0-9].*)?$/.exec(first);
+  if (three) {
+    const from = AMINO_ACID_LETTER[three[1].toLowerCase()];
+    const to = three[3] === '*' ? '*' : AMINO_ACID_LETTER[three[3].toLowerCase()];
+    if (from && to) return { from, position: Number(three[2]), to };
+  }
+  return null;
+}
+
+/**
+ * What a marker's label promises against what the sample's codon reads.
+ *
+ * A panel row is one base of a codon, and its label is the amino acid that base
+ * alone would give. The WHO catalogue names rpoB 435 four ways at two
+ * positions, so a sample with two changes in that codon fires a row labelled
+ * D435Y while its codon reads TTC, which is Phe. The row is not wrong: the
+ * label says which catalogue entry matched and the translation says what the
+ * sample has. Shown as one line, though, the label is read as the sample's
+ * change, so where they disagree the sample's reading leads and the label is
+ * named as what it is.
+ */
+export function describeChange(mutation, aaChange) {
+  const label = String(mutation || '').trim();
+  const sample = proteinChange(aaChange);
+  const promised = proteinChange(label);
+  if (!sample || !promised) return { text: label || String(aaChange || '').trim(), label: '' };
+  if (sample.position !== promised.position || sample.to === promised.to) {
+    return { text: label, label: '' };
+  }
+  const read = String(aaChange || '').split(';')[0].trim();
+  return { text: read, label };
+}
+
 /**
  * Parse one marker's `lineage_path` into its resistance components.
  *
@@ -320,8 +373,11 @@ export function buildDrProfile(records) {
     if (!byDrug.has(parsed.drug)) {
       byDrug.set(parsed.drug, { drug: parsed.drug, mutations: [] });
     }
+    const described = describeChange(parsed.mutation, rec?.aaChange);
     byDrug.get(parsed.drug).mutations.push({
       ...parsed,
+      change: described.text,
+      catalogueLabel: described.label,
       altFraction: Number.isFinite(rec?.altFraction) ? rec.altFraction : null,
       coverage: Number.isFinite(rec?.coverage) ? rec.coverage : null
     });
@@ -569,7 +625,7 @@ export function renderDrProfileHtml(profile) {
   const cards = profile.map(entry => {
     const top = entry.mutations[0];
     const detail = top
-      ? `${escapeHtml(top.gene || top.markerName || '—')} ${escapeHtml(top.mutation || '')}`.trim()
+      ? `${escapeHtml(top.gene || top.markerName || '—')} ${escapeHtml(top.change || top.mutation || '')}`.trim()
       : '';
     const extra = entry.mutations.length > 1
       ? `<span class="dr-more">+${entry.mutations.length - 1} more</span>`
@@ -578,7 +634,11 @@ export function renderDrProfileHtml(profile) {
     const rows = entry.mutations.map(m => `
       <tr class="dr-mut dr-mut--${m.verdict}">
         <td class="dr-mut-gene">${escapeHtml(m.gene || '—')}</td>
-        <td class="dr-mut-change">${escapeHtml(m.mutation || m.markerName || '—')}</td>
+        <td class="dr-mut-change">${escapeHtml(m.change || m.mutation || m.markerName || '—')}${
+          m.catalogueLabel
+            ? ` <span class="dr-mut-label" title="The catalogue entry this marker comes from. The sample's own codon reads differently.">(${escapeHtml(m.catalogueLabel)})</span>`
+            : ''
+        }</td>
         <td class="dr-mut-grade">${escapeHtml(m.grade || '—')}</td>
         <td class="dr-mut-depth">${formatDepth(m.coverage)}</td>
         <td class="dr-mut-frac">${formatPct(m.altFraction)}</td>

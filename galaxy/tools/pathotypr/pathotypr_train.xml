@@ -36,7 +36,7 @@ pathotypr train
             </when>
         </conditional>
         <param argument="--max-depth" type="integer" min="1" value="20" label="Maximum tree depth" help="Lower values reduce overfitting on small datasets."/>
-        <param argument="--min-samples-leaf" type="integer" min="1" value="5" label="Minimum samples per leaf" help="Higher values act as regularisation, stopping a tree memorising individual genomes."/>
+        <param argument="--min-samples-leaf" type="integer" min="1" value="1" label="Minimum samples per leaf" help="A node of twice this many samples or fewer is never split. 1 is the usual value for a random forest; a high value keeps the trees from separating lineages with few genomes, and on a very small panel they never split at all."/>
         <param name="want_reports" type="boolean" checked="false" label="Also output the feature importance reports" help="Which hash buckets the forest split on most, and where the k-mers behind them sit in the training sequences."/>
     </inputs>
     <outputs>

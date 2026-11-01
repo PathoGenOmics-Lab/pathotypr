@@ -73,6 +73,14 @@ pub struct Marker {
     pub lineages: Vec<String>, // e.g., ["L2", "L2.2", "L2.2.1"]
     pub alt_kmer: Vec<u8>,
     pub ref_kmer: Vec<u8>,
+    /// Whether the reference genome already carries this marker's ALT k-mer
+    /// somewhere else. Reads from that copy count as the alternate allele, so
+    /// the counts cannot settle the marker: only an anchor can.
+    pub alt_in_reference: bool,
+    /// Whether the reference carries this marker's window more than once.
+    /// Reads from the copy count as the reference allele and drown the real
+    /// locus, so again only an anchor can settle it.
+    pub ref_repeated: bool,
     /// 0-based start of the reference window both k-mers were cut from. A read
     /// that matches either k-mer matches it exactly, so it reads every base of
     /// `kmer_start .. kmer_start + k`.
@@ -307,6 +315,10 @@ pub fn build_markers(
                     alt_allele: alt_allele_str,
                     ref_kmer,
                     alt_kmer,
+                    // Filled by one pass over the reference once the panel is
+                    // read: see mark_reference_copies.
+                    alt_in_reference: false,
+                    ref_repeated: false,
                     kmer_start,
                     annotations: annotation_cols,
                 });
@@ -333,6 +345,8 @@ pub fn build_markers(
             return Err(anyhow::anyhow!("Task cancelled by user"));
         }
     }
+
+    mark_reference_copies(&mut markers, &ref_seq, kmer_len);
 
     info!(
         "  Built {} diagnostic k-mers from {} marker lines{}.",
@@ -754,7 +768,9 @@ pub fn scan_fastq_anchors(
             while batch.len() < BATCH_SIZE {
                 if let Some(record) = rdr.next() {
                     match record {
-                        Ok(record) => batch.push(record.sequence()),
+                        // seq(), not sequence(): the newlines of a wrapped FASTA
+                        // would cut every k-mer that spans one.
+                        Ok(record) => batch.push(&record.seq()),
                         Err(e) => {
                             let mut first_error =
                                 parse_error.lock().unwrap_or_else(|e| e.into_inner());
@@ -837,6 +853,75 @@ pub fn scan_fastq_anchors(
         return Err(anyhow::anyhow!("Task cancelled by user"));
     }
     Ok(tallies)
+}
+
+/// Records which markers have a k-mer the reference genome itself carries.
+///
+/// A k-mer says what it matched and never where, so reads from a paralogous
+/// copy count towards the wrong marker. Of the WHO catalogue markers this
+/// module indexes, five have an ALT k-mer that already sits elsewhere in H37Rv
+/// (three of them in PPE35, one in ndh, one upstream of dnaA), and sixty-seven
+/// have a second copy of their reference window. Marking them here
+/// is what lets the caller refuse to settle them on read counts alone and ask
+/// the anchors, which do say where they matched.
+fn mark_reference_copies(markers: &mut [Marker], ref_seq: &[u8], kmer_len: usize) {
+    if kmer_len == 0 || ref_seq.len() < kmer_len || markers.is_empty() {
+        return;
+    }
+    let mut alt_of: FxHashMap<u64, Vec<usize>> = FxHashMap::default();
+    let mut ref_of: FxHashMap<u64, Vec<usize>> = FxHashMap::default();
+    for (id, marker) in markers.iter().enumerate() {
+        for (word, map) in [(&marker.alt_kmer, &mut alt_of), (&marker.ref_kmer, &mut ref_of)] {
+            if let Some(hash) = hash_kmer(word) {
+                map.entry(hash).or_default().push(id);
+            }
+            if let Some(hash) = hash_reverse_complement(word) {
+                // A palindrome hashes the same both ways; recording it once
+                // keeps one occurrence from counting as two.
+                let entry = map.entry(hash).or_default();
+                if entry.last() != Some(&id) {
+                    entry.push(id);
+                }
+            }
+        }
+    }
+
+    let mut alt_hits = vec![0u32; markers.len()];
+    let mut ref_hits = vec![0u32; markers.len()];
+    for (_, bitkmer, _) in ref_seq.bit_kmers(kmer_len as u8, false) {
+        if let Some(ids) = alt_of.get(&bitkmer.0) {
+            for &id in ids {
+                alt_hits[id] = alt_hits[id].saturating_add(1);
+            }
+        }
+        if let Some(ids) = ref_of.get(&bitkmer.0) {
+            for &id in ids {
+                ref_hits[id] = ref_hits[id].saturating_add(1);
+            }
+        }
+    }
+
+    let (mut with_alt_copy, mut with_ref_copy) = (0usize, 0usize);
+    for (id, marker) in markers.iter_mut().enumerate() {
+        marker.alt_in_reference = alt_hits[id] > 0;
+        marker.ref_repeated = ref_hits[id] > 1;
+        if marker.alt_in_reference {
+            with_alt_copy += 1;
+            debug!(
+                "The reference already carries the ALT k-mer of the marker at pos {} ({}>{}), so only its anchors can settle it",
+                marker.pos + 1, marker.ref_allele, marker.alt_allele
+            );
+        }
+        if marker.ref_repeated {
+            with_ref_copy += 1;
+        }
+    }
+    if with_alt_copy > 0 || with_ref_copy > 0 {
+        info!(
+            "  {} markers have an ALT k-mer the reference already carries and {} a repeated reference window; read counts cannot settle those, so their anchors do.",
+            with_alt_copy, with_ref_copy
+        );
+    }
 }
 
 pub fn build_marker_index(markers: &[Marker]) -> (MarkerIndex, BloomFilter) {
@@ -984,7 +1069,11 @@ pub fn scan_fastq_with_index(
                             break;
                         }
                     };
-                    batch.push(record.sequence());
+                    // seq() drops the line breaks a wrapped FASTA carries inside
+                    // its sequence; sequence() keeps them, and every k-mer that
+                    // spans one was skipped as holding an invalid base. Reads in
+                    // FASTQ have none, so for them nothing changes.
+                    batch.push(&record.seq());
 
                     record_count += 1;
                     if record_count & 8191 == 0 {
@@ -1184,6 +1273,8 @@ mod tests {
             lineages: vec!["RIF".to_string(), "rpoB_X1Y".to_string()],
             alt_kmer,
             ref_kmer,
+            alt_in_reference: false,
+            ref_repeated: false,
             kmer_start,
             annotations: Vec::new(),
         }
@@ -1300,6 +1391,44 @@ mod tests {
             !index.can_read(0),
             "the left anchor is repeated and the right one runs off the end"
         );
+    }
+
+    /// A wrapped FASTA carries newlines inside its sequence. Read raw, every
+    /// k-mer spanning one held an invalid base and was skipped, so a variant
+    /// whose k-mer crossed a line break was never seen.
+    #[test]
+    fn a_kmer_across_a_line_break_of_a_wrapped_fasta_is_counted() {
+        let reference = test_reference();
+        let k = 31;
+        let pos0 = 75;
+        let markers = vec![one_marker(&reference, pos0, "A", k)];
+        let (index, bloom) = build_marker_index(&markers);
+
+        let mut sample = reference.clone();
+        sample[pos0] = b'A';
+        // Lines of 70 bases put the variant at column 76 of the sequence, so
+        // its k-mer starts on the first line and ends on the second.
+        let mut wrapped = b">sample\n".to_vec();
+        for line in sample.chunks(70) {
+            wrapped.extend_from_slice(line);
+            wrapped.push(b'\n');
+        }
+        let dir = std::env::temp_dir().join(format!("pathotypr-wrap-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("wrapped.fasta");
+        std::fs::write(&path, &wrapped).unwrap();
+
+        let counts = scan_fastq_with_index(
+            &[path.to_str().unwrap().to_string()],
+            &index,
+            &bloom,
+            markers.len(),
+            &None,
+            k,
+        )
+        .unwrap();
+        std::fs::remove_dir_all(&dir).ok();
+        assert_eq!(counts[0][1], 1, "the alternate k-mer spans the line break and must be counted");
     }
 
     /// The counts are per allele, so a read carrying neither is neither.

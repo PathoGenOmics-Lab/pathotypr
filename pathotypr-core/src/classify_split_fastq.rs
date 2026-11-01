@@ -332,6 +332,21 @@ fn check_cancelled_with_cleanup(
 }
 
 pub fn run(args: SplitFastqArgs) -> AppResult<()> {
+    {
+        // The per-sample names are only known once the samples are read, but
+        // the summary is fixed, and so are the inputs it could land on.
+        let summary = format!("{}_summary.tsv", args.output_prefix);
+        let inputs = args
+            .input
+            .iter()
+            .map(String::as_str)
+            .chain(args.input_list.as_deref())
+            .chain([args.reference.as_str(), args.markers.as_str()]);
+        crate::common::refuse_output_over_input(
+            inputs,
+            &[summary.clone(), crate::excel::excel_path_from_tsv(&summary)],
+        )?;
+    }
     if args.input.is_empty() && args.input_list.is_none() {
         return Err(AppError::Generic(
             "You must provide an input source: either --input or --input-list.".to_string(),
@@ -630,6 +645,9 @@ pub fn run(args: SplitFastqArgs) -> AppResult<()> {
             .enumerate()
             .filter(|(marker_id, &[ref_count, alt_count])| {
                 let marker = &markers[*marker_id];
+                if marker.alt_in_reference || marker.ref_repeated {
+                    return true; // only an anchor can settle it, whatever the counts
+                }
                 ref_count + alt_count < args.min_depth
                     && !window_covers(
                         &read_windows,
@@ -889,8 +907,14 @@ pub fn run(args: SplitFastqArgs) -> AppResult<()> {
             sample_name, detailed_output_path
         );
 
-        // Generate summary line
-        let mut sorted_lineages: Vec<(String, usize)> = lineage_counts
+        // Generate summary line. A resistance panel is tallied per drug; see
+        // resistance::per_drug_counts.
+        let shown_counts = if resistance_panel {
+            crate::resistance::per_drug_counts(&lineage_counts)
+        } else {
+            lineage_counts.clone()
+        };
+        let mut sorted_lineages: Vec<(String, usize)> = shown_counts
             .iter()
             .map(|(k, v)| (k.clone(), *v))
             .collect();
@@ -1065,7 +1089,11 @@ fn call_marker(
 ) -> Call {
     let [reference, alternate] = kmer_counts;
     let coverage = reference + alternate;
-    if coverage >= min_depth {
+    // A word the reference carries twice is counted from both copies, so no
+    // depth makes it evidence about this locus. Those markers go straight to
+    // the anchors, which say where they matched.
+    let kmers_can_settle = !marker.alt_in_reference && !marker.ref_repeated;
+    if kmers_can_settle && coverage >= min_depth {
         let fraction = (alternate as f32 / coverage as f32) * 100.0;
         return if fraction >= min_alt_percent as f32 {
             Call::Present { reference, alternate, evidence: "kmer" }
@@ -1074,11 +1102,19 @@ fn call_marker(
         };
     }
 
-    if window_covers(read_windows, marker.pos, marker.pos + marker.ref_allele.len()) {
+    if kmers_can_settle
+        && window_covers(read_windows, marker.pos, marker.pos + marker.ref_allele.len())
+    {
         return Call::Absent;
     }
 
-    let depth_reason = if coverage == 0 { "not_found" } else { "low_depth" };
+    let depth_reason = if !kmers_can_settle {
+        if marker.alt_in_reference { "alt_kmer_in_reference" } else { "ref_kmer_repeated" }
+    } else if coverage == 0 {
+        "not_found"
+    } else {
+        "low_depth"
+    };
     let Some(anchors) = anchors else {
         return Call::Unread { reference, alternate, reason: depth_reason };
     };
@@ -1171,6 +1207,8 @@ mod tests {
             lineages: vec!["RIF".to_string()],
             alt_kmer: Vec::new(),
             ref_kmer: Vec::new(),
+            alt_in_reference: false,
+            ref_repeated: false,
             kmer_start: pos,
             annotations: Vec::new(),
         }

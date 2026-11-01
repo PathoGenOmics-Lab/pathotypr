@@ -15,7 +15,7 @@ use crate::errors::{
 };
 use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
-use log::{info, warn};
+use log::{debug, info, warn};
 use rayon::prelude::*;
 use std::fs::File;
 use std::io::{BufWriter, Read, Write};
@@ -82,6 +82,13 @@ pub fn load_model_bundle(path: &str) -> AppResult<ModelBundle> {
     Ok(bundle)
 }
 
+/// Removes the files this run created, and only those.
+///
+/// It used to also remove the .xlsx derived from the output name, whether or
+/// not `--excel` was given. The Excel writer only touches the disk inside
+/// `finish()`, so no partial .xlsx can exist to clean up, and every file that
+/// derivation could delete was one an earlier run had left: `predict -o run.tsv`
+/// over a bad FASTA deleted yesterday's `run.xlsx`.
 fn cleanup_generated_outputs(paths: &[String]) {
     for out_path in paths {
         match std::fs::remove_file(out_path) {
@@ -89,32 +96,61 @@ fn cleanup_generated_outputs(paths: &[String]) {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
             Err(e) => warn!("Failed to remove partial output {}: {}", out_path, e),
         }
+    }
+}
 
-        // Must match the writer's derivation exactly, or cleanup deletes the
-        // wrong file and leaves the real partial .xlsx behind.
-        let xlsx_path = crate::excel::excel_path_from_tsv(out_path);
-        match std::fs::remove_file(&xlsx_path) {
-            Ok(_) => {}
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(e) => warn!(
-                "Failed to remove partial output {}: {}",
-                xlsx_path,
-                e
-            ),
+/// What the model says about one record, or that it could not say anything.
+///
+/// A record with no usable k-mer is not a weak prediction, it is no
+/// prediction: every tree walks the "feature absent" branch of every split and
+/// the ensemble agrees on whatever that path leads to. An N-masked consensus,
+/// the ordinary product of a reference-based pipeline, used to come out with
+/// the same lineage and the same confidence as a real genome.
+struct Prediction {
+    label: String,
+    confidence: f32,
+    margin: f32,
+    others: String,
+    /// k-mers the record yielded. Zero means nothing was read: too short for
+    /// k, or no window of A, C, G and T long enough to encode.
+    kmers: u64,
+}
+
+impl Prediction {
+    /// The row for a record the model cannot speak about.
+    fn undetermined() -> Self {
+        Self {
+            label: "Undetermined".to_string(),
+            confidence: f32::NAN,
+            margin: f32::NAN,
+            others: String::new(),
+            kmers: 0,
+        }
+    }
+
+    /// Confidence and margin as written out: empty for an undetermined row,
+    /// because 0.0000 there reads as a measured zero.
+    fn figures(&self) -> (String, String) {
+        if self.kmers == 0 {
+            (String::new(), String::new())
+        } else {
+            (format!("{:.4}", self.confidence), format!("{:.4}", self.margin))
         }
     }
 }
 
 /// Predict a single sparse row against the tree ensemble.
-///
-/// Returns `(predicted_label, confidence, margin, other_votes_str)`.
 fn predict_one_record(
     sparse_row: &[(usize, f32)],
     trees: &[crate::sparse_tree::SparseDecisionTree],
     int_to_label: &[String],
     n_classes: usize,
     total_trees: f32,
-) -> (String, f32, f32, String) {
+) -> Prediction {
+    if sparse_row.is_empty() {
+        return Prediction::undetermined();
+    }
+    let kmers = sparse_row.iter().map(|&(_, count)| count as f64).sum::<f64>() as u64;
     let mut vote_counts = vec![0u16; n_classes];
     for tree in trees {
         let pred = tree.predict_one(sparse_row);
@@ -123,8 +159,22 @@ fn predict_one_record(
         }
     }
 
-    if let Some((best_class_idx, &winner_vote_count)) =
-        vote_counts.iter().enumerate().max_by_key(|(_, count)| *count)
+    // `max_by_key` keeps the last of equal keys, and class indices follow the
+    // order labels first appear in the training FASTA, so a tie used to be
+    // broken by where a record sat in that file. The label decides instead, so
+    // the same votes give the same answer whatever the file order was.
+    if let Some((best_class_idx, &winner_vote_count)) = vote_counts
+        .iter()
+        .enumerate()
+        .max_by(|(left, a), (right, b)| {
+            a.cmp(b).then_with(|| {
+                int_to_label
+                    .get(*right)
+                    .map(String::as_str)
+                    .unwrap_or("")
+                    .cmp(int_to_label.get(*left).map(String::as_str).unwrap_or(""))
+            })
+        })
     {
         let mut second_vote_count = 0u16;
         for (class_idx, &vote_count) in vote_counts.iter().enumerate() {
@@ -180,9 +230,10 @@ fn predict_one_record(
             .collect::<Vec<String>>()
             .join(",");
 
-        (predicted_label, confidence, margin, other_votes_str)
+        Prediction { label: predicted_label, confidence, margin, others: other_votes_str, kmers }
     } else {
-        ("Unknown".to_string(), 0.0, 0.0, String::new())
+        // No classes at all, which `load_model_bundle` already refuses.
+        Prediction::undetermined()
     }
 }
 
@@ -200,6 +251,10 @@ pub fn run(args: PredictArgs) -> AppResult<()> {
 
     let cancel_token = &args.cancel_token;
     check_cancelled(cancel_token)?;
+    crate::common::refuse_output_over_input(
+        [args.input.as_str(), args.model.as_str()],
+        &[args.output.clone(), crate::excel::excel_path_from_tsv(&args.output)],
+    )?;
 
     let overall_start = Instant::now();
 
@@ -227,14 +282,19 @@ pub fn run(args: PredictArgs) -> AppResult<()> {
     let kmer_size = bundle.config.kmer_size;
 
     // --- Open output files before streaming ---
-    let generated_outputs = vec![args.output.clone()];
+    let mut generated_outputs = vec![args.output.clone()];
+    if args.excel {
+        // Written at the end of the run, so cleanup only finds it when this
+        // run got that far.
+        generated_outputs.push(crate::excel::excel_path_from_tsv(&args.output));
+    }
     let mut output_file = match File::create(&args.output) {
         Ok(f) => BufWriter::new(f),
         Err(e) => return Err(AppError::Io(e)),
     };
     if let Err(e) = writeln!(
         output_file,
-        "Header\tPredicted_Lineage\tConfidence\tConfidence_Margin\tOther_Votes"
+        "Header\tPredicted_Lineage\tConfidence\tConfidence_Margin\tOther_Votes\tKmers_Used"
     ) {
         drop(output_file);
         cleanup_generated_outputs(&generated_outputs);
@@ -247,6 +307,7 @@ pub fn run(args: PredictArgs) -> AppResult<()> {
         "Confidence",
         "Confidence_Margin",
         "Other_Votes",
+        "Kmers_Used",
     ];
     let mut excel_writer = if args.excel {
         match crate::common::ExcelStreamWriter::new(&args.output, &excel_headers) {
@@ -294,6 +355,9 @@ pub fn run(args: PredictArgs) -> AppResult<()> {
     let cancellation = ParallelCancellation::new(cancel_token);
     let mut total_predicted = 0u64;
     let mut found_any = false;
+    // Records the model could say nothing about, counted so the run can say so
+    // rather than leaving them to look like ordinary calls.
+    let mut undetermined_records = 0usize;
     let mut batch: Vec<(String, String)> = Vec::with_capacity(PREDICT_BATCH_SIZE);
 
     loop {
@@ -319,14 +383,17 @@ pub fn run(args: PredictArgs) -> AppResult<()> {
                             )));
                         }
                     };
+                    // A record too short for k, or one made of Ns, yields no
+                    // k-mer. It is kept and reported as undetermined rather
+                    // than dropped: a sample missing from the output is a
+                    // sample nobody notices is missing.
                     if seq.len() < kmer_size {
-                        warn!(
-                            "Skipping entry shorter than k={} ({} bp), no k-mer can be extracted: {}",
-                            kmer_size,
+                        debug!(
+                            "No k-mer can be cut from {} ({} bp, k={}); it will be reported as undetermined",
+                            header,
                             seq.len(),
-                            header
+                            kmer_size
                         );
-                        continue;
                     }
                     batch.push((header, seq));
                     if batch.len() >= PREDICT_BATCH_SIZE {
@@ -355,11 +422,11 @@ pub fn run(args: PredictArgs) -> AppResult<()> {
         let trees = &bundle.trees;
         let int_to_label = &bundle.label_encoder.int_to_label;
 
-        let batch_predictions: Vec<(String, f32, f32, String)> = x_sparse
+        let batch_predictions: Vec<Prediction> = x_sparse
             .par_iter()
             .map(|sparse_row| {
                 if cancellation.is_cancelled() {
-                    return (String::new(), 0.0, 0.0, String::new());
+                    return Prediction::undetermined();
                 }
                 predict_one_record(sparse_row, trees, int_to_label, n_classes, total_trees)
             })
@@ -372,11 +439,15 @@ pub fn run(args: PredictArgs) -> AppResult<()> {
 
         // Write batch results immediately
         for (i, (header, _)) in batch.iter().enumerate() {
-            let (ref pred, conf, margin, ref others) = batch_predictions[i];
+            let prediction = &batch_predictions[i];
+            if prediction.kmers == 0 {
+                undetermined_records += 1;
+            }
+            let (confidence, margin) = prediction.figures();
             if let Err(e) = writeln!(
                 output_file,
-                "{}\t{}\t{:.4}\t{:.4}\t{}",
-                header, pred, conf, margin, others
+                "{}\t{}\t{}\t{}\t{}\t{}",
+                header, prediction.label, confidence, margin, prediction.others, prediction.kmers
             ) {
                 drop(output_file);
                 cleanup_generated_outputs(&generated_outputs);
@@ -385,10 +456,11 @@ pub fn run(args: PredictArgs) -> AppResult<()> {
 
             let row = vec![
                 header.clone(),
-                pred.clone(),
-                format!("{:.4}", conf),
-                format!("{:.4}", margin),
-                others.clone(),
+                prediction.label.clone(),
+                confidence.clone(),
+                margin.clone(),
+                prediction.others.clone(),
+                prediction.kmers.to_string(),
             ];
             let mut disable_excel = false;
             if let Some(writer) = excel_writer.as_mut() {
@@ -415,6 +487,12 @@ pub fn run(args: PredictArgs) -> AppResult<()> {
         return Err(AppError::NotEnoughData(
             "No records found in the input FASTA file.".to_string(),
         ));
+    }
+    if undetermined_records > 0 {
+        warn!(
+            "⚠️ {} record(s) yielded no k-mer at k={} and are reported as Undetermined: too short, or without a long enough window of A, C, G and T. An N-masked consensus reads this way.",
+            undetermined_records, kmer_size
+        );
     }
 
     if let Err(e) = output_file.flush() {

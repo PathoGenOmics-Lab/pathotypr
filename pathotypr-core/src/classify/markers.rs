@@ -41,6 +41,17 @@ pub struct MarkerKmerEntry {
     /// genome by counting bases from one anchor. See [`AnchorIndex`].
     pub left_anchor: Option<String>,
     pub right_anchor: Option<String>,
+    /// Whether the reference genome already carries this marker's alternative
+    /// k-mer somewhere. A k-mer says what it matched, never where, so one the
+    /// reference holds is found in every genome and cannot by itself mean the
+    /// marker is present.
+    pub alt_in_reference: bool,
+    /// How many times the reference carries this marker's own window. Above
+    /// one, a reference k-mer hit cannot by itself mean the locus holds the
+    /// reference allele, because the hit may be the other copy. Finding the
+    /// window as often as the reference has it does prove it: every copy was
+    /// read and every one is reference.
+    pub ref_copies: u32,
     pub ref_position: usize,
     pub lineage: String,
     pub ref_allele_len: usize,
@@ -585,6 +596,10 @@ pub fn generate_markerkmer(
             ref_kmer,
             left_anchor,
             right_anchor,
+            // Filled once the whole panel is built, by one pass over the
+            // reference: see mark_reference_copies.
+            alt_in_reference: false,
+            ref_copies: 0,
             ref_position: pos,
             lineage: marker.lineage.clone(),
             ref_allele_len: ref_len,
@@ -629,6 +644,8 @@ pub fn generate_markerkmer(
         }
         text_index.into_values().collect()
     };
+    let mut entries = entries;
+    mark_reference_copies(&mut entries, ref_seq, k);
     build_index(entries, use_encoded_index, anchor_len)
 }
 
@@ -719,6 +736,125 @@ fn build_index(mut markers: Vec<MarkerKmerEntry>, encoded: bool, anchor_len: usi
     MarkerIndex { markers, alt, reference, marker_site, site_count, site_alleles, anchors }
 }
 
+/// Records which markers have a k-mer the reference genome itself carries.
+///
+/// A marker is recognised by a word, and a word says what it matched and not
+/// where. Of the WHO catalogue markers this index holds, two have an
+/// alternative word that already sits elsewhere in H37Rv (ndh c.168C>T and
+/// PPE35 I417V), so they read as present in every genome including the
+/// ancestor, and seventy-one have a second copy of their reference word, which
+/// reads as the reference allele while the real locus carries the variant.
+///
+/// Knowing this from the reference is what lets a k-mer hit be treated as the
+/// weak evidence it is: those markers are settled by an anchor, which does say
+/// where it matched, or reported as unread. The alternative is to trust the
+/// word and be wrong without noticing.
+fn mark_reference_copies(markers: &mut [MarkerKmerEntry], ref_seq: &str, k: usize) {
+    if k == 0 || ref_seq.len() < k {
+        return;
+    }
+    // Both orientations of every word, because a genome is scanned on both
+    // strands and a copy on the other strand misleads just as much.
+    let mut alt_of: FxHashMap<Vec<u8>, Vec<usize>> = FxHashMap::default();
+    let mut ref_of: FxHashMap<Vec<u8>, Vec<usize>> = FxHashMap::default();
+    for (id, entry) in markers.iter().enumerate() {
+        let rc = crate::classify::reverse_complement_sequence(&entry.kmer);
+        alt_of.entry(entry.kmer.clone().into_bytes()).or_default().push(id);
+        if rc != entry.kmer {
+            alt_of.entry(rc.into_bytes()).or_default().push(id);
+        }
+        if let Some(reference) = entry.ref_kmer.as_deref() {
+            let rc = crate::classify::reverse_complement_sequence(reference);
+            ref_of.entry(reference.as_bytes().to_vec()).or_default().push(id);
+            if rc != reference {
+                ref_of.entry(rc.into_bytes()).or_default().push(id);
+            }
+        }
+    }
+
+    // The anchors too. An anchor is trusted for saying *where* it matched, so
+    // one the reference carries twice is worth nothing even when a genome
+    // happens to hold it once: that single copy can be the other locus, with
+    // the real one broken by the very change the anchor exists to see past.
+    let anchor_len = k - 1;
+    let mut anchor_of: FxHashMap<Vec<u8>, Vec<(usize, bool)>> = FxHashMap::default();
+    for (id, entry) in markers.iter().enumerate() {
+        for (side, anchor) in [(true, &entry.left_anchor), (false, &entry.right_anchor)] {
+            if let Some(anchor) = anchor.as_deref() {
+                let rc = crate::classify::reverse_complement_sequence(anchor);
+                anchor_of.entry(anchor.as_bytes().to_vec()).or_default().push((id, side));
+                if rc != anchor {
+                    anchor_of.entry(rc.into_bytes()).or_default().push((id, side));
+                }
+            }
+        }
+    }
+
+    let mut alt_hits = vec![0u32; markers.len()];
+    let mut ref_hits = vec![0u32; markers.len()];
+    let mut left_hits = vec![0u32; markers.len()];
+    let mut right_hits = vec![0u32; markers.len()];
+    for window in ref_seq.as_bytes().windows(k) {
+        if let Some(ids) = alt_of.get(window) {
+            for &id in ids {
+                alt_hits[id] = alt_hits[id].saturating_add(1);
+            }
+        }
+        if let Some(ids) = ref_of.get(window) {
+            for &id in ids {
+                ref_hits[id] = ref_hits[id].saturating_add(1);
+            }
+        }
+    }
+    if anchor_len > 0 && ref_seq.len() >= anchor_len {
+        for window in ref_seq.as_bytes().windows(anchor_len) {
+            if let Some(ids) = anchor_of.get(window) {
+                for &(id, left) in ids {
+                    let hits = if left { &mut left_hits } else { &mut right_hits };
+                    hits[id] = hits[id].saturating_add(1);
+                }
+            }
+        }
+    }
+
+    let (mut with_alt_copy, mut with_ref_copy, mut dropped_anchors) = (0usize, 0usize, 0usize);
+    for (id, entry) in markers.iter_mut().enumerate() {
+        entry.alt_in_reference = alt_hits[id] > 0;
+        entry.ref_copies = ref_hits[id];
+        if entry.left_anchor.is_some() && left_hits[id] != 1 {
+            entry.left_anchor = None;
+            dropped_anchors += 1;
+        }
+        if entry.right_anchor.is_some() && right_hits[id] != 1 {
+            entry.right_anchor = None;
+            dropped_anchors += 1;
+        }
+        if entry.alt_in_reference {
+            with_alt_copy += 1;
+            debug!(
+                "The reference already carries the alternative k-mer of the marker at position {} ({}>{}), so it will only be called from an anchor",
+                entry.ref_position, entry.ref_allele, entry.alt_allele
+            );
+        }
+        if entry.ref_copies > 1 {
+            with_ref_copy += 1;
+            debug!(
+                "The reference carries the window of the marker at position {} more than once, so a reference k-mer hit cannot rule it absent",
+                entry.ref_position
+            );
+        }
+    }
+    if dropped_anchors > 0 {
+        debug!("{} anchors occur more than once in the reference and were dropped.", dropped_anchors);
+    }
+    if with_alt_copy > 0 || with_ref_copy > 0 {
+        info!(
+            "{} markers have an alternative k-mer the reference already carries, and {} a repeated reference k-mer. Their anchors settle them, or they are reported as unread; run with -v to list them.",
+            with_alt_copy, with_ref_copy
+        );
+    }
+}
+
 /// Collects the anchors of every substitution marker into their own lookups.
 fn build_anchor_index(markers: &[MarkerKmerEntry], encoded: bool, anchor_len: usize) -> AnchorIndex {
     let mut index = AnchorIndex {
@@ -800,6 +936,10 @@ pub struct MarkerScan {
     pub matches: Vec<MarkerMatch>,
     /// Sites whose reference k-mer occurs, once each.
     pub reference_sites: Vec<usize>,
+    /// How many times each site's reference k-mer was found. A window the
+    /// reference carries twice is proved absent by finding it twice: both
+    /// copies were read and both are reference.
+    pub site_hits: Vec<u32>,
 }
 
 /// Records what one k-mer of the genome turned out to be.
@@ -836,6 +976,10 @@ fn record_hit(
         if seen_sites.insert(site) {
             scan.reference_sites.push(site);
         }
+        if scan.site_hits.len() <= site {
+            scan.site_hits.resize(site + 1, 0);
+        }
+        scan.site_hits[site] = scan.site_hits[site].saturating_add(1);
     }
 }
 

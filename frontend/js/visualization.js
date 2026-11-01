@@ -1765,6 +1765,9 @@ function buildGenotypingInsightSections(data) {
   const fracIdx = findHeaderIndexByTokens(headers, ['alt_fraction', 'alt_percent', 'alt_pct', 'vaf', 'allele_fraction']);
   const refIdx = findHeaderIndexByTokens(headers, ['ref_count', 'reference_count', 'ref_reads']);
   const altIdx = findHeaderIndexByTokens(headers, ['alt_count', 'alternate_count', 'alt_reads', 'mut_count']);
+  // The amino acid read from the sample's own codon, which a panel label built
+  // from one base of three can contradict.
+  const aaIdx = findHeaderIndexByTokens(headers, ['aa_change', 'amino_acid_change']);
 
   // Summary tables carry no per-marker evidence, only the lineage:count cell.
   if (lineageIdx === -1 && lineageCountIdx === -1) return '';
@@ -1784,7 +1787,13 @@ function buildGenotypingInsightSections(data) {
       if (altFraction === null && coverage > 0 && altCount !== null) {
         altFraction = (altCount / coverage) * 100;
       }
-      records.push({ sample, lineagePath, altFraction, coverage: coverage > 0 ? coverage : null });
+      records.push({
+        sample,
+        lineagePath,
+        altFraction,
+        coverage: coverage > 0 ? coverage : null,
+        aaChange: aaIdx !== -1 ? normalizeValue(row[aaIdx]) : ''
+      });
       if (Number.isFinite(altFraction)) fractions.push(altFraction);
     });
   }
@@ -7532,7 +7541,10 @@ export function renderTrainSummaryCard(toolId, report) {
   const isCv = report.cv_mean_accuracy_pct != null;
   const accuracyValue = isCv
     ? `${Number(report.cv_mean_accuracy_pct).toFixed(2)}% ± ${Number(report.cv_std_accuracy_pct || 0).toFixed(2)}%`
-    : `${Number(report.accuracy_pct || 0).toFixed(2)}%`;
+    // Absent means no evaluation ran, which is not the same as zero.
+    : (report.accuracy_pct == null
+      ? 'not evaluated'
+      : `${Number(report.accuracy_pct).toFixed(2)}%`);
   const accuracySub = isCv
     ? `${(report.cv_fold_accuracies || []).length}-fold stratified CV`
     : `${report.n_test || 0} test samples`;

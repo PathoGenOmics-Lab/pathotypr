@@ -62,7 +62,7 @@ For each query genome (parallelized across genomes with rayon):
 
 A k-mer says *what* it matched but not *where*, so a paralogous copy of either
 allele reads as the marker's own locus. An anchor is only used when it occurs
-once in the genome, so it does say where. Wherever an anchor can read the
+once in the genome and once in the reference, so it does say where. Wherever an anchor can read the
 locus, it decides:
 
 | The anchors read | State |
@@ -75,10 +75,16 @@ And when no anchor can read it:
 
 | ALT k-mer | REF k-mer of its site | State |
 |---|---|---|
-| found | not found | present |
+| found, and the reference does not carry it | not found | present |
+| found, but the reference carries it too | anything | undetermined, `alt_kmer_in_reference` |
 | found | found | undetermined, `ambiguous_both_alleles` |
-| not found | found, or any other marker of the site found | absent |
+| not found | found as often as the reference has it | absent |
+| not found | found, but the reference has more copies | undetermined, `ref_kmer_repeated` |
 | not found | nothing of the site found | undetermined, `not_found` |
+| anything | the marker has no reference k-mer at all | undetermined, `no_reference_kmer` |
+
+Two anchors that both read the locus and disagree leave the marker undetermined
+as `anchors_disagree`, whatever the k-mers found.
 
 A k-mer is an exact match, so another change anywhere in the window (a
 synonymous substitution, a lineage polymorphism) hides both alleles. Before the

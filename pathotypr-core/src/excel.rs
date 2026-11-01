@@ -39,6 +39,28 @@ pub struct ExcelStreamWriter {
     next_row: u32,
     /// Deferred conditional formatting rules: (col_idx, low_threshold, high_threshold).
     conditional_formats: Vec<(u16, f64, f64)>,
+    /// Columns that hold a name rather than a measurement, worked out from the
+    /// header. Their cells stay text whatever they look like.
+    identifier_columns: Vec<bool>,
+}
+
+/// Whether a column holds an identifier, judged by its header.
+///
+/// A sample called `0048` parses as a number, and writing it as one turns it
+/// into `48` in the spreadsheet while the TSV keeps `0048`; `1e5` becomes
+/// `100000`. Joining the two files back together by sample then silently
+/// matches the wrong rows, which is worse than either file being wrong on its
+/// own. Measurements are left to be numbers, because that is what makes them
+/// sortable and what the conditional formatting needs.
+fn holds_identifier(header: &str) -> bool {
+    // Matched whole, not by suffix: `SNPgenome` is a coordinate, and making it
+    // text would stop it sorting.
+    const NAMES: [&str; 12] = [
+        "header", "genome", "sample", "sample_name", "sample_id", "isolate", "strain", "file",
+        "filename", "name", "id", "query",
+    ];
+    let header = header.trim().to_ascii_lowercase();
+    NAMES.contains(&header.as_str())
 }
 
 impl ExcelStreamWriter {
@@ -76,6 +98,7 @@ impl ExcelStreamWriter {
             max_widths,
             next_row: 1,
             conditional_formats: Vec::new(),
+            identifier_columns: headers.iter().map(|header| holds_identifier(header)).collect(),
         })
     }
 
@@ -91,7 +114,9 @@ impl ExcelStreamWriter {
             }
             self.max_widths[col_idx] = self.max_widths[col_idx].max(cell.len());
 
-            if let Ok(num) = cell.parse::<f64>() {
+            let identifier = self.identifier_columns.get(col_idx).copied().unwrap_or(false);
+            let number = if identifier { None } else { cell.parse::<f64>().ok() };
+            if let Some(num) = number {
                 worksheet.write_number_with_format(
                     self.next_row,
                     col_idx as u16,
@@ -209,4 +234,26 @@ pub fn parse_tsv_for_excel(tsv_content: &str) -> (Vec<&str>, Vec<Vec<String>>) {
         .collect();
 
     (headers, rows)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::holds_identifier;
+
+    /// A sample called `0048` must not become 48, and a coordinate must stay a
+    /// number: the rule is read off the header, so this pins which headers of
+    /// this tool's own tables fall on which side.
+    #[test]
+    fn identifier_columns_are_told_from_measurements() {
+        for header in ["Header", "genome", "sample", "Sample_ID", "isolate", "strain", "name", "id"] {
+            assert!(holds_identifier(header), "{header} names a sample");
+        }
+        for header in [
+            "SNPgenome", "SNPreference", "pos", "k-merPOS", "AA_Pos", "Gene_Start", "Gene_End",
+            "ref_count", "alt_count", "alt_fraction", "Confidence", "Kmers_Used", "lineage",
+            "major_lineage", "undetermined", "evidence", "reason",
+        ] {
+            assert!(!holds_identifier(header), "{header} is not a sample name");
+        }
+    }
 }

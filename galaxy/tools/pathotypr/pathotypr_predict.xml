@@ -47,10 +47,11 @@ The output has one row per input sequence:
 Column                     Meaning
 =========================  ====================================================
 ``Header``                 The FASTA header of the input sequence, unchanged
-``Predicted_Lineage``      The class the ensemble voted for
+``Predicted_Lineage``      The class the ensemble voted for, or Undetermined
 ``Confidence``             Fraction of trees that voted for it, 0 to 1
 ``Confidence_Margin``      The gap to the runner-up
 ``Other_Votes``            The remaining classes and their shares
+``Kmers_Used``             k-mers the sequence yielded; zero means nothing read
 =========================  ====================================================
 
 **Reading the confidence**
@@ -60,6 +61,12 @@ probability that the answer is right. A genome from a lineage that was never in
 the training set will still be assigned to the nearest class it knows, and can
 do so confidently. The margin is the more useful number of the two: a high
 confidence with a small margin means two classes were nearly tied.
+
+Read ``Kmers_Used`` beside them. A sequence that yields no k-mer, because it is
+shorter than the model's k or because it is N-masked, comes out as
+``Undetermined`` with zero there; a sequence that yields a handful gets an
+ordinary-looking confidence, because every tree sends a missing feature down the
+same branch and their agreement is what confidence measures.
 
 .. class:: warningmark
 

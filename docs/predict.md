@@ -22,7 +22,7 @@ pathotypr predict -i <query.fasta> -m <model.pathotypr.zst> -o <predictions.tsv>
 ### Requirements
 
 - [x] The model must be a **current-format bundle**. An incompatible format version is a hard error and the model has to be retrained. A bundle written by a different pathotypr version only warns.
-- [x] Records **shorter than the model's k** are skipped with a warning: no k-mer can be extracted from them.
+- [x] Records that yield **no k-mer**, because they are shorter than the model's k or carry no long enough window of A, C, G and T, are reported as `Undetermined` with `Kmers_Used` zero rather than dropped.
 - [x] No labels are needed or read. The **full header** is carried through to the output.
 
 !!! warning "The model dictates k, not you"
@@ -31,10 +31,12 @@ pathotypr predict -i <query.fasta> -m <model.pathotypr.zst> -o <predictions.tsv>
     `k=21`. This is also why the minimum usable sequence length depends on the
     model rather than on the query file.
 
-!!! info "Every record gets a call"
-    There is no "unknown" class and no confidence threshold. A query from a
-    lineage absent from the training set still receives the closest label the
-    forest can find, distinguishable only by a **low confidence and margin**.
+!!! info "Any record with k-mers gets a call"
+    A record that yields no k-mer is `Undetermined`. Every other record gets a
+    label, because there is no "unknown" class and no confidence threshold: a
+    query from a lineage absent from the training set still receives the closest
+    label the forest can find, distinguishable only by a **low confidence and
+    margin**, and by `Kmers_Used` when it rests on very few k-mers.
     Read those two columns before acting on a call: see
     [Output](#predictionstsv-always-written) for what they mean.
 
@@ -70,7 +72,7 @@ These are available on every `pathotypr` subcommand:
 6. **Score** each record with a confidence and a confidence margin, then write results immediately and free the batch.
 
 !!! warning "Short sequences are skipped"
-    Any record shorter than the model's k-mer length yields no k-mers and is skipped with a warning; it will not appear in the output. If every record is skipped or the file is empty, the command exits with an error and removes the partial output.
+    A record that yields no k-mer is reported as `Undetermined` with `Kmers_Used` zero, and the run says at the end how many came out that way. It is not dropped: a sample missing from the output is a sample nobody notices is missing. This covers records shorter than the model's k and, less obviously, N-masked consensus sequences, which are long but hold no window of A, C, G and T: one `N` destroys every k-mer overlapping it, so at k=21 an `N` every twenty bases leaves nothing to read. Those used to come out with an ordinary-looking lineage and confidence, because a tree sends a missing feature down the same branch every time and all the trees then agree. Only a file with no records at all is an error.
 
 ## Examples
 
@@ -117,17 +119,19 @@ A tab-separated file with a header row and one row per classified record. Column
 | Column | Description |
 |---|---|
 | `Header` | The input record's full FASTA header line — everything after `>`, description included. |
-| `Predicted_Lineage` | Majority-vote lineage label. A record on which no tree cast a usable vote still gets a label, but with a `Confidence` at or near zero — read low confidence, not a special value, as "unresolved". |
+| `Predicted_Lineage` | Majority-vote lineage label, or `Undetermined` when the record yielded no k-mer and the model therefore said nothing about it. A tie between two lineages is settled by the label, so the answer does not depend on the order the training FASTA happened to be in. |
 | `Confidence` | Fraction of trees voting for the winning lineage, in `0.0000`–`1.0000` (4 decimals). |
 | `Confidence_Margin` | Winner-minus-runner-up vote fraction, in `0.0000`–`1.0000` (4 decimals). |
 | `Other_Votes` | Up to the three next-best lineages as `label:fraction` (2 decimals), comma-separated. Empty when there are no alternatives. |
+| `Kmers_Used` | How many k-mers the record yielded. Zero is what `Undetermined` rests on, and a handful tells you a call rests on almost nothing, which no confidence figure shows: every tree walks the same branch when a feature is missing, so they agree, and the agreement reads as confidence. |
 
 Example:
 
 ```text
-Header	Predicted_Lineage	Confidence	Confidence_Margin	Other_Votes
-sample_001	L4	0.9600	0.9300	L2:0.03,L1:0.01
-sample_002	L2	0.5400	0.0800	L4:0.46
+Header	Predicted_Lineage	Confidence	Confidence_Margin	Other_Votes	Kmers_Used
+sample_001	L4	0.9600	0.9300	L2:0.03,L1:0.01	4411512
+sample_002	L2	0.5400	0.0800	L4:0.46	4398877
+masked_003	Undetermined				0
 ```
 
 ### `predictions.xlsx` (only with `--excel`)

@@ -338,17 +338,7 @@ async function loadDemoData() {
 
   document.getElementById('match-kmer').value = 31;
   document.getElementById('match-threads').value = 4;
-  document.getElementById('match-max-ref-freq').value = 0;
-  // These two controls are optional in the DOM; guard the assignments so a
-  // missing element does not throw a TypeError and abort the demo loader.
-  const matchCoarseTopN = document.getElementById('match-coarse-top-n');
-  if (matchCoarseTopN) matchCoarseTopN.value = 128;
-  const matchCoarseStride = document.getElementById('match-coarse-stride');
-  if (matchCoarseStride) matchCoarseStride.value = 8;
-  document.getElementById('match-early-stop-confidence').value = 0;
-  document.getElementById('match-early-stop-min-kmers').value = 1000000;
-  document.getElementById('match-strict-percentages').checked = true;
-  document.getElementById('match-auto-tune').checked = true;
+  document.getElementById('match-min-kmer-count').value = 1;
 
   saveFormState();
 
@@ -481,13 +471,7 @@ export function saveFormState() {
     'splitfq-nested': document.getElementById('splitfq-nested')?.checked,
     'match-kmer': document.getElementById('match-kmer')?.value,
     'match-threads': document.getElementById('match-threads')?.value,
-    'match-max-ref-freq': document.getElementById('match-max-ref-freq')?.value,
-    'match-coarse-top-n': document.getElementById('match-coarse-top-n')?.value,
-    'match-coarse-stride': document.getElementById('match-coarse-stride')?.value,
-    'match-early-stop-confidence': document.getElementById('match-early-stop-confidence')?.value,
-    'match-early-stop-min-kmers': document.getElementById('match-early-stop-min-kmers')?.value,
-    'match-strict-percentages': document.getElementById('match-strict-percentages')?.checked,
-    'match-auto-tune': document.getElementById('match-auto-tune')?.checked
+    'match-min-kmer-count': document.getElementById('match-min-kmer-count')?.value
   };
   localStorage.setItem('pathotypr-form-state', JSON.stringify(state));
 }
@@ -923,7 +907,7 @@ async function handleTrainSubmit(e) {
     });
     const minLeaf = parseNumberField('train-min-leaf', {
       label: 'Min leaf samples',
-      fallback: 5,
+      fallback: 1,
       min: 1,
       max: 100,
       integer: true
@@ -1276,39 +1260,13 @@ async function handleMatchSubmit(e) {
       min: 1,
       integer: true
     });
-    const maxRefFreq = parseNumberField('match-max-ref-freq', {
-      label: 'Max reference k-mer frequency',
-      fallback: 0,
-      min: 0,
-      max: 100
-    });
-    const coarseTopN = parseNumberField('match-coarse-top-n', {
-      label: 'Coarse candidate references (top N)',
-      fallback: 128,
-      min: 0,
-      integer: true
-    });
-    const coarseStride = parseNumberField('match-coarse-stride', {
-      label: 'Coarse scan stride',
-      fallback: 8,
+    const minKmerCount = parseNumberField('match-min-kmer-count', {
+      label: 'Minimum k-mer count',
+      fallback: 1,
       min: 1,
       integer: true
     });
-    const earlyStopConfidence = parseNumberField('match-early-stop-confidence', {
-      label: 'Early-stop confidence',
-      fallback: 0,
-      min: 0,
-      max: 1
-    });
-    const earlyStopMinKmers = parseNumberField('match-early-stop-min-kmers', {
-      label: 'Early-stop minimum k-mers',
-      fallback: 1000000,
-      min: 1,
-      integer: true
-    });
-    const autoTune = document.getElementById('match-auto-tune')?.checked ?? true;
-    const strictPercentages = document.getElementById('match-strict-percentages')?.checked ?? true;
-    if (!kmerSize.ok || !threads.ok || !maxRefFreq.ok || !coarseTopN.ok || !coarseStride.ok || !earlyStopConfidence.ok || !earlyStopMinKmers.ok) return;
+    if (!kmerSize.ok || !threads.ok || !minKmerCount.ok) return;
 
     let references = null;
     let index = null;
@@ -1345,13 +1303,7 @@ async function handleMatchSubmit(e) {
         output,
         kmer_size: kmerSize.value,
         threads: threads.value,
-        max_ref_freq: maxRefFreq.value,
-        coarse_top_n: coarseTopN.value,
-        coarse_stride: coarseStride.value,
-        early_stop_confidence: earlyStopConfidence.value,
-        early_stop_min_kmers: earlyStopMinKmers.value,
-        strict_percentages: strictPercentages,
-        auto_tune: autoTune
+        min_kmer_count: minKmerCount.value
       },
       onResult: async (result, runId) =>
         handleResultWithModal(result, output, 'match', fastqs, runId)

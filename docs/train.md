@@ -32,7 +32,7 @@ ACGTACGT...        →  label = "L4.3.4.2"
 The run **fails** unless all of these hold:
 
 - [x] At least **two distinct labels**. One class cannot be trained against nothing.
-- [x] At least **two records**, so the train/test split leaves a non-empty training set. With `--test-split 0` a single record is accepted, but the accuracy estimate is then meaningless.
+- [x] At least **two records**, so the train/test split leaves a non-empty training set. With `--test-split 0` nothing is held out, and the run reports the accuracy as not evaluated rather than as 0%.
 - [x] `-k` between **1 and 31**.
 
 These are tolerated, with a warning in the log:
@@ -65,7 +65,7 @@ These are tolerated, with a warning in the log:
 | `-t, --threads <N>` | all cores | no | Number of CPU threads. |
 | `--cv-folds <N>` | off | no | Use stratified k-fold cross-validation for accuracy instead of a single split. The final model is always trained on ALL data. |
 | `--max-depth <N>` | `20` | no | Maximum tree depth. Lower reduces overfitting on small datasets. |
-| `--min-samples-leaf <N>` | `5` | no | Minimum samples per leaf; higher acts as regularization. |
+| `--min-samples-leaf <N>` | `1` | no | Minimum samples per leaf. A node of `2N` samples or fewer is never split, so a high value keeps the trees too shallow to separate lineages with few genomes, and on a very small panel leaves every tree a single leaf; the run says when trees end up as a single leaf. |
 
 ### Global flags
 
@@ -147,8 +147,8 @@ Available on every subcommand:
 | File | Content |
 |---|---|
 | `model.pathotypr.zst` | The trained model bundle: config (pathotypr version, k-mer size, tree count, format version), feature hasher, label encoder, and all 100 trees — serialized with bincode and zstd-compressed (level 3). This is the file you pass to [`pathotypr predict`](predict.md). |
-| `model.pathotypr.importance.tsv` | The top 500 most-used feature-hash buckets across the ensemble, with the k-mers that map to each. |
-| `model.pathotypr.importance.coords.tsv` | Per-occurrence genomic coordinates of the discriminant k-mers behind those top buckets. |
+| `model.pathotypr.importance.tsv` | The top 500 most-used feature buckets across the ensemble, with every k-mer that falls in each. A bucket holds every k-mer sharing its last ten bases, so the list is a set of candidates, not the k-mer a split used; see [feature hashing](algorithms/feature-hashing.md#what-the-buckets-really-are). |
+| `model.pathotypr.importance.coords.tsv` | Every occurrence of those candidates in the training sequences, with the bases as they read at that coordinate on the given strand. |
 
 !!! note "Accuracy is reported to the terminal, not written to a file"
     The single-split (or cross-validated) accuracy and the out-of-bag accuracy are logged during the run. Per-fold accuracies print at the default verbosity; `-v` adds further debug detail.

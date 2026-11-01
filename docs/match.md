@@ -20,7 +20,7 @@ You must supply exactly one input source (`-i/--input` or `-l/--input-list`) and
 | What | Flag | Format |
 |---|---|---|
 | Reference database | `-r, --references` | **Multi-record** FASTA: one record per candidate genome |
-| Reads | `-i, --input` or `-l, --input-list` | FASTQ, plain or gzipped |
+| Reads | `-i, --input` or `-l, --input-list` | FASTQ, plain or gzipped; a FASTA such as an assembly is read too |
 
 !!! danger "`match` pools everything into a single query"
     This is the one place where a sample list does **not** mean one result per
@@ -46,7 +46,7 @@ You must supply exactly one input source (`-i/--input` or `-l/--input-list`) and
 ## How it works
 
 1. **Count** k-mers across every input FASTQ file in parallel, tallying occurrence counts.
-2. **Filter** likely sequencing noise by dropping low-count k-mers (see `--min-kmer-count`).
+2. **Filter** likely sequencing noise by dropping low-count k-mers, if asked to (see `--min-kmer-count`; the default drops nothing).
 3. **Stream** the reference multi-FASTA in batches, extracting the unique k-mers of each reference.
 4. **Score** each reference by the weighted fraction of query k-mer occurrences it contains.
 5. **Report** the highest-scoring reference and its `Shared_Kmer_Fraction`.
@@ -69,7 +69,7 @@ You must supply exactly one input source (`-i/--input` or `-l/--input-list`) and
 | `--early-stop-confidence <FLOAT>` | `0.0` | no | Reserved; accepted but not read in the current release (no effect). |
 | `--early-stop-min-kmers <N>` | `1000000` | no | Reserved; accepted but not read in the current release (no effect). |
 | `--strict-percentages` | `true` | no | Legacy flag retained for backward compatibility (default on); it does not change current results. |
-| `--min-kmer-count <N>` | `2` | no | Minimum k-mer count to keep (singleton filtering as noise). Set `1` to keep all. Only applied when there are more than 100k unique k-mers and this value is greater than `1`. |
+| `--min-kmer-count <N>` | `1` | no | Query k-mers seen fewer than `N` times are dropped as sequencing noise, and both the shared count and the total are then taken over what is left. `1` keeps every k-mer. |
 | `--excel` | `false` | no | Also write an Excel (`.xlsx`) file. |
 
 ### Global flags
@@ -130,7 +130,7 @@ Available on every subcommand:
 The report has a header row followed by exactly one data row. Columns are tab-separated:
 
 ```text
-Query_Files	Best_Match_Reference	Shared_Kmer_Fraction
+Query_Files	Best_Match_Reference	Shared_Kmer_Fraction	Query_Kmers
 ```
 
 | Column | Description |
@@ -138,13 +138,32 @@ Query_Files	Best_Match_Reference	Shared_Kmer_Fraction
 | `Query_Files` | Comma-separated list of the input FASTQ file paths that were pooled into the query. |
 | `Best_Match_Reference` | FASTA header line of the highest-scoring reference, including any description after the first space. |
 | `Shared_Kmer_Fraction` | Weighted k-mer containment score between `0` and `1`, printed to four decimal places. Higher means more of the query's k-mer content is present in the matched reference. |
+| `Query_Kmers` | The denominator: k-mer occurrences in the query after `--min-kmer-count`. A score is a fraction of this number, so two scores are comparable only when it was arrived at the same way. |
+
+!!! warning "Below a few fold coverage, do not raise `--min-kmer-count`"
+    At low coverage a real k-mer is usually seen once, so dropping singletons
+    throws away the evidence that tells two references apart and keeps the
+    repeats, which match everything. On 1 Mb of 0.15x reads, dropping them kept
+    4.7% of the distinct k-mers and scored the correct reference **1.0000** and
+    a reference 250 SNPs away 0.9990: a perfect score from almost no data, a
+    thousandth ahead. Keeping them scored the two 0.8897 and 0.8821, a margin
+    eight times wider.
+
+    This used to happen on its own: the filter switched itself on above 100,000
+    unique k-mers, so 1,450 reads of that sample scored 0.8886 and 1,500 reads
+    scored 1.0000. It now applies only when you ask for it, and `Query_Kmers`
+    says what the score was divided by.
 
 Example:
 
 ```text
-Query_Files	Best_Match_Reference	Shared_Kmer_Fraction
-reads_R1.fastq.gz,reads_R2.fastq.gz	NC_000962.3	0.9873
+Query_Files	Best_Match_Reference	Shared_Kmer_Fraction	Query_Kmers
+sample_reads.fastq	reference_A	0.8886	101500
 ```
+
+This is a real run of 1,450 reads at 0.15x against two references 250 SNPs
+apart; the other one scored 0.8812. A whole-genome run gives a much larger
+`Query_Kmers`: about 106 million k-mer occurrences at 30x with 150 bp reads.
 
 If no reference shares any k-mers with the query, the first reference is still reported with a `Shared_Kmer_Fraction` of `0.0000` — read a near-zero score as "no usable match". Only an empty reference FASTA yields a header-only report.
 

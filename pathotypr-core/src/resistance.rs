@@ -128,6 +128,23 @@ pub fn fold_marker(per_drug: &mut HashMap<String, Verdict>, path: &str) {
     }
 }
 
+/// The `lineage:count` tally of a resistance run: markers found per drug.
+///
+/// A lineage path's prefixes are its ancestors, so counting every prefix
+/// tallies each level of the hierarchy. A catalogue path is not a hierarchy,
+/// and its prefixes run into the grade, which has spaces in it: the pairs of a
+/// space-separated column came apart as `...;1)`, `Assoc`, `w` and `R:1`, and
+/// the column could not be read back. The count at the drug level is already
+/// there, since every marker counts towards each of its prefixes, so it is the
+/// only one kept.
+pub fn per_drug_counts(prefix_counts: &HashMap<String, usize>) -> HashMap<String, usize> {
+    prefix_counts
+        .iter()
+        .filter(|(path, _)| !path.contains(';'))
+        .map(|(drug, count)| (drug.clone(), *count))
+        .collect()
+}
+
 /// The call for one genome: the drugs it carries a grade 1 or 2 marker for.
 ///
 /// Says "found" rather than "none", because a marker that could not be read is
@@ -227,6 +244,28 @@ mod tests {
         fold_marker(&mut per_drug, "EMB;EMB-R;embB_S565G;3) Uncertain significance;embB;S565G");
         fold_marker(&mut per_drug, "INH;INH-R;ndh_c.168C>T;5) Not assoc w R;ndh;c.168C>T");
         assert_eq!(call(&per_drug), "No resistance markers found; uncertain: EMB");
+    }
+
+    /// The column must split back into the pairs it was made of, so it keeps
+    /// the drugs and drops the prefixes that run into a grade with spaces.
+    #[test]
+    fn a_resistance_tally_counts_markers_per_drug() {
+        let mut prefixes = HashMap::new();
+        for path in [
+            "RIF;RIF-R;rpoB_D435F;1) Assoc w R;rpoB;D435F",
+            "RIF;RIF-R;rpoB_D435V;1) Assoc w R;rpoB;D435V",
+            "INH;INH-R;katG_S315T;1) Assoc w R;katG;S315T",
+        ] {
+            let parts: Vec<&str> = path.split(';').collect();
+            for depth in 1..=parts.len() {
+                *prefixes.entry(parts[..depth].join(";")).or_insert(0usize) += 1;
+            }
+        }
+        let per_drug = per_drug_counts(&prefixes);
+        assert_eq!(per_drug.len(), 2);
+        assert_eq!(per_drug["RIF"], 2);
+        assert_eq!(per_drug["INH"], 1);
+        assert!(per_drug.keys().all(|drug| !drug.contains(' ')));
     }
 
     #[test]

@@ -225,6 +225,32 @@ from the anchor instead of being recognised as a whole k-mer.
 That reads alleles no catalogue lists, which an index of expected k-mers
 cannot do:
 
+### A k-mer the reference itself carries
+
+Of the WHO catalogue markers `classify` indexes, two have an ALT k-mer that
+already sits elsewhere in H37Rv (`ndh c.168C>T` and `PPE35 I417V`) and
+seventy-one have a second copy of their reference window. Those words are in
+**every** genome, so finding one says nothing about the marker's own locus:
+before this was accounted for, those two read as present in every genome
+tested, the ancestor included. The log gives the counts for the panel in use.
+`split-fastq` indexes a different set (no indels, longer substitutions) and
+finds five and sixty-seven.
+
+The reference is read once when the index is built, which is what turns a
+k-mer hit into the weak evidence it is:
+
+| What the reference shows | What a k-mer hit can mean |
+|---|---|
+| the ALT k-mer is nowhere else | the marker is present |
+| the ALT k-mer is somewhere else too | nothing: an anchor has to decide, or the marker is `alt_kmer_in_reference` |
+| the window occurs once | a reference hit means the locus holds the reference allele |
+| the window occurs twice and the genome showed both | still absent: every copy was read and every one is reference |
+| the window occurs twice and the genome showed one | nothing: an anchor has to decide, or the marker is `ref_kmer_repeated` |
+
+The count is what keeps this from crying wolf. A genome that shows as many
+copies as the reference has proved the marker absent, which is the ordinary
+case; only a genome missing a copy is genuinely ambiguous.
+
 | What the anchors read | State | Where it is reported |
 |---|---|---|
 | the ALT allele | **present** | detailed TSV, `evidence` names the anchor used |
@@ -235,7 +261,11 @@ cannot do:
 | nothing usable, and both k-mers had turned up | **undetermined**, `reason` = `ambiguous_both_alleles` | undetermined TSV |
 
 An allele is read only from an anchor that occurs **exactly once** in the
-genome; a repeated anchor says nothing about which copy was read. Only
+genome **and once in the reference**; a repeated anchor says nothing about
+which copy was read. The reference matters as much as the genome: when the
+change the anchor exists to see past is what broke the real locus, the copy is
+the one left looking unique, and the allele would be read from the wrong
+place. Only
 substitutions get anchors: with an indel the allele's own length is what is in
 question, so bases counted from one anchor cannot settle it, and those markers
 keep the k-mer answer.
@@ -340,7 +370,7 @@ Header: `genome	SNPreference	REF	ALT	lineage	Gene	mutation	reason`
 | `REF`, `ALT` | Alleles of the marker. |
 | `lineage` | Lineage (or drug) path of the marker. |
 | `Gene`, `mutation` | Gene and mutation from the marker TSV, empty when it has none. |
-| `reason` | `not_found`: nothing of this marker occurs in the genome and no anchor could read it. `anchors_disagree`: the two anchors read different alleles. `ambiguous_both_alleles`: both k-mers turned up and no anchor could say which allele this locus carries. `no_reference_kmer`: the marker has no usable REF k-mer (its reference allele holds a base other than A, C, G or T) and the anchors could not read it either. |
+| `reason` | `not_found`: nothing of this marker occurs in the genome and no anchor could read it. `anchors_disagree`: the two anchors read different alleles. `ambiguous_both_alleles`: both k-mers turned up and no anchor could say which allele this locus carries. `alt_kmer_in_reference`: the reference itself carries this marker's ALT k-mer, so finding it says nothing, and no anchor could tell the real locus from the copy. `ref_kmer_repeated`: the reference carries this marker's window more than once, the genome did not show every copy, and so a reference hit may be the other copy. `no_reference_kmer`: the marker has no usable REF k-mer (its reference allele holds a base other than A, C, G or T) and the anchors could not read it either. |
 
 ## See also
 

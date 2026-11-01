@@ -53,7 +53,7 @@ export const defaultParameters = {
     'train-threads': '',
     'train-cv-folds': '',
     'train-max-depth': 20,
-    'train-min-leaf': 5
+    'train-min-leaf': 1
   },
   predict: {
     'predict-threads': ''
@@ -74,13 +74,7 @@ export const defaultParameters = {
   match: {
     'match-kmer': 21,
     'match-threads': '',
-    'match-max-ref-freq': 0,
-    'match-coarse-top-n': 128,
-    'match-coarse-stride': 8,
-    'match-early-stop-confidence': 0,
-    'match-early-stop-min-kmers': 1000000,
-    'match-strict-percentages': true,
-    'match-auto-tune': true
+    'match-min-kmer-count': 1
   }
 };
 

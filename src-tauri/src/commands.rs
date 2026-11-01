@@ -53,7 +53,8 @@ pub async fn run_train(
         threads: params.threads,
         cv_folds: params.cv_folds,
         max_depth: params.max_depth.unwrap_or(20),
-        min_samples_leaf: params.min_samples_leaf.unwrap_or(5),
+        // 1, like the CLI: 5 kept trees too shallow to separate lineages with few genomes.
+        min_samples_leaf: params.min_samples_leaf.unwrap_or(1),
         cancel_token: Some(cancel_token),
     };
 
@@ -77,7 +78,12 @@ pub async fn run_train(
             let accuracy_msg = if let (Some(mean), Some(std)) = (report.cv_mean_accuracy_pct, report.cv_std_accuracy_pct) {
                 format!("CV Accuracy: {:.2}% ± {:.2}%", mean, std)
             } else {
-                format!("Accuracy: {:.2}%", report.accuracy_pct)
+                match report.accuracy_pct {
+                    Some(accuracy) => format!("Accuracy: {:.2}%", accuracy),
+                    // Nothing was held out, so there is nothing to report. It
+                    // used to say 0.00%, which reads as a measurement.
+                    None => "Accuracy: not evaluated".to_string(),
+                }
             };
             let oob_msg = report.oob_accuracy_pct
                 .map(|oob| format!(" | OOB: {:.2}%", oob))
@@ -770,7 +776,9 @@ pub async fn run_match(
         early_stop_confidence: params.early_stop_confidence.unwrap_or(0.0),
         early_stop_min_kmers: params.early_stop_min_kmers.unwrap_or(1_000_000),
         strict_percentages: params.strict_percentages.unwrap_or(true),
-        min_kmer_count: params.min_kmer_count.unwrap_or(2),
+        // 1, like the CLI: dropping singletons throws away the evidence that
+        // tells two references apart whenever coverage is low.
+        min_kmer_count: params.min_kmer_count.unwrap_or(1),
         excel: params.excel.unwrap_or(true),
     };
 
