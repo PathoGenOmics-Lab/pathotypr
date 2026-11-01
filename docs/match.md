@@ -20,7 +20,7 @@ You must supply exactly one input source (`-i/--input` or `-l/--input-list`) and
 | What | Flag | Format |
 |---|---|---|
 | Reference database | `-r, --references` | **Multi-record** FASTA: one record per candidate genome |
-| Reads | `-i, --input` or `-l, --input-list` | FASTQ, plain or gzipped |
+| Reads | `-i, --input` or `-l, --input-list` | FASTQ, plain or gzipped; a FASTA such as an assembly is read too |
 
 !!! danger "`match` pools everything into a single query"
     This is the one place where a sample list does **not** mean one result per
@@ -158,8 +158,12 @@ Example:
 
 ```text
 Query_Files	Best_Match_Reference	Shared_Kmer_Fraction	Query_Kmers
-reads_R1.fastq.gz,reads_R2.fastq.gz	NC_000962.3	0.9873	4283915
+sample_reads.fastq	reference_A	0.8886	101500
 ```
+
+This is a real run of 1,450 reads at 0.15x against two references 250 SNPs
+apart; the other one scored 0.8812. A whole-genome run gives a much larger
+`Query_Kmers`: about 106 million k-mer occurrences at 30x with 150 bp reads.
 
 If no reference shares any k-mers with the query, the first reference is still reported with a `Shared_Kmer_Fraction` of `0.0000` — read a near-zero score as "no usable match". Only an empty reference FASTA yields a header-only report.
 

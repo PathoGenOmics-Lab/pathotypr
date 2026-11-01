@@ -32,7 +32,7 @@ ACGTACGT...        →  label = "L4.3.4.2"
 The run **fails** unless all of these hold:
 
 - [x] At least **two distinct labels**. One class cannot be trained against nothing.
-- [x] At least **two records**, so the train/test split leaves a non-empty training set. With `--test-split 0` a single record is accepted, but the accuracy estimate is then meaningless.
+- [x] At least **two records**, so the train/test split leaves a non-empty training set. With `--test-split 0` nothing is held out, and the run reports the accuracy as not evaluated rather than as 0%.
 - [x] `-k` between **1 and 31**.
 
 These are tolerated, with a warning in the log:

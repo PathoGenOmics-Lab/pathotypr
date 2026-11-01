@@ -1,6 +1,6 @@
 # Input Format Reference
 
-pathotypr reads a small set of plain-text formats. Every file is **UTF-8**; every tabular file is **tab-separated** (`\t`) with **no spaces around the delimiters**. This page is the authoritative reference for each one — which command consumes it, the exact column semantics, and the parsing rules the tools apply.
+pathotypr reads a small set of plain-text formats. Every file is **UTF-8**; every tabular file is **tab-separated** (`\t`) with **no spaces around the delimiters**. No output may be named after an input: a command whose output would land on one of its input files stops before writing anything, and names both. This page is the authoritative reference for each one: which command consumes it, the exact column semantics, and the parsing rules the tools apply.
 
 !!! tip "Looking for one command's inputs?"
     This page is organised by **format**. Each command page also carries an

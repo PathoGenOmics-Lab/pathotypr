@@ -31,10 +31,12 @@ pathotypr predict -i <query.fasta> -m <model.pathotypr.zst> -o <predictions.tsv>
     `k=21`. This is also why the minimum usable sequence length depends on the
     model rather than on the query file.
 
-!!! info "Every record gets a call"
-    There is no "unknown" class and no confidence threshold. A query from a
-    lineage absent from the training set still receives the closest label the
-    forest can find, distinguishable only by a **low confidence and margin**.
+!!! info "Any record with k-mers gets a call"
+    A record that yields no k-mer is `Undetermined`. Every other record gets a
+    label, because there is no "unknown" class and no confidence threshold: a
+    query from a lineage absent from the training set still receives the closest
+    label the forest can find, distinguishable only by a **low confidence and
+    margin**, and by `Kmers_Used` when it rests on very few k-mers.
     Read those two columns before acting on a call: see
     [Output](#predictionstsv-always-written) for what they mean.
 

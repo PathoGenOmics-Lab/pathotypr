@@ -6,6 +6,7 @@ Every `pathotypr` subcommand writes tab-separated (TSV) result files, and most c
     - **TSV**: UTF-8, tab-delimited, exactly one header row, one record per line. Cells with no value are written **empty** (nothing between the tabs).
     - **`--excel`**: when supported and enabled, the same table is written to a `.xlsx` alongside the TSV. The Excel name is derived from the TSV path by replacing a trailing `.tsv` with `.xlsx`; if the name does not end in `.tsv`, `.xlsx` is appended. Excel sheets add an autofilter, auto-sized columns, and (on some columns) conditional-formatting colours.
     - **Coordinates** are **1-based** unless stated otherwise.
+    - **No output over an input**: a command whose output would be written over one of its own input files (for example `classify -l run.tsv -o run`, whose detail table is `run.tsv`) stops before writing anything and says which two files collide.
     - Numeric precision is fixed per column (e.g. `0.9800`) — see each table.
 
 !!! note "Global flags do not change file contents"
@@ -46,7 +47,7 @@ Ranked by how often each bucket was chosen as a split across all 100 trees (high
 | `bucket` | Feature-hash bucket index (`0 … 1,048,575`). |
 | `split_count` | Number of times this bucket was used as a split across the ensemble. |
 | `importance_pct` | `split_count` as a percentage of the total split count over all buckets (4 decimals). |
-| `kmers` | Comma-separated training k-mers that hash into this bucket. |
+| `kmers` | Comma-separated training k-mers that fall into this bucket. A bucket is the last ten bases of the canonical k-mer, so these are every k-mer sharing them, and the one the splits used is among them without being singled out: read them as candidates. |
 
 ### `*.importance.coords.tsv` columns
 
@@ -58,10 +59,28 @@ One row per occurrence of a discriminant k-mer, ordered by bucket rank, then seq
 | `bucket` | Feature-hash bucket index. |
 | `split_count` | Split count for the bucket. |
 | `importance_pct` | Percentage of total splits attributable to the bucket (4 decimals). |
-| `kmer` | The specific k-mer occurrence. |
+| `kmer` | The bases found at `position`, read on the sequence's own strand. That can be the reverse complement of the k-mer listed for the bucket in `*.importance.tsv`, which is the canonical one. |
 | `sequence` | Full FASTA header of the training sequence containing the k-mer. |
 | `lineage` | Class label of that sequence. |
-| `position` | Position of the k-mer within the sequence. |
+| `position` | 1-based start of those bases in the sequence. |
+
+Excerpts of a real run on four genomes of two lineages:
+
+```text
+rank	bucket	split_count	importance_pct	kmers
+1	603290	2	2.1739	CAGACCACCGGGCATCAGCGG,AACCGGATTGAGCATCAGCGG,AGTCTGCCACCGCATCAGCGG,…
+```
+
+```text
+rank	bucket	split_count	importance_pct	kmer	sequence	lineage	position
+1	603290	2	2.1739	CCGCTGATGCCTACAAAACTG	L1 train_L1_0	L1	8020
+1	603290	2	2.1739	CAGACCACCGGGCATCAGCGG	L1 train_L1_0	L1	242297
+```
+
+Every k-mer of bucket 603290 ends in `GCATCAGCGG`: those are the ten bases the
+bucket is made of. The first coordinate row reads `CCGCTGATGCCTACAAAACTG` at
+position 8020, the reverse complement of `CAGTTTTGTAGGCATCAGCGG`, which ends in
+the same ten bases.
 
 See also: [Training pipeline](algorithms/training.md), [Feature hashing](algorithms/feature-hashing.md), [Input formats](input-formats.md).
 
@@ -89,15 +108,22 @@ Writes one predictions table to `--output`, streamed as sequences are classified
 
 ```text
 Header	Predicted_Lineage	Confidence	Confidence_Margin	Other_Votes	Kmers_Used
-sample_A	L2.2.1	0.9800	0.9200	L2.2:0.04,L4:0.02
-sample_B	L4.3.4.2	0.7500	0.3000	L4.3:0.20,L4:0.05
+sample_A	L2.2.1	0.9400	0.9000	L2.2:0.04,L4:0.02	4398877
+sample_B	L4.3.4.2	0.7500	0.5500	L4.3:0.20,L4:0.05	4411512
+masked_consensus_02	Undetermined				0
 ```
+
+`Confidence` and the fractions in `Other_Votes` are shares of the same 100
+trees, so they add up to at most 1, and `Confidence_Margin` is `Confidence`
+minus the first fraction in `Other_Votes`. The last row is from a real run on an
+N-masked sequence: no window of A, C, G and T long enough for the model's k, so
+no k-mer, no vote, and the row says so instead of carrying a lineage.
 
 !!! tip "Excel colour coding"
     In the `.xlsx`, **Confidence** is shaded red `< 0.5`, yellow `0.5–0.9`, green `≥ 0.9`; **Confidence_Margin** is shaded red `< 0.1`, yellow `0.1–0.5`, green `≥ 0.5` — so low-confidence calls stand out at a glance.
 
-!!! note "Sequences shorter than *k* are skipped"
-    Input records shorter than the model's k-mer size produce no row (a warning is logged). If **no** records qualify, the command errors instead of writing an empty file.
+!!! note "Every input record gets a row"
+    A record that yields no k-mer, because it is shorter than the model's k or N-masked, is reported as `Undetermined` with `Kmers_Used` zero, and the run ends by saying how many came out that way. Only a file with no records at all is an error.
 
 See also: [Prediction](algorithms/prediction.md), [`train`](train.md).
 
@@ -124,7 +150,7 @@ Marker-based variant calling on assemblies. Writes a detailed per-marker table, 
 
 | Column | Description |
 |---|---|
-| `genome` | Genome/sample name (from the input list or FASTA record ID). In `--input-files` mode it is prefixed with `[filename]`. |
+| `genome` | With `-i`, the record's whole FASTA header line; with `--input-files`, that line prefixed with `[filename]`; with `-l`, the sample name from the list. |
 | `k-mer` | The diagnostic marker k-mer matched in the query. |
 | `k-merPOS` | 1-based start position of that k-mer in the query contig. |
 | `SNPgenome` | 1-based position of the variant allele within the query contig. |
@@ -150,7 +176,7 @@ Marker-based variant calling on assemblies. Writes a detailed per-marker table, 
 | Column | Description |
 |---|---|
 | `genome` | Genome/sample name. |
-| `lineage:count` | Space-separated `lineage:count` pairs at **every hierarchical level** (each ancestor path prefix is counted), sorted by count descending, then by name. |
+| `lineage:count` | Space-separated `lineage:count` pairs at **every hierarchical level** (each ancestor path prefix is counted), sorted by count descending, then by name. With a resistance panel, markers found per drug instead: a catalogue path is not a hierarchy, and its grade has spaces in it. |
 | `major_lineage` | Final call. For a lineage panel: with `--nested-classification` the deepest fully-supported path wins, otherwise the most abundant lineage. For a WHO resistance catalogue it is the resistance verdict instead, for example `Resistant: INH,RIF`. See [classify](classify.md#resistance-panels). |
 | `undetermined` | Number of markers that could be read neither way in this genome. |
 | `undetermined:count` | Those markers as `label:count` pairs under the **first level** of their path only (the drug for a resistance panel, the main lineage for a lineage panel), sorted like `lineage:count`. Empty when every marker was read. |
@@ -173,43 +199,75 @@ rows in a resistance panel.
 | `SNPreference` | 1-based marker position in the reference genome. |
 | `REF`, `ALT` | Alleles of the marker. |
 | `lineage` | Lineage (or drug) path of the marker. |
-| `Gene`, `mutation` | The marker's own gene and mutation fields; empty when the marker TSV has none. |
+| `Gene`, `mutation` | The marker's own gene and mutation annotation columns; empty when the marker TSV has none, which includes WHO-shaped panels, where the gene and mutation are part of the path. |
 | `reason` | `not_found`: nothing of the marker occurs and no anchor could read it. `anchors_disagree`: the two anchors read different alleles. `ambiguous_both_alleles`: both k-mers turned up and no anchor could say which allele the locus carries. `alt_kmer_in_reference`: the reference itself carries this marker's ALT k-mer, so finding it means nothing, and no anchor could tell the real locus from the copy. `ref_kmer_repeated`: the reference carries the window more than once and the genome did not show every copy. `no_reference_kmer`: the marker has no usable reference k-mer (a reference allele outside A, C, G and T) and the anchors could not read it either. |
 
-=== "Detailed"
+Every example below is an excerpt of a real run.
+
+=== "Detailed, lineage panel"
+
+    H37Rv against the lineage panel, with `-i`: the `genome` column is the
+    record's whole header line. No GFF was given, so the gene and amino-acid
+    columns are empty.
 
     ```text
     genome	k-mer	k-merPOS	SNPgenome	SNPreference	REF	ALT	lineage	Gene	Gene_Start	Gene_End	AA_Pos	AA_Change	alleles_found	evidence
-    sampleA	ACGT…GTCA	1523	1533	745	C	T	L2;L2.2	rv0667	759807	763325	450	S450L	ALT	kmer
-    sampleA	TTGA…CCAG	9021	9031	7362	G	A	L2	katG	2153889	2156111	315		ALT	kmer
-    sampleA				2155168	C	G	INH;INH-R;katG_S315T	katG	2153889	2156111	315	S315T	ALT	right_anchor
-    sampleB														
+    NC_000962.3 Mycobacterium tuberculosis H37Rv, complete genome	CGCGTCGGTGAGTATCGTGCACGCGTGTGCG	15102	15117	15117	G	C	L4						ALT	kmer
+    NC_000962.3 Mycobacterium tuberculosis H37Rv, complete genome	CGTTCGTAGCCGCAGGACGGCGGTGTCCACG	311598	311613	311613	T	G	L4;L4.9						ALT	kmer
+    ```
+
+=== "Detailed, resistance panel with a GFF"
+
+    Two samples from an `--input-list`, against the WHO-shaped resistance panel
+    and the H37Rv GFF. `double_435` carries both base changes of one codon, so
+    three catalogue rows fire: the two-base one by its k-mer, and the two
+    single-base ones by an anchor each, which is why their `k-mer`, `k-merPOS`
+    and `SNPgenome` cells are empty. All three report the amino acid the
+    sample's own codon reads. `h37rv` matches nothing, and gets the row with its
+    name only.
+
+    ```text
+    genome	k-mer	k-merPOS	SNPgenome	SNPreference	REF	ALT	lineage	Gene	Gene_Start	Gene_End	AA_Pos	AA_Change	alleles_found	evidence
+    double_435				761109	G	T	RIF;RIF-R;rpoB_D435Y;1) Assoc w R;rpoB;D435Y	rpoB	759807	763325	435	Asp435Phe(GAC>TTC)	ALT	left_anchor
+    double_435	TGAGCCAATTCATGTTCCAGAACAACCCGCT	761095	761109	761109	GA	TT	RIF;RIF-R;rpoB_D435F;1) Assoc w R;rpoB;D435F	rpoB	759807	763325	435	Asp435Phe(GAC>TTC)	ALT	kmer
+    double_435				761110	A	T	RIF;RIF-R;rpoB_D435V;1) Assoc w R;rpoB;D435V	rpoB	759807	763325	435	Asp435Phe(GAC>TTC)	ALT	right_anchor
+    h37rv														
     ```
 
 === "Summary"
 
     ```text
     genome	lineage:count	major_lineage	undetermined	undetermined:count
-    sampleA	L2:2 L2;L2.2:1	L2	3	L4:2 L1:1
-    sampleB		Unclassified	0	
+    NC_000962.3 Mycobacterium tuberculosis H37Rv, complete genome	L4:62 L4;L4.9:6	L4	0	
     ```
+
+    By default the most abundant level wins, and every marker also counts
+    towards its ancestors, so H37Rv is called `L4` (62 markers) rather than
+    `L4.9` (6). With `--nested-classification` the same genome is called
+    `L4;L4.9`, the deepest level with support.
 
 === "Summary, resistance panel"
 
     ```text
     genome	lineage:count	major_lineage	undetermined	undetermined:count
-    sampleA	INH:2 RIF:1 …	Resistant: INH,RIF	187	INH:91 RIF:62 EMB:34
-    sampleB	OTHER:1	No resistance markers found	0	
+    double_435	RIF:3	Resistant: RIF	23	RIF:23
+    h37rv		No resistance markers found	0	
     ```
+
+    With a resistance panel `lineage:count` counts the markers found per drug.
+    The 23 undetermined markers of `double_435` are indels next to the changed
+    codon: indels have no anchors, and the change breaks both of their k-mers.
 
 === "Undetermined"
 
     ```text
     genome	SNPreference	REF	ALT	lineage	Gene	mutation	reason
-    sampleA	3836739	A	G	L4;L4.1			not_found
-    sampleA	3836741	C	T	L4;L4.2			ambiguous_both_alleles
-    sampleA	1834177	A	C	L1			anchors_disagree
+    double_435	761095	T	TGAG	RIF;RIF-R;rpoB_Leu430_Ser431insArg;2) Assoc w R - Interim;rpoB;Leu430_Ser431insArg			not_found
+    double_435	761107	TGGACCA	T	RIF;RIF-R;rpoB_Asp435_Gln436del;2) Assoc w R - Interim;rpoB;Asp435_Gln436del			ref_kmer_repeated
     ```
+
+    With a WHO-shaped panel the `Gene` and `mutation` cells are empty: the gene
+    and mutation are levels five and six of the path, not annotation columns.
 
 See also: [Assembly classification](algorithms/assembly-classification.md), [Marker format](marker_format.md).
 
@@ -222,10 +280,9 @@ Alignment-free genotyping from FASTQ reads. Writes one detailed table **per samp
 | File | When | Content |
 |---|---|---|
 | `<prefix>_<sample>_mutations.tsv` | always | Per-marker calls for one sample (one file per sample). |
-| `<prefix>_<sample>_undetermined.tsv` | always | Markers the reads could answer neither way, one row each, with a `reason` of `not_found` or `low_depth`. Only the header when every marker was read. See [split-fastq](split-fastq.md#per-sample-undetermined-tsv). |
+| `<prefix>_<sample>_undetermined.tsv` | always | Markers the reads could answer neither way, one row each, with the `reason`. Only the header when every marker was read. See [split-fastq](split-fastq.md#per-sample-undetermined-tsv). |
 | `<prefix>_summary.tsv` | always | One row per sample with its major-lineage call and its count of undetermined markers. |
 | `<prefix>_<sample>_mutations.xlsx`, `<prefix>_<sample>_undetermined.xlsx`, `<prefix>_summary.xlsx` | with `--excel` | Excel copies of the three tables. |
-| `<prefix>_<sample>_mutations.xlsx`, `<prefix>_summary.xlsx` | with `--excel` | Excel copies. |
 
 !!! note "Sample names in filenames are sanitised"
     Characters outside `A–Z a–z 0–9 _ - .` become `_`, and leading dots / surrounding underscores are trimmed. If two samples sanitise to the same name, the second gets a `_2` suffix, the third `_3`, and so on. The `genome` column in the summary keeps the **original** sample name.
@@ -269,10 +326,50 @@ listed: it was answered. See
 | Column | Description |
 |---|---|
 | `genome` | Original sample name. |
-| `lineage:count` | Space-separated `lineage:count` pairs across all hierarchical levels, sorted by count descending, then by name. |
+| `lineage:count` | Space-separated `lineage:count` pairs across all hierarchical levels, sorted by count descending, then by name. With a resistance panel, markers found per drug instead. |
 | `major_lineage` | Final lineage call (`--nested-classification` enables hierarchical path validation; otherwise most-abundant wins). With a WHO drug-resistance panel, the drugs with a grade 1 or 2 marker instead. |
 | `undetermined` | How many markers the reads could answer neither way. |
 | `undetermined:count` | Those markers as `label:count` pairs under the first level of their path. Empty when every marker was read. |
+
+Excerpts of a real run of two samples against the resistance panel. Both carry
+the same rifampicin variant; in the second, another change seven bases away
+hides both of its k-mers, and the marker is read from its left anchor instead.
+
+=== "Mutations"
+
+    ```text
+    pos	ref_allele	alt_allele	ref_count	alt_count	alt_fraction	lineage_path	evidence	extra_annotations...
+    761155	C	T	0	119	100.00	RIF;RIF-R;rpoB_S450L;1) Assoc w R;rpoB;S450L	kmer
+    ```
+
+    ```text
+    pos	ref_allele	alt_allele	ref_count	alt_count	alt_fraction	lineage_path	evidence	extra_annotations...
+    761155	C	T	0	112	100.00	RIF;RIF-R;rpoB_S450L;1) Assoc w R;rpoB;S450L	left_anchor
+    ```
+
+    The header always ends in `extra_annotations...`; the cells only appear
+    when the panel has annotation columns after an empty separator, which the
+    WHO-shaped panel does not.
+
+=== "Undetermined"
+
+    ```text
+    pos	ref_allele	alt_allele	ref_count	alt_count	lineage_path	reason
+    759545	TA	CG	0	0	RIF;RIF-R;rpoB_c.-261A>G;5) Not assoc w R;rpoB;c.-261A>G	not_found
+    759546	A	G	0	0	RIF;RIF-R;rpoB_c.-261A>G;5) Not assoc w R;rpoB;c.-261A>G	not_found
+    ```
+
+    These reads cover a single region, so most of the panel is listed here as
+    `not_found`: nothing read it. A whole-genome run lists only the markers
+    something actually hid.
+
+=== "Summary"
+
+    ```text
+    genome	lineage:count	major_lineage	undetermined	undetermined:count
+    variant_and_neighbour	RIF:1	Resistant: RIF	87049	EMB:13401 OTHER:11171 RIF:9525 INH:9014 …
+    variant_only	RIF:1	Resistant: RIF	87059	EMB:13401 OTHER:11171 RIF:9535 INH:9014 …
+    ```
 
 !!! warning "No indels in FASTQ mode"
     `split-fastq` calls SNPs/MNVs only. Insertions and deletions are detected reliably via the assembly-based [`classify`](classify.md) workflow.
@@ -301,8 +398,13 @@ Finds the single best-matching reference for a set of FASTQ reads. All input rea
 
 ```text
 Query_Files	Best_Match_Reference	Shared_Kmer_Fraction	Query_Kmers
-reads_R1.fastq.gz,reads_R2.fastq.gz	NC_000962.3 H37Rv	0.9873	4283915
+sample_reads.fastq	reference_A	0.8886	101500
 ```
+
+A real run: 1,450 reads at 0.15x against two references 250 SNPs apart. The
+score is the share of the query's 101,500 k-mer occurrences that `reference_A`
+contains; `reference_B` scored 0.8812 and is not reported, since only the best
+match is. A whole-genome run gives far more: about 35 million k-mer occurrences at 10x with 150 bp reads, and 106 million at 30x.
 
 !!! note "No match, no data row"
     If no reference shares any k-mers with the query, the first reference is still reported with a `Shared_Kmer_Fraction` of `0.0000` — read a near-zero score as "no usable match". Only an empty reference FASTA yields a header-only report. Because the Excel writer needs the resolved output path, `--excel` produces a file **only when `-o` is also set** — with stdout output, no `.xlsx` is created.

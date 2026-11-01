@@ -21,7 +21,7 @@ You must supply markers (`-m`), a reference (`-r`), and exactly one input source
 |---|---|---|
 | Marker panel | `-m, --markers` | [Marker TSV](marker_format.md), tab-separated |
 | Reference genome | `-r, --reference` | **Single-record** FASTA the marker positions are numbered against |
-| Reads | `-i, --input` or `-l, --input-list` | FASTQ, plain or gzipped |
+| Reads | `-i, --input` or `-l, --input-list` | FASTQ, plain or gzipped; a FASTA is read too, wrapped or not, and its sample name keeps the `.fasta` ending |
 
 `-i` takes one or more files that together form **one** sample. `-l` takes a
 [sample list](input-formats.md#sample-list-tsv-split-fastq-and-match-input-list)
