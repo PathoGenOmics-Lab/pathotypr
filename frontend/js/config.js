@@ -53,7 +53,7 @@ export const defaultParameters = {
     'train-threads': '',
     'train-cv-folds': '',
     'train-max-depth': 20,
-    'train-min-leaf': 5
+    'train-min-leaf': 1
   },
   predict: {
     'predict-threads': ''

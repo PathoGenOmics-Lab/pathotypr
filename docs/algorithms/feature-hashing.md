@@ -24,14 +24,52 @@ Sparse vector: [(bucket_42, 3.0), (bucket_1087, 1.0), ...]
 
 1. **K-mer extraction**: Uses [needletail](https://github.com/onecodex/needletail)'s `bit_kmers()` which encodes each k-mer as a 2-bit packed `u64`. This handles canonical k-mers (choosing the lexicographically smaller of forward and reverse complement) automatically.
 
-2. **Hashing**: The bucket index is simply `bitkmer.0 & mask` where `mask = num_buckets - 1`.
+2. **Bucketing**: The bucket index is `bitkmer.0 & mask` where `mask = num_buckets - 1`. needletail packs the first base into the high bits, so masking to 20 bits keeps the **last ten bases** of the canonical k-mer. This is not a hash: see [What the buckets really are](#what-the-buckets-really-are) below.
 
 3. **Bucket count**: 2^20 = 1,048,576 buckets.
 
-4. **Sparse representation**: Each sequence produces a `Vec<(usize, f32)>` — only non-zero buckets are stored, sorted by bucket index. This is critical for efficiency: a typical 4.4 Mb genome at k=21 produces ~4.4M k-mers but only ~800K–1M unique bucket entries.
+4. **Sparse representation**: Each sequence produces a `Vec<(usize, f32)>` of its non-zero buckets, sorted by bucket index. H37Rv at k=21 produces 4.41M k-mers that fall into 652,008 buckets, 62% of the space.
 
-!!! info "Why no extra hash function is needed"
-    Since needletail's 2-bit encoding already acts as a hash function (deterministic, uniform for biological sequences), no additional hash function is needed. The power-of-two constraint enables bitmask indexing (`& mask` instead of `% modulus`).
+## What the buckets really are
+
+Masking the 2-bit code keeps its last ten bases, so the buckets are the 4^10
+ten-mers, whatever k was asked for. k only decides which strand's ten bases are
+kept, through the choice of canonical k-mer:
+
+| k | buckets occupied by H37Rv (one position in seven) |
+|---|---|
+| 11 | 27.8% |
+| 15 | 28.2% |
+| 21 | 28.2% |
+| 31 | 28.3% |
+
+Two k-mers that share their last ten bases always share a bucket:
+`AAAAAAAAAAACCCGGGTTTA` and `ACGTACGTAGACCCGGGTTTA` both land in 355068. Across
+H37Rv at k=21, 96.0% of k-mer occurrences fall in a bucket shared with another
+position, 6.77 of them per occupied bucket on average.
+
+**It costs no accuracy in what was measured.** Synthetic genomes built on the
+MTB ancestor with the lineage panel's own SNPs, six per lineage to train and
+four held out to predict:
+
+| lineages | own SNPs each | these buckets | a full 64-bit hash |
+|---|---|---|---|
+| L1 to L7 and A4 | 41 to 294 | 32/32 | 32/32 |
+| L4.1 to L4.9 | 6 to 8 | 36/36 | 36/36 |
+| A4.1 to A4.8 (*M. bovis*) | 2 to 5 | 32/32 | 32/32 |
+
+The full hash gave slightly more decisive votes (a mean margin of 0.61 against
+0.50 on the *M. bovis* sublineages) at twice the training time, and it changes
+every feature index, so it would invalidate every model already trained. With no
+call to gain, the buckets stay as they are; what changes is that they are
+described as what they are.
+
+!!! warning "Reading the importance reports"
+    A bucket is not one k-mer. The `kmers` column of `*.importance.tsv` lists
+    every k-mer of the training data that ends in the same ten bases, and the
+    one a split actually used is among them without being singled out. Read the
+    list as candidates, and confirm a candidate on the genomes before treating
+    it as a marker.
 
 ### Why this works
 

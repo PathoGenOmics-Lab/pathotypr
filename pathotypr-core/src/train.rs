@@ -112,10 +112,15 @@ pub struct Args {
     /// Default: 20.
     #[arg(long, default_value_t = 20)]
     pub max_depth: usize,
-    /// Minimum number of samples required in a leaf node.
-    /// Higher values act as regularization, preventing the tree from memorizing
-    /// individual training samples. Default: 5.
-    #[arg(long, default_value_t = 5)]
+    /// Minimum number of samples required in a leaf node. Default: 1, the usual
+    /// value for a random forest, where the bootstrap and the random choice of
+    /// features already keep trees from memorising samples.
+    ///
+    /// It used to be 5, and a node of 10 samples or fewer is never split, so a
+    /// panel with a few genomes per lineage trained a forest of stumps: on
+    /// M. bovis sublineages two to five SNPs apart, 5 gave 31 of 32 calls with
+    /// a vote margin of 0.15, and 1 gave 32 of 32 with a margin of 0.50.
+    #[arg(long, default_value_t = 1)]
     pub min_samples_leaf: usize,
     /// Cancellation token for stopping the task (GUI only, not CLI).
     #[arg(skip)]
@@ -777,9 +782,9 @@ pub fn run(args: Args) -> AppResult<TrainReport> {
     // --- OOB accuracy (free estimate from bootstrap) ---
     // Uses the exact seeds from train_ensemble to reproduce bootstrap samples.
     // A tree that never split predicts one label for everything. It happens by
-    // default: --min-samples-leaf is 5 and a node of 10 samples or fewer is
+    // large --min-samples-leaf: a node of twice that many samples or fewer is
     // never divided, so a panel with a few genomes per lineage trains a forest
-    // of stumps and saves it without a word.
+    // of stumps and used to save it without a word.
     let stumps = trees.iter().filter(|tree| tree.nodes.len() <= 1).count();
     if stumps == trees.len() {
         warn!(

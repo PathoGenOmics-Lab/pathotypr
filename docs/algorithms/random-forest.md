@@ -122,7 +122,7 @@ The top 500 features are exported with:
 |---|---|---|
 | `n_trees` | 100 | More trees → smoother predictions, diminishing returns past ~100 |
 | `max_depth` | 20 | Limits tree complexity; prevents memorization of training noise |
-| `min_samples_leaf` | 5 | Regularization — prevents splits that isolate individual samples |
+| `min_samples_leaf` | 1 | The usual random-forest value: the bootstrap and the random choice of features already keep trees from memorising samples. It was 5, which forbade every split on panels with a few genomes per lineage. |
 | `max_features` | √(n_features) | Standard RF: decorrelates trees by forcing different feature subsets |
 | `bootstrap_seed` | 42 (master) | Ensures reproducibility; each tree derives its seed from this |
 

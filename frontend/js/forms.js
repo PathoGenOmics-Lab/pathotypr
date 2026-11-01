@@ -907,7 +907,7 @@ async function handleTrainSubmit(e) {
     });
     const minLeaf = parseNumberField('train-min-leaf', {
       label: 'Min leaf samples',
-      fallback: 5,
+      fallback: 1,
       min: 1,
       max: 100,
       integer: true
