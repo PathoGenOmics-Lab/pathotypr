@@ -32,6 +32,7 @@ pathotypr split-fastq
     --min-depth $min_depth
     --min-alt-percent $min_alt_percent
     $nested_classification
+    $no_anchor_rescue
     @THREADS@
     ]]></command>
     <inputs>
@@ -53,14 +54,16 @@ pathotypr split-fastq
         <!-- Whole percent only: pathotypr parses this as an integer, so 95.5
              is rejected outright rather than rounded. -->
         <param argument="--min-alt-percent" type="integer" min="0" max="100" value="95" label="Minimum alternate allele frequency (%)" help="How much of the depth must carry the alternate allele, in whole percent. Lower this for mixed or low-coverage samples, knowing that it also admits sequencing error."/>
+        <param argument="--no-anchor-rescue" type="boolean" truevalue="--no-anchor-rescue" falsevalue="" checked="false" label="Skip the anchor pass" help="By default, a marker whose k-mers matched nothing is looked up again from the 30 bases on each side of the variant, which reads it even when a second change in the same window hides both k-mers. Skipping that pass is faster and reports those markers as not determined."/>
         <expand macro="nested_classification"/>
     </inputs>
     <outputs>
         <data name="mutations" format="tabular" label="${tool.name} on ${on_string}: per-marker calls" from_work_dir="result_sample_mutations.tsv"/>
         <data name="summary" format="tabular" label="${tool.name} on ${on_string}: summary" from_work_dir="result_summary.tsv"/>
+        <data name="undetermined" format="tabular" label="${tool.name} on ${on_string}: markers not determined" from_work_dir="result_sample_undetermined.tsv"/>
     </outputs>
     <tests>
-        <test expect_num_outputs="2">
+        <test expect_num_outputs="3">
             <conditional name="reads">
                 <param name="layout" value="paired"/>
                 <param name="pair">
@@ -81,12 +84,18 @@ pathotypr split-fastq
             <output name="mutations">
                 <assert_contents>
                     <has_text text="alt_fraction"/>
+                    <has_text text="evidence"/>
                     <has_text text="L2;L2.1;L2.1.1"/>
+                </assert_contents>
+            </output>
+            <output name="undetermined">
+                <assert_contents>
+                    <has_text text="reason"/>
                 </assert_contents>
             </output>
         </test>
         <!-- A depth threshold above the coverage of the test data must call nothing. -->
-        <test expect_num_outputs="2">
+        <test expect_num_outputs="3">
             <conditional name="reads">
                 <param name="layout" value="paired"/>
                 <param name="pair">
@@ -104,6 +113,13 @@ pathotypr split-fastq
                     <has_n_lines n="1"/>
                 </assert_contents>
             </output>
+            <!-- Nothing called is not nothing found: every marker is listed as
+                 one the depth threshold left undetermined. -->
+            <output name="undetermined">
+                <assert_contents>
+                    <has_text text="low_depth"/>
+                </assert_contents>
+            </output>
         </test>
     </tests>
     <help><![CDATA[
@@ -116,12 +132,29 @@ carry the reference allele and how many carry the alternate one.
 
 Because it streams, memory does not grow with the number of reads.
 
-Two tables come out:
+Three tables come out:
 
 - **per-marker calls**: position, both alleles, the read counts behind each, the
-  alternate fraction, and the lineage the marker belongs to.
+  alternate fraction, the lineage the marker belongs to, and what the call rests
+  on: the marker's own k-mer, or the anchor that read its locus.
 - **summary**: the count of hits per lineage and the major lineage call, in the
   same shape *pathotypr classify* produces, so the two are directly comparable.
+  When the panel is a WHO drug-resistance catalogue the call names the drugs
+  with a grade 1 or 2 marker instead of a lineage.
+- **markers not determined**: the markers the reads could not answer either
+  way, with the reason. A marker with no reads on either allele is not a marker
+  that is absent, so it is listed here rather than left out. Read it beside the
+  calls before concluding a sample is susceptible.
+
+**Reading a marker its k-mers cannot**
+
+Both k-mers of a marker span the variant and its flanks, so one other change
+anywhere in the same 31 bases stops them both matching. The 30 bases on each
+side are indexed on their own as well, and a marker the k-mers missed is read by
+counting from whichever side still matches. Only anchors that occur exactly once
+in the reference are used, since a repeated one cannot say which copy a read came
+from. This costs a second pass over the reads, and *Skip the anchor pass* turns
+it off.
 
 **Depth and frequency**
 

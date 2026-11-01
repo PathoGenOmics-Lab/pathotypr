@@ -16,6 +16,7 @@ import {
   wasCancellationRequested
 } from './state.js';
 import { tauriInvoke, saveFileDialog, readTextFile, confirmDialog } from './tauri.js';
+import { parseUndeterminedTsv, setUndeterminedCounts } from './dr-insights.js';
 import {
   clearFormFieldErrors,
   formatError,
@@ -532,6 +533,33 @@ export function setupFormStatePersistence() {
 
 function isCancellationMessage(text) {
   return /cancel(?:led|ed|ado|ada|ación|acion)/i.test(String(text || ''));
+}
+
+/**
+ * Loads the markers `classify` could read neither way, so the resistance
+ * profile can say which drugs were not determined. The file sits next to the
+ * detailed table; other tools do not write one, and then the counts are
+ * cleared rather than carried over from the previous run.
+ */
+async function loadUndeterminedBeside(detailPath) {
+  try {
+    const base = String(detailPath || '').replace(/\.tsv$/i, '');
+    if (!base) {
+      setUndeterminedCounts(new Map());
+      return;
+    }
+    // classify writes <prefix>.tsv beside <prefix>_undetermined.tsv; split-fastq
+    // writes one pair per sample, <prefix>_<sample>_mutations.tsv beside
+    // <prefix>_<sample>_undetermined.tsv, and names no sample inside the file.
+    const perSample = /_mutations$/i.test(base);
+    const path = perSample
+      ? `${base.replace(/_mutations$/i, '')}_undetermined.tsv`
+      : `${base}_undetermined.tsv`;
+    const text = await readTextFile(path);
+    setUndeterminedCounts(parseUndeterminedTsv(text, perSample ? 'Sample' : ''));
+  } catch {
+    setUndeterminedCounts(new Map());
+  }
 }
 
 function isAbsolutePath(path) {
@@ -1408,6 +1436,7 @@ async function handleClassifyResult(result, runId, context) {
       try {
         const content = await readTextFile(outputSets[index].path);
         if (content) {
+          await loadUndeterminedBeside(outputSets[index].path);
           showInlineResults('classify', outputSets[index].path, content, null, context);
           refreshVisualizationForTool('classify');
         }
@@ -1493,6 +1522,7 @@ async function handleSplitFastqResult(result, runId) {
       try {
         const content = await readTextFile(outputSets[index].path);
         if (content) {
+          setUndeterminedCounts(new Map());
           showInlineResults('splitfq', outputSets[index].path, content);
           refreshVisualizationForTool('splitfq');
         }
@@ -1580,6 +1610,11 @@ async function handleResultWithModal(
       if (runId && (!isRunCurrent(runId) || wasCancellationRequested(runId))) return 'cancelled';
       const content = await readTextFile(resolvedOutputPath);
       if (content && panelId) {
+        if (panelId === 'classify' || panelId === 'splitfq') {
+          await loadUndeterminedBeside(resolvedOutputPath);
+        } else {
+          setUndeterminedCounts(new Map());
+        }
         showInlineResults(panelId, resolvedOutputPath, content, inputFiles, context);
         refreshVisualizationForTool(panelId);
       } else if (!content) {

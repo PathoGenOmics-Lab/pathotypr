@@ -98,11 +98,12 @@ Available on every subcommand:
 
 ## How it works
 
-1. The reference FASTA and marker TSV are loaded, and one diagnostic k-mer is built per marker: the ALT allele flanked on both sides by reference context (at least `--min-flank-bases` bases per side, total length `--kmer-size`).
+1. The reference FASTA and marker TSV are loaded, and two k-mers are built per marker from the same window: the ALT allele flanked on both sides by reference context (at least `--min-flank-bases` bases per side, total length `--kmer-size`), and the REF allele in the same flanks. The first says the variant is there; the second says it is not. Each substitution marker also gets two **anchors**, the `k-1` bases on either side of the variant, used when neither k-mer matches.
 2. Every contig of every query genome is scanned on **both strands** — the contig and its reverse complement — because contig orientation in a draft assembly is arbitrary. A marker found more than once (on several contigs, or on both strands) counts as one observation.
 3. If a GFF is supplied for a sample, each match is annotated with the overlapping gene and the resulting amino-acid change.
-4. Per genome, the observed markers are tallied per lineage and a `major_lineage` is called. With `--nested-classification`, multi-level marker columns are used to validate the hierarchical lineage path; without it, the most abundant lineage is reported directly.
-5. Results are streamed to a detailed per-marker TSV and a per-genome summary TSV (plus optional `.xlsx` and masked FASTA outputs).
+4. Each marker ends up in one of four states (see [Present, absent and undetermined](#present-absent-and-undetermined)). Only markers whose ALT k-mer was found count towards the lineage call.
+5. Per genome, the observed markers are tallied per lineage and a `major_lineage` is called. With `--nested-classification`, multi-level marker columns are used to validate the hierarchical lineage path; without it, the most abundant lineage is reported directly.
+6. Results are streamed to a detailed per-marker TSV, a per-genome summary TSV and a TSV of the markers that could not be read (plus optional `.xlsx` and masked FASTA outputs).
 
 ## Examples
 
@@ -166,8 +167,9 @@ All files share the `-o/--output-prefix` value. Given `-o classify_run`:
 | File | When | Content |
 |---|---|---|
 | `classify_run.tsv` | always | Detailed table: one row per marker match per genome. |
-| `classify_run_summary.tsv` | always | Summary table: one row per genome with lineage counts and the major lineage. |
-| `classify_run.xlsx`, `classify_run_summary.xlsx` | `--excel` | Excel (`.xlsx`) versions of the detailed and summary tables, written alongside the TSVs. |
+| `classify_run_summary.tsv` | always | Summary table: one row per genome with lineage counts, the major lineage and how many markers could not be read. |
+| `classify_run_undetermined.tsv` | always | One row per marker per genome that could be read neither as present nor as absent. Header only when every marker was read. |
+| `classify_run.xlsx`, `classify_run_summary.xlsx`, `classify_run_undetermined.xlsx` | `--excel` | Excel (`.xlsx`) versions of the three tables, written alongside the TSVs. |
 | `<input>_masked.fasta` | `--output-masked-fasta` | One masked FASTA per input FASTA file (named after the input file stem), with marker positions replaced by `N`. Colliding stems are disambiguated rather than overwritten. |
 
 !!! warning "Masking needs reference coordinates"
@@ -185,9 +187,115 @@ All files share the `-o/--output-prefix` value. Given `-o classify_run`:
 !!! note
     If the output prefix already ends in `.tsv`, the detailed file uses it as-is and the summary is derived from the trimmed base name. Genomes with no marker hits still appear in the detailed TSV as a single row with empty match columns, and in the summary with an empty `lineage:count` and `Unclassified` as the major lineage — so every input is accounted for.
 
+### Present, absent and undetermined
+
+A k-mer is an exact match, so any other change inside a marker's window,
+however harmless (a synonymous substitution, a lineage polymorphism), stops its
+ALT k-mer from matching. Looking for the REF k-mer as well is what tells that
+case apart from a genome that simply lacks the variant:
+
+| ALT k-mer | REF k-mer | State | Where it is reported |
+|---|---|---|---|
+| found | not found | **present** | detailed TSV, `alleles_found` = `ALT` |
+| not found | found | **absent**: the genome carries the reference allele | nowhere, as before |
+| found | found | the **anchors** decide (below) | |
+| not found | not found | the **anchors** decide (below) | |
+
+Both k-mers turning up is not a variant call but a question: a second copy of
+the region disagrees with the first, or one of the two k-mers matched a
+paralogue. In a haploid genome there is no telling which copy the marker's own
+locus is, so these go to the anchors like any other unresolved marker. Two
+markers of the published resistance panel behave this way in every genome,
+including the reference itself, because their ALT k-mer also occurs at an
+unrelated locus.
+
+Markers at the same position with the same reference allele share their REF
+k-mer, so reading any one allele there reads the position for all of them: a
+genome carrying one of them is not reported undetermined for the others.
+
+#### The anchors
+
+When neither k-mer matches, `classify` falls back to the two flanks on their
+own. Each substitution marker carries a **left anchor**, the `k-1` bases ending
+where the variant starts, and a **right anchor**, the `k-1` bases beginning
+where it ends. Neither spans the variant, so one change on one side leaves the
+other anchor whole; the allele is then read off the genome by counting bases
+from the anchor instead of being recognised as a whole k-mer.
+
+That reads alleles no catalogue lists, which an index of expected k-mers
+cannot do:
+
+| What the anchors read | State | Where it is reported |
+|---|---|---|
+| the ALT allele | **present** | detailed TSV, `evidence` names the anchor used |
+| the REF allele | **absent** | nowhere |
+| anything else | **absent**: the locus was read and does not carry this allele | nowhere |
+| nothing usable | **undetermined**, `reason` = `not_found` | undetermined TSV |
+| the two anchors disagree | **undetermined**, `reason` = `anchors_disagree` | undetermined TSV |
+| nothing usable, and both k-mers had turned up | **undetermined**, `reason` = `ambiguous_both_alleles` | undetermined TSV |
+
+An allele is read only from an anchor that occurs **exactly once** in the
+genome; a repeated anchor says nothing about which copy was read. Only
+substitutions get anchors: with an indel the allele's own length is what is in
+question, so bases counted from one anchor cannot settle it, and those markers
+keep the k-mer answer.
+
+The pass runs only when the k-mers left something unread, so a genome the panel
+reads whole costs nothing extra.
+
+**Undetermined** means the position could not be read even from the anchors: a
+change on both sides of the variant, a region missing from the assembly, a
+contig break, or a repeated anchor. It does not mean the variant is absent, and
+it does not mean it is present.
+
+!!! warning "Reading undetermined markers in a resistance panel"
+    A drug with at least one marker **present** is called the same way whatever
+    else is undetermined: a found variant hides its neighbours inside the same
+    window, so a resistant genome usually lists a few undetermined markers next
+    to the one it carries.
+
+    A drug with **no marker present but some undetermined** is the case to look
+    at. Absence of those markers was not established, so the genome cannot be
+    reported susceptible to that drug on the strength of this run alone. The
+    `undetermined:count` column of the summary gives the count per drug, and
+    the undetermined TSV lists every marker involved.
+
+### Resistance panels
+
+A marker panel is a position, two alleles and a path. For a lineage panel that
+path is a hierarchy, and tallying it gives a lineage. The WHO resistance
+catalogue puts something else in the same columns:
+
+```text
+drug ; resistance ; marker ; WHO grade ; gene ; mutation
+```
+
+which is not a hierarchy at all. Counted the lineage way it answers "which drug
+has the most markers", and most markers of the catalogue are graded 4 or 5,
+meaning *not* associated with resistance. A genome carrying rpoB D435Y and
+katG S315T, both grade 1, used to be summarised as `OTHER`, because an ungraded
+marker of another drug happened to be more numerous.
+
+`classify` now recognises a resistance panel (a clear majority of paths whose
+fourth field reads as a WHO grade) and answers it on its own terms. The
+`major_lineage` column then carries one of:
+
+| Call | When |
+|---|---|
+| `Resistant: INH,RIF` | at least one WHO grade 1 or 2 marker, listed per drug |
+| `No resistance markers found; uncertain: EMB` | no grade 1 or 2 marker, some grade 3 |
+| `No resistance markers found` | neither |
+
+It says **found**, not "none": a marker that could not be read is not a marker
+that is absent. The `undetermined` columns beside it say how much was not read,
+and the undetermined table says which markers and why.
+
+A lineage panel is never mistaken for a resistance one; no lineage level reads
+as a WHO grade.
+
 ### Detailed TSV columns
 
-Header: `genome	k-mer	k-merPOS	SNPgenome	SNPreference	REF	ALT	lineage	Gene	Gene_Start	Gene_End	AA_Pos	AA_Change`
+Header: `genome	k-mer	k-merPOS	SNPgenome	SNPreference	REF	ALT	lineage	Gene	Gene_Start	Gene_End	AA_Pos	AA_Change	alleles_found	evidence`
 
 | Column | Description |
 |---|---|
@@ -203,19 +311,36 @@ Header: `genome	k-mer	k-merPOS	SNPgenome	SNPreference	REF	ALT	lineage	Gene	Gene_
 | `Gene_Start` | 1-based start coordinate of that gene. |
 | `Gene_End` | End coordinate of that gene. |
 | `AA_Pos` | Amino-acid position of the change within the gene. |
-| `AA_Change` | Amino-acid change (from the GFF annotation, otherwise from the marker definition if present). |
+| `AA_Change` | Amino-acid change, translated from the **sample's own codon** when a GFF is given, otherwise the marker definition's. A codon holds three bases and a marker usually describes one, so a second change in the same codon makes the marker's own label wrong: a genome whose codon 435 of rpoB reads TTC is reported as `Asp435Phe(GAC>TTC)` by every marker that matches there, including the single-base ones the catalogue labels D435Y and D435V. |
+| `alleles_found` | `ALT` when only the variant was found; `ALT,REF` when both k-mers turned up and an anchor then read this locus as the variant. |
+| `evidence` | `kmer` when the whole k-mer matched, or `left_anchor`, `right_anchor` or `both_anchors` when the allele was read from the flanks. The `k-mer`, `k-merPOS` and `SNPgenome` columns are empty for an anchor read, which establishes no genome coordinate. |
 
 `Gene_Start`, `Gene_End` and `AA_Pos` are only populated when a GFF annotation is provided and the marker falls inside an annotated feature. `Gene` and `AA_Change` fall back to the gene and mutation values from the marker TSV when present, so they can be filled even without a GFF; columns with no available value are left empty.
 
 ### Summary TSV columns
 
-Header: `genome	lineage:count	major_lineage`
+Header: `genome	lineage:count	major_lineage	undetermined	undetermined:count`
 
 | Column | Description |
 |---|---|
 | `genome` | Sample/genome name. |
 | `lineage:count` | Observed lineages with the number of supporting markers for each. |
-| `major_lineage` | The single lineage called for the genome (respecting `--nested-classification` when enabled). |
+| `major_lineage` | The call for the genome: a lineage (respecting `--nested-classification`), or, when the panel is a WHO resistance catalogue, the resistance verdict. See [Resistance panels](#resistance-panels). |
+| `undetermined` | Number of markers that could be read neither way in this genome. |
+| `undetermined:count` | The same markers counted under the first level of their path: the drug for a resistance panel, the main lineage for a lineage panel. Empty when every marker was read. |
+
+### Undetermined TSV columns
+
+Header: `genome	SNPreference	REF	ALT	lineage	Gene	mutation	reason`
+
+| Column | Description |
+|---|---|
+| `genome` | Sample/genome name. |
+| `SNPreference` | Position the marker refers to in the reference. |
+| `REF`, `ALT` | Alleles of the marker. |
+| `lineage` | Lineage (or drug) path of the marker. |
+| `Gene`, `mutation` | Gene and mutation from the marker TSV, empty when it has none. |
+| `reason` | `not_found`: nothing of this marker occurs in the genome and no anchor could read it. `anchors_disagree`: the two anchors read different alleles. `ambiguous_both_alleles`: both k-mers turned up and no anchor could say which allele this locus carries. `no_reference_kmer`: the marker has no usable REF k-mer (its reference allele holds a base other than A, C, G or T) and the anchors could not read it either. |
 
 ## See also
 

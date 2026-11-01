@@ -174,6 +174,41 @@ Available on every subcommand:
 !!! warning "`--paired` needs an even file count"
     In forced paired mode the files are consumed two at a time, so `-i` must list an even number of files. Mixed single/paired batches are better expressed with `--input-list`.
 
+## Reading a marker its k-mers cannot
+
+Both k-mers of a marker span the variant and its flanks, so **one other change
+anywhere in the same 31 bases stops them both matching**. The marker is then
+unreadable rather than absent, which with a resistance panel is the difference
+between "no marker found" and "this sample is susceptible".
+
+The `k-1` bases on each side of the variant are therefore indexed on their own
+as well. A marker whose k-mers matched nothing is read again by counting bases
+from whichever side still matches:
+
+| What the anchors read | The marker is |
+|---|---|
+| the alternate allele, at `--min-depth` or more | present, with `evidence` naming the side |
+| the reference, or any other base | absent |
+| too few reads, or none | not determined, `low_depth` or `not_found` |
+| two sides that disagree | not determined, `anchors_disagree` |
+
+An anchor is one base shorter than a k-mer and says nothing about *where* it
+matched, so only anchors that occur **exactly once** in the reference are used,
+counting both strands. A marker left with no unique anchor is reported as
+`no_unique_anchor` rather than guessed at.
+
+!!! example "rpoB S450L behind a neighbour"
+    A sample carrying S450L and a synonymous change seven bases away matches
+    neither k-mer of the marker: 112 reads cover the position and say the
+    variant is there, and the k-mers see none of it. The left anchor sits clear
+    of the neighbour, reads those 112 reads, and the marker is called with
+    `evidence` = `left_anchor`.
+
+This costs a second pass over the reads, which `--no-anchor-rescue` turns off.
+On a 6x whole-genome read set the run took 1.6 times as long with the pass as
+without it, and the pass resolved 15 of the 190 markers the k-mers had left
+unread.
+
 ## Output
 
 All files are prefixed with `--output-prefix` (default `split`). Sample names are sanitised for filesystem safety, and collisions are de-duplicated with a numeric suffix.
@@ -182,7 +217,9 @@ All files are prefixed with `--output-prefix` (default `split`). Sample names ar
 |---|---|---|
 | `<prefix>_<sample>_mutations.tsv` | one per sample | Every marker that passed the depth and ALT-fraction thresholds. |
 | `<prefix>_summary.tsv` | once per run | One row per sample with lineage tallies and the major-lineage call. |
+| `<prefix>_<sample>_undetermined.tsv` | one per sample | Every marker the reads could answer neither way. Only the header when they all were. |
 | `<prefix>_<sample>_mutations.xlsx` | with `--excel` | Excel copy of each per-sample mutations table. |
+| `<prefix>_<sample>_undetermined.xlsx` | with `--excel` | Excel copy of each per-sample undetermined table. |
 | `<prefix>_summary.xlsx` | with `--excel` | Excel copy of the summary table. |
 
 ### Per-sample mutations TSV
@@ -198,24 +235,60 @@ All files are prefixed with `--output-prefix` (default `split`). Sample names ar
 | `alt_count` | k-mer hits supporting the alternate allele. |
 | `alt_fraction` | ALT percentage, `alt_count / (ref_count + alt_count) × 100`, to 2 decimals. |
 | `lineage_path` | Full lineage path for the marker (levels joined by `;`). |
+| `evidence` | What the call rests on: `kmer` when the marker's own k-mer matched, or `left_anchor`, `right_anchor` or `both_anchors` when its locus was read by counting from one side. |
 | `extra_annotations…` | Optional trailing column(s): any extra marker annotations, only present when the marker defines them. |
 
 !!! note "Excel conditional formatting"
     In the `.xlsx` copy the `alt_fraction` column is colour-coded: red below 50%, yellow 50–95%, green at 95% and above.
+
+### Per-sample undetermined TSV
+
+`<prefix>_<sample>_undetermined.tsv` holds one row per marker the reads could
+not answer, with the same columns as the mutations table plus a `reason`.
+
+| `reason` | What happened |
+|---|---|
+| `not_found` | Nothing read the locus: neither k-mer matched and no anchor was read either. |
+| `low_depth` | The locus was read, by fewer than `--min-depth` reads. |
+| `no_unique_anchor` | The k-mers matched nothing and every anchor of the marker occurs more than once in the reference, so none of them can say which copy a read came from. |
+| `anchors_disagree` | The two anchors were both read deeply enough and they do not agree, so neither is believed. |
+
+The counts in the row are the ones the decision rests on: the k-mer counts when
+the anchors were not consulted, and the counts from the anchor that answered
+when they were.
+
+A marker with no reads on either allele is not a marker that is absent, and
+this is where the difference is written down. Either way the call is "not read",
+and the row says so instead of letting the marker fall silently into the
+reference pile.
+
+Markers the reads *did* read are not listed, even when nothing was called for
+them. Both k-mers come from the same window, so a read matching either one
+reads every base of that window: a position covered by a neighbour's reads is
+answered for every marker that lies inside it. At rpoB 450 the WHO catalogue
+carries ten markers; one of them being called reads the window for all ten, and
+the other nine are absent, not unread.
+
+!!! warning "Read it before calling a sample susceptible"
+    A drug with no marker called but markers undetermined has not been shown
+    susceptible. The summary carries the count so it is visible without opening
+    the table.
 
 ### Run summary TSV
 
 `<prefix>_summary.tsv` — header and one row per sample.
 
 ```tsv
-genome	lineage:count	major_lineage
+genome	lineage:count	major_lineage	undetermined	undetermined:count
 ```
 
 | Column | Description |
 |---|---|
 | `genome` | Sample name. |
 | `lineage:count` | Space-separated `lineage:count` pairs (each level and how many markers supported it), ordered by count then name. |
-| `major_lineage` | The final major-lineage call for the sample. |
+| `major_lineage` | The final major-lineage call for the sample. With a WHO drug-resistance panel, the drugs with a grade 1 or 2 marker instead: the catalogue's columns are a drug and a grade, not a hierarchy, so tallying them as lineage levels answers a question nobody asked. |
+| `undetermined` | How many markers the reads could answer neither way. |
+| `undetermined:count` | Those markers as `label:count` pairs under the first level of their path (the drug for a resistance panel, the main lineage for a lineage panel). Empty when every marker was read. |
 
 ## See also
 

@@ -73,6 +73,10 @@ pub struct Marker {
     pub lineages: Vec<String>, // e.g., ["L2", "L2.2", "L2.2.1"]
     pub alt_kmer: Vec<u8>,
     pub ref_kmer: Vec<u8>,
+    /// 0-based start of the reference window both k-mers were cut from. A read
+    /// that matches either k-mer matches it exactly, so it reads every base of
+    /// `kmer_start .. kmer_start + k`.
+    pub kmer_start: usize,
     pub annotations: Vec<String>,
 }
 
@@ -136,7 +140,7 @@ fn build_small_variant_kmer(
     alt_allele: &[u8],
     ref_seq: &[u8],
     kmer_len: usize,
-) -> Option<(Vec<u8>, Vec<u8>)> {
+) -> Option<(Vec<u8>, Vec<u8>, usize)> {
     let ref_len_allele = ref_allele.len();
     let alt_len_allele = alt_allele.len();
     let max_allele_len = ref_len_allele.max(alt_len_allele);
@@ -169,7 +173,7 @@ fn build_small_variant_kmer(
         &ref_seq[right_flank_start_ref..right_flank_start_ref + alt_right_needed],
     );
 
-    Some((ref_kmer, alt_kmer))
+    Some((ref_kmer, alt_kmer, kmer_start_pos))
 }
 
 // --- Public API ---
@@ -192,9 +196,17 @@ pub fn build_markers(
     info!("  Parsing marker file and generating diagnostic k-mers...");
     let mut markers = Vec::new();
     let mut indels_skipped = 0usize;
+    // Markers the reference cannot give a probe for: the window would run past
+    // the end of the sequence, or the allele is longer than k. They are
+    // reported rather than left to vanish between the panel and the results.
+    let mut without_kmer = 0usize;
     let file = File::open(tsv_markers)
         .map_err(|e| anyhow::anyhow!("Failed to open marker file '{}': {}", tsv_markers, e))?;
     let mut line_count = 0usize;
+    // Marker rows, which is not the file's line count: the header, blank lines
+    // and comments are not markers, and the number is reported to the user
+    // beside how many of them got a k-mer.
+    let mut marker_lines = 0usize;
     let mut header_validated = false;
     for line in BufReader::new(file).lines() {
         line_count += 1;
@@ -220,6 +232,7 @@ pub fn build_markers(
             }
             header_validated = true; // no header, proceed with data
         }
+        marker_lines += 1;
         let fields: Vec<&str> = line_str.split('\t').collect();
         if fields.len() < 4 {
             warn!(
@@ -284,7 +297,7 @@ pub fn build_markers(
         }
 
         if max_allele_len < kmer_len {
-            if let Some((ref_kmer, alt_kmer)) =
+            if let Some((ref_kmer, alt_kmer, kmer_start)) =
                 build_small_variant_kmer(pos0, ref_allele, alt_allele, &ref_seq, kmer_len)
             {
                 markers.push(Marker {
@@ -294,10 +307,18 @@ pub fn build_markers(
                     alt_allele: alt_allele_str,
                     ref_kmer,
                     alt_kmer,
+                    kmer_start,
                     annotations: annotation_cols,
                 });
+            } else {
+                without_kmer += 1;
+                debug!(
+                    "No k-mer for the variant at pos {} (the window runs past the end of the reference)",
+                    pos0 + 1
+                );
             }
         } else {
+            without_kmer += 1;
             debug!(
                 "Skipping variant at pos {} (allele len {} >= k-mer len {})",
                 pos0 + 1,
@@ -316,11 +337,26 @@ pub fn build_markers(
     info!(
         "  Built {} diagnostic k-mers from {} marker lines{}.",
         markers.len(),
-        line_count,
-        if indels_skipped > 0 {
-            format!(" ({} indels skipped — use FASTA classify for indel detection)", indels_skipped)
-        } else {
-            String::new()
+        marker_lines,
+        {
+            let mut notes = Vec::new();
+            if indels_skipped > 0 {
+                notes.push(format!(
+                    "{} indels skipped — use FASTA classify for indel detection",
+                    indels_skipped
+                ));
+            }
+            if without_kmer > 0 {
+                notes.push(format!(
+                    "{} markers the reference gives no k-mer for (run with -v to list them)",
+                    without_kmer
+                ));
+            }
+            if notes.is_empty() {
+                String::new()
+            } else {
+                format!(" ({})", notes.join("; "))
+            }
         }
     );
 
@@ -365,6 +401,442 @@ fn insert_marker_hit(index: &mut MarkerIndex, hash: u64, hit: (usize, bool)) {
             }
         }
     }
+}
+
+
+/// Longest allele an anchor reads. The marker panels reach eleven bases at
+/// rpoB 450; anything longer keeps the k-mer answer.
+const MAX_ANCHOR_ALLELE: usize = 32;
+
+// --- Anchors: reading the allele from one side ---
+
+/// Which side of the variant an anchor sits on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AnchorSide {
+    Left,
+    Right,
+}
+
+/// One marker reachable from an anchor, and which way round a read carries it.
+#[derive(Clone, Copy, Debug)]
+struct AnchorRef {
+    marker: usize,
+    side: AnchorSide,
+    /// The read holds the anchor as the reference spells it, rather than its
+    /// reverse complement. Which side of the match the allele sits on, and
+    /// whether it has to be complemented, both follow from this.
+    forward: bool,
+}
+
+/// Reads carrying each allele of a marker, as read from one of its anchors.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct AnchorTally {
+    pub reference: u32,
+    pub alternate: u32,
+    /// Reads whose bases at the locus are neither of the marker's alleles.
+    pub other: u32,
+}
+
+impl AnchorTally {
+    /// Reads that read the locus at all, whatever they found there.
+    pub fn depth(&self) -> u32 {
+        self.reference
+            .saturating_add(self.alternate)
+            .saturating_add(self.other)
+    }
+}
+
+/// The `k-1` bases on each side of a variant, indexed on their own.
+///
+/// A k-mer spans the variant and both its flanks, so one other change anywhere
+/// in it stops the match and the marker can be read neither way. Each flank on
+/// its own survives a change in the other one, and the allele is then read by
+/// counting bases from the anchor instead of being recognised whole. That reads
+/// alleles nobody catalogued, which an index of expected k-mers cannot do.
+///
+/// An anchor is one base shorter than a k-mer but says nothing about where it
+/// matched, so it is kept only when it occurs **exactly once** in the
+/// reference, counting both strands: a repeated anchor cannot say which copy a
+/// read came from. An anchor that is its own reverse complement is dropped too,
+/// because a read matching it could be either way round and the allele would be
+/// on either side.
+///
+/// Only substitutions get anchors. With an indel the allele's length is what is
+/// in question, so bases counted from one side cannot settle which allele is
+/// there; split-fastq skips indels anyway.
+pub struct AnchorIndex {
+    len: usize,
+    lookup: FxHashMap<u64, Vec<AnchorRef>>,
+    bloom: BloomFilter,
+    /// Markers with at least one anchor that is unique in the reference.
+    readable: Vec<bool>,
+}
+
+impl AnchorIndex {
+    pub fn is_empty(&self) -> bool {
+        self.lookup.is_empty()
+    }
+
+    /// Bases per anchor.
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    /// Whether any anchor of this marker can say what the locus holds. False
+    /// means every anchor it has is repeated in the reference, so a read
+    /// matching one would not say which copy it came from.
+    pub fn can_read(&self, marker_id: usize) -> bool {
+        self.readable.get(marker_id).copied().unwrap_or(false)
+    }
+}
+
+/// Records one anchor of one marker, pooling markers that share the anchor.
+fn push_anchor(
+    bases: &[u8],
+    anchor_ref: AnchorRef,
+    slot_of: &mut FxHashMap<u64, usize>,
+    slot_refs: &mut Vec<Vec<AnchorRef>>,
+    slot_hashes: &mut Vec<(u64, u64)>,
+) {
+    let (Some(forward), Some(reverse)) = (hash_kmer(bases), hash_reverse_complement(bases)) else {
+        return;
+    };
+    let slot = *slot_of.entry(forward).or_insert_with(|| {
+        slot_refs.push(Vec::new());
+        slot_hashes.push((forward, reverse));
+        slot_refs.len() - 1
+    });
+    slot_refs[slot].push(anchor_ref);
+}
+
+/// Builds the anchors of the given markers from the reference.
+pub fn build_anchor_index(
+    reference_path: &str,
+    markers: &[Marker],
+    wanted: &[usize],
+    kmer_len: usize,
+) -> Result<AnchorIndex> {
+    let ref_seq = read_ref_sequence(reference_path)?;
+    Ok(build_anchor_index_from_sequence(&ref_seq, markers, wanted, kmer_len))
+}
+
+/// The anchors of the given markers, read off a reference already in memory.
+pub fn build_anchor_index_from_sequence(
+    ref_seq: &[u8],
+    markers: &[Marker],
+    wanted: &[usize],
+    kmer_len: usize,
+) -> AnchorIndex {
+    let anchor_len = kmer_len.saturating_sub(1);
+    let mut index = AnchorIndex {
+        len: anchor_len,
+        lookup: FxHashMap::default(),
+        bloom: bloom_new(),
+        readable: vec![false; markers.len()],
+    };
+    if anchor_len == 0 || wanted.is_empty() {
+        return index;
+    }
+
+    let seq_len = ref_seq.len();
+    let mut slot_of: FxHashMap<u64, usize> = FxHashMap::default();
+    let mut slot_refs: Vec<Vec<AnchorRef>> = Vec::new();
+    let mut slot_hashes: Vec<(u64, u64)> = Vec::new();
+
+    for &marker_id in wanted {
+        let Some(marker) = markers.get(marker_id) else {
+            continue;
+        };
+        let allele_len = marker.ref_allele.len();
+        if allele_len != marker.alt_allele.len() {
+            continue;
+        }
+        if marker.pos >= anchor_len {
+            push_anchor(
+                &ref_seq[marker.pos - anchor_len..marker.pos],
+                AnchorRef { marker: marker_id, side: AnchorSide::Left, forward: true },
+                &mut slot_of,
+                &mut slot_refs,
+                &mut slot_hashes,
+            );
+        }
+        let right_start = marker.pos + allele_len;
+        if right_start + anchor_len <= seq_len {
+            push_anchor(
+                &ref_seq[right_start..right_start + anchor_len],
+                AnchorRef { marker: marker_id, side: AnchorSide::Right, forward: true },
+                &mut slot_of,
+                &mut slot_refs,
+                &mut slot_hashes,
+            );
+        }
+    }
+
+    // How often the reference carries each anchor, on either strand. One pass
+    // over the genome answers it for all of them at once.
+    let mut slot_by_hash: FxHashMap<u64, usize> = FxHashMap::default();
+    for (slot, &(forward, reverse)) in slot_hashes.iter().enumerate() {
+        slot_by_hash.insert(forward, slot);
+        slot_by_hash.insert(reverse, slot);
+    }
+    let mut occurrences = vec![0u32; slot_refs.len()];
+    for (_, bitkmer, _) in ref_seq.bit_kmers(anchor_len as u8, false) {
+        if let Some(&slot) = slot_by_hash.get(&bitkmer.0) {
+            occurrences[slot] = occurrences[slot].saturating_add(1);
+        }
+    }
+
+    let mut repeated = 0usize;
+    for (slot, refs) in slot_refs.into_iter().enumerate() {
+        let (forward, reverse) = slot_hashes[slot];
+        if occurrences[slot] != 1 || forward == reverse {
+            repeated += 1;
+            continue;
+        }
+        for anchor_ref in &refs {
+            index.readable[anchor_ref.marker] = true;
+        }
+        bloom_insert(&mut index.bloom, forward);
+        bloom_insert(&mut index.bloom, reverse);
+        index
+            .lookup
+            .entry(reverse)
+            .or_default()
+            .extend(refs.iter().map(|r| AnchorRef { forward: false, ..*r }));
+        index.lookup.entry(forward).or_default().extend(refs);
+    }
+    if repeated > 0 {
+        debug!(
+            "{} of the anchors are not unique in the reference and cannot read their locus",
+            repeated
+        );
+    }
+    index
+}
+
+/// Copies into `out` the bases a read holds where a marker's allele should be,
+/// found by counting from an anchor match at `at`.
+///
+/// From a left anchor the allele begins where the anchor ends; from a right
+/// anchor it ends where the anchor begins. A read carrying the reverse
+/// complement of the anchor holds the allele on the other side of the match,
+/// and reverse complemented.
+fn allele_from_anchor(
+    read: &[u8],
+    at: usize,
+    anchor_len: usize,
+    side: AnchorSide,
+    forward: bool,
+    out: &mut [u8],
+) -> bool {
+    let allele_len = out.len();
+    let after = matches!((side, forward), (AnchorSide::Left, true) | (AnchorSide::Right, false));
+    let bases = if after {
+        let start = at + anchor_len;
+        let end = start + allele_len;
+        if end > read.len() {
+            return false;
+        }
+        &read[start..end]
+    } else {
+        if at < allele_len {
+            return false;
+        }
+        &read[at - allele_len..at]
+    };
+    if forward {
+        out.copy_from_slice(bases);
+    } else {
+        for (slot, &base) in out.iter_mut().zip(bases.iter().rev()) {
+            *slot = match base {
+                b'A' | b'a' => b'T',
+                b'C' | b'c' => b'G',
+                b'G' | b'g' => b'C',
+                b'T' | b't' => b'A',
+                other => other,
+            };
+        }
+    }
+    true
+}
+
+/// Adds what one read says at every locus it anchors, into `tallies`.
+///
+/// `allele` is a scratch buffer, passed in so the hot loop allocates nothing.
+fn tally_anchors_in_read(
+    read: &[u8],
+    markers: &[Marker],
+    index: &AnchorIndex,
+    allele: &mut [u8; MAX_ANCHOR_ALLELE],
+    tallies: &mut [[AnchorTally; 2]],
+) {
+    for (at, bitkmer, _) in read.bit_kmers(index.len as u8, false) {
+        if !bloom_may_contain(&index.bloom, bitkmer.0) {
+            continue;
+        }
+        let Some(refs) = index.lookup.get(&bitkmer.0) else {
+            continue;
+        };
+        for anchor_ref in refs {
+            let marker = &markers[anchor_ref.marker];
+            let allele_len = marker.ref_allele.len();
+            if allele_len == 0 || allele_len > MAX_ANCHOR_ALLELE {
+                continue;
+            }
+            let out = &mut allele[..allele_len];
+            if !allele_from_anchor(read, at, index.len, anchor_ref.side, anchor_ref.forward, out) {
+                continue;
+            }
+            let slot = match anchor_ref.side {
+                AnchorSide::Left => 0,
+                AnchorSide::Right => 1,
+            };
+            let tally = &mut tallies[anchor_ref.marker][slot];
+            if out.eq_ignore_ascii_case(marker.alt_allele.as_bytes()) {
+                tally.alternate = tally.alternate.saturating_add(1);
+            } else if out.eq_ignore_ascii_case(marker.ref_allele.as_bytes()) {
+                tally.reference = tally.reference.saturating_add(1);
+            } else {
+                tally.other = tally.other.saturating_add(1);
+            }
+        }
+    }
+}
+
+/// Counts, per marker and per anchor, which allele the reads hold at its locus.
+pub fn scan_fastq_anchors(
+    fastqs: &[String],
+    markers: &[Marker],
+    index: &AnchorIndex,
+    cancel_token: &Option<CancellationToken>,
+) -> Result<Vec<[AnchorTally; 2]>> {
+    let num_markers = markers.len();
+    let mut tallies = vec![[AnchorTally::default(); 2]; num_markers];
+    if index.is_empty() {
+        return Ok(tallies);
+    }
+    if let Some(token) = cancel_token {
+        if token.is_cancelled() {
+            return Err(anyhow::anyhow!("Task cancelled by user"));
+        }
+    }
+
+    info!("  Reading the unread loci from their anchors...");
+    const BATCH_SIZE: usize = 8192;
+    let cancelled = AtomicBool::new(false);
+    let parse_error: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+
+    for path in fastqs {
+        if cancelled.load(Ordering::Relaxed) {
+            break;
+        }
+        if let Some(token) = cancel_token {
+            if token.is_cancelled() {
+                cancelled.store(true, Ordering::Relaxed);
+                break;
+            }
+        }
+        let mut rdr = match needletail::parse_fastx_file(path) {
+            Ok(reader) => reader,
+            Err(e) => {
+                let mut first_error = parse_error.lock().unwrap_or_else(|e| e.into_inner());
+                if first_error.is_none() {
+                    *first_error = Some(format!("Could not open or parse FASTQ '{}': {}", path, e));
+                }
+                cancelled.store(true, Ordering::Relaxed);
+                break;
+            }
+        };
+        let mut batch = ReadBatch::with_capacity(BATCH_SIZE, 150);
+        let mut done = false;
+        loop {
+            batch.clear();
+            while batch.len() < BATCH_SIZE {
+                if let Some(record) = rdr.next() {
+                    match record {
+                        Ok(record) => batch.push(record.sequence()),
+                        Err(e) => {
+                            let mut first_error =
+                                parse_error.lock().unwrap_or_else(|e| e.into_inner());
+                            if first_error.is_none() {
+                                *first_error =
+                                    Some(format!("Malformed record in '{}': {}", path, e));
+                            }
+                            cancelled.store(true, Ordering::Relaxed);
+                            done = true;
+                            break;
+                        }
+                    }
+                } else {
+                    done = true;
+                    break;
+                }
+            }
+            if batch.is_empty() {
+                break;
+            }
+            if let Some(token) = cancel_token {
+                if token.is_cancelled() {
+                    cancelled.store(true, Ordering::Relaxed);
+                    break;
+                }
+            }
+
+            let chunk_size = (batch.len() / (rayon::current_num_threads() * 2)).max(64);
+            let chunk_ranges = batch.chunk_ranges(chunk_size);
+            let batch_tallies = chunk_ranges
+                .par_iter()
+                .fold(
+                    || vec![[AnchorTally::default(); 2]; num_markers],
+                    |mut local, &(start, end)| {
+                        let mut allele = [0u8; MAX_ANCHOR_ALLELE];
+                        for i in start..end {
+                            let seq = batch.get(i);
+                            tally_anchors_in_read(seq, markers, index, &mut allele, &mut local);
+                        }
+                        local
+                    },
+                )
+                .reduce(
+                    || vec![[AnchorTally::default(); 2]; num_markers],
+                    |mut acc, local| {
+                        for (slot, value) in acc.iter_mut().zip(local.iter()) {
+                            for side in 0..2 {
+                                slot[side].reference = slot[side]
+                                    .reference
+                                    .saturating_add(value[side].reference);
+                                slot[side].alternate = slot[side]
+                                    .alternate
+                                    .saturating_add(value[side].alternate);
+                                slot[side].other =
+                                    slot[side].other.saturating_add(value[side].other);
+                            }
+                        }
+                        acc
+                    },
+                );
+            for (slot, value) in tallies.iter_mut().zip(batch_tallies.iter()) {
+                for side in 0..2 {
+                    slot[side].reference =
+                        slot[side].reference.saturating_add(value[side].reference);
+                    slot[side].alternate =
+                        slot[side].alternate.saturating_add(value[side].alternate);
+                    slot[side].other = slot[side].other.saturating_add(value[side].other);
+                }
+            }
+            if done {
+                break;
+            }
+        }
+    }
+
+    if let Some(message) = parse_error.lock().unwrap_or_else(|e| e.into_inner()).take() {
+        return Err(anyhow::anyhow!(message));
+    }
+    if cancelled.load(Ordering::Relaxed) {
+        return Err(anyhow::anyhow!("Task cancelled by user"));
+    }
+    Ok(tallies)
 }
 
 pub fn build_marker_index(markers: &[Marker]) -> (MarkerIndex, BloomFilter) {
@@ -626,5 +1098,215 @@ mod tests {
             .to_string()
             .to_lowercase()
             .contains("cancel"));
+    }
+
+    /// The four ways a read can carry an anchor. A read is either orientation,
+    /// and from each side the allele sits on a different side of the match, so
+    /// getting any of these backwards would read the wrong bases and still
+    /// return an answer.
+    #[test]
+    fn an_allele_is_read_from_either_anchor_in_either_orientation() {
+        const A: usize = 10;
+        let left = b"ACGTACGTAC";
+        let right = b"GGTTGGTTGG";
+        let mut forward = Vec::new();
+        forward.extend_from_slice(left);
+        forward.extend_from_slice(b"TG");
+        forward.extend_from_slice(right);
+
+        let mut allele = [0u8; 2];
+        assert!(allele_from_anchor(&forward, 0, A, AnchorSide::Left, true, &mut allele));
+        assert_eq!(&allele, b"TG", "left anchor, read as the reference spells it");
+        assert!(allele_from_anchor(&forward, 12, A, AnchorSide::Right, true, &mut allele));
+        assert_eq!(&allele, b"TG", "right anchor, same read");
+
+        // The same stretch sequenced the other way round: the read holds the
+        // reverse complement, so the allele is on the other side of the match
+        // and has to be complemented back.
+        let reverse: Vec<u8> = forward
+            .iter()
+            .rev()
+            .map(|&b| match b {
+                b'A' => b'T',
+                b'C' => b'G',
+                b'G' => b'C',
+                b'T' => b'A',
+                other => other,
+            })
+            .collect();
+        assert!(allele_from_anchor(&reverse, 12, A, AnchorSide::Left, false, &mut allele));
+        assert_eq!(&allele, b"TG", "left anchor, read the other way round");
+        assert!(allele_from_anchor(&reverse, 0, A, AnchorSide::Right, false, &mut allele));
+        assert_eq!(&allele, b"TG", "right anchor, read the other way round");
+    }
+
+    /// A read that stops before the allele has not read it, and must not be
+    /// counted as having read the reference.
+    #[test]
+    fn a_read_that_stops_short_reads_no_allele() {
+        const A: usize = 10;
+        let mut allele = [0u8; 2];
+        // The anchor is the whole read: nothing follows it.
+        assert!(!allele_from_anchor(b"ACGTACGTAC", 0, A, AnchorSide::Left, true, &mut allele));
+        // One base short of the allele.
+        assert!(!allele_from_anchor(b"ACGTACGTACT", 0, A, AnchorSide::Left, true, &mut allele));
+        assert!(allele_from_anchor(b"ACGTACGTACTG", 0, A, AnchorSide::Left, true, &mut allele));
+        // The anchor starts the read, so nothing precedes it.
+        assert!(!allele_from_anchor(b"ACGTACGTAC", 0, A, AnchorSide::Right, true, &mut allele));
+    }
+
+    /// A reference with no repeat in it, long enough for a 31-base window plus
+    /// a 30-base anchor on each side.
+    fn test_reference() -> Vec<u8> {
+        concat!(
+            "ACGTTGCAAG", "GCTTAACCGG", "ATCGATTCAG", "CTAGCCATGG", "TACGTTAACG",
+            "GCATTGCAGT", "TTGACCGATC", "AGGCTTATCC", "GATTCCAGGT", "CCTAAGGTTC",
+            "AGTCCATGAC", "GGTTACCTGA", "TCAGGCATTC", "CCAAGTTGCA", "TGCCAATGGT",
+        )
+        .as_bytes()
+        .to_vec()
+    }
+
+    fn one_marker(reference: &[u8], pos0: usize, alt: &str, kmer_len: usize) -> Marker {
+        let ref_allele = String::from_utf8(reference[pos0..pos0 + alt.len()].to_vec()).unwrap();
+        let (ref_kmer, alt_kmer, kmer_start) = build_small_variant_kmer(
+            pos0,
+            ref_allele.as_bytes(),
+            alt.as_bytes(),
+            reference,
+            kmer_len,
+        )
+        .expect("the window fits");
+        Marker {
+            pos: pos0,
+            ref_allele,
+            alt_allele: alt.to_string(),
+            lineages: vec!["RIF".to_string(), "rpoB_X1Y".to_string()],
+            alt_kmer,
+            ref_kmer,
+            kmer_start,
+            annotations: Vec::new(),
+        }
+    }
+
+    /// The case this exists for: the read carries the variant *and* another
+    /// change seven bases along, inside the same window. Neither k-mer matches,
+    /// so the k-mers alone would report a marker nobody read. The anchor on the
+    /// far side of the neighbour still matches, and reads the variant.
+    #[test]
+    fn an_anchor_reads_a_variant_a_neighbouring_change_hides() {
+        let reference = test_reference();
+        let k = 31;
+        let pos0 = 75;
+        let marker = one_marker(&reference, pos0, "A", k);
+        let markers = vec![marker];
+        let index = build_anchor_index_from_sequence(&reference, &markers, &[0], k);
+        assert!(index.can_read(0), "both anchors are unique in this reference");
+
+        // The sample: the variant, plus a neighbour inside the same window.
+        let mut sample = reference.clone();
+        sample[pos0] = b'A';
+        sample[pos0 + 7] = if reference[pos0 + 7] == b'G' { b'C' } else { b'G' };
+        // Neither k-mer of the marker is in this read.
+        let read = &sample[pos0 - 40..pos0 + 40];
+        assert!(
+            !read
+                .windows(k)
+                .any(|w| w == markers[0].alt_kmer.as_slice() || w == markers[0].ref_kmer.as_slice()),
+            "the neighbour must break both k-mers, or the test proves nothing"
+        );
+
+        let mut allele = [0u8; MAX_ANCHOR_ALLELE];
+        let mut tallies = vec![[AnchorTally::default(); 2]; 1];
+        tally_anchors_in_read(read, &markers, &index, &mut allele, &mut tallies);
+        let [left, right] = tallies[0];
+        assert_eq!(left.alternate, 1, "the left anchor is clear of the neighbour");
+        assert_eq!(left.reference, 0);
+        assert_eq!(right.depth(), 0, "the neighbour sits under the right anchor");
+    }
+
+    /// The same shape without the variant: the anchor has to read the reference
+    /// and leave the marker absent. A one-base slip in the allele offset would
+    /// read the neighbour's base and call something that is not there.
+    #[test]
+    fn an_anchor_reads_the_reference_when_only_the_neighbour_changed() {
+        let reference = test_reference();
+        let k = 31;
+        let pos0 = 75;
+        let markers = vec![one_marker(&reference, pos0, "A", k)];
+        let index = build_anchor_index_from_sequence(&reference, &markers, &[0], k);
+
+        let mut sample = reference.clone();
+        sample[pos0 + 7] = if reference[pos0 + 7] == b'G' { b'C' } else { b'G' };
+        let read = &sample[pos0 - 40..pos0 + 40];
+
+        let mut allele = [0u8; MAX_ANCHOR_ALLELE];
+        let mut tallies = vec![[AnchorTally::default(); 2]; 1];
+        tally_anchors_in_read(read, &markers, &index, &mut allele, &mut tallies);
+        assert_eq!(tallies[0][0].reference, 1, "the left anchor reads the reference base");
+        assert_eq!(tallies[0][0].alternate, 0, "and must not read the neighbour as the allele");
+    }
+
+    /// A read sequenced the other way round reads the same allele.
+    #[test]
+    fn an_anchor_reads_the_allele_from_a_reverse_complemented_read() {
+        let reference = test_reference();
+        let k = 31;
+        let pos0 = 75;
+        let markers = vec![one_marker(&reference, pos0, "A", k)];
+        let index = build_anchor_index_from_sequence(&reference, &markers, &[0], k);
+
+        let mut sample = reference.clone();
+        sample[pos0] = b'A';
+        let forward = &sample[pos0 - 40..pos0 + 40];
+        let reverse: Vec<u8> = forward
+            .iter()
+            .rev()
+            .map(|&b| match b {
+                b'A' => b'T',
+                b'C' => b'G',
+                b'G' => b'C',
+                b'T' => b'A',
+                other => other,
+            })
+            .collect();
+
+        let mut allele = [0u8; MAX_ANCHOR_ALLELE];
+        let mut tallies = vec![[AnchorTally::default(); 2]; 1];
+        tally_anchors_in_read(&reverse, &markers, &index, &mut allele, &mut tallies);
+        assert_eq!(
+            tallies[0][0].alternate + tallies[0][1].alternate,
+            2,
+            "both anchors are in this read, each reading the variant once"
+        );
+        assert_eq!(tallies[0][0].reference + tallies[0][1].reference, 0);
+    }
+
+    /// An anchor that the reference carries twice says nothing about which copy
+    /// a read came from, so the marker keeps the k-mer answer.
+    #[test]
+    fn a_repeated_anchor_is_not_used() {
+        let k = 11;
+        let anchor_len = k - 1;
+        // The 10 bases before the variant occur again further along.
+        let left = "ACGTTGCAAG";
+        let reference = format!("{left}G{left}TTTTTTTTTTTT{left}CCCCCCCCCCCC").into_bytes();
+        let pos0 = left.len();
+        assert_eq!(reference[pos0], b'G');
+        let markers = vec![one_marker(&reference, pos0, "A", k)];
+        let index = build_anchor_index_from_sequence(&reference, &markers, &[0], k);
+        assert_eq!(index.len(), anchor_len);
+        assert!(
+            !index.can_read(0),
+            "the left anchor is repeated and the right one runs off the end"
+        );
+    }
+
+    /// The counts are per allele, so a read carrying neither is neither.
+    #[test]
+    fn anchor_depth_adds_up_the_three_outcomes() {
+        let tally = AnchorTally { reference: 3, alternate: 7, other: 1 };
+        assert_eq!(tally.depth(), 11);
+        assert_eq!(AnchorTally::default().depth(), 0);
     }
 }

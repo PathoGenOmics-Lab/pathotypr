@@ -10,6 +10,11 @@ import { readFastaRange, readTextFile } from './tauri.js';
 import {
   isDrPanel,
   buildDrProfile,
+  drugsNotDetermined,
+  mergeNotDetermined,
+  renderUndeterminedWarningHtml,
+  undeterminedFor,
+  undeterminedSamples,
   buildLineageLevels,
   buildLineageBranches,
   detectMixedLineages,
@@ -1736,10 +1741,24 @@ function renderPredictConfidenceInsights(toolId, data, breakdownEl) {
  * resistance catalogue that path is drug;resistance;marker;grade;gene;mutation,
  * which is detected and rendered as a clinical profile instead of a lineage.
  */
+/**
+ * The warning on its own, for a run that called nothing. That is the case it
+ * matters most in: there is no profile to show, and without this the run would
+ * say nothing at all about the markers it could not read. The sample names come
+ * from the undetermined table itself, since the empty result table has none.
+ */
+function renderUndeterminedOnlyHtml() {
+  const samples = undeterminedSamples();
+  if (samples.length === 0) return '';
+  const perSample = samples.map(sample => [sample, drugsNotDetermined([], undeterminedFor(sample))]);
+  const pending = perSample.length === 1 ? perSample[0][1] : mergeNotDetermined(perSample);
+  return renderUndeterminedWarningHtml(pending);
+}
+
 function buildGenotypingInsightSections(data) {
   const headers = Array.isArray(data?.headers) ? data.headers : [];
   const rows = Array.isArray(data?.rows) ? data.rows : [];
-  if (headers.length === 0 || rows.length === 0) return '';
+  if (headers.length === 0 || rows.length === 0) return renderUndeterminedOnlyHtml();
 
   const lineageIdx = findHeaderIndexByTokens(headers, ['lineage_path', 'lineage', 'major_lineage']);
   const lineageCountIdx = findHeaderIndexByTokens(headers, ['lineage:count', 'lineage_count']);
@@ -1778,12 +1797,31 @@ function buildGenotypingInsightSections(data) {
     // buildResistanceMatrix returns null for a single sample, where the cards
     // are the right form and a one-row grid would not be.
     const matrix = buildResistanceMatrix(records);
+    const profile = buildDrProfile(records);
+    // The warning goes first: a reader who stops at the profile must not stop
+    // before learning that some markers were never read. A batch needs it as
+    // much as a single sample, so it is worked out per sample either way.
+    const bySample = new Map();
+    records.forEach(r => {
+      if (!bySample.has(r.sample)) bySample.set(r.sample, []);
+      bySample.get(r.sample).push(r);
+    });
+    const perSample = Array.from(bySample.entries()).map(
+      ([sample, rows]) => [sample, drugsNotDetermined(buildDrProfile(rows), undeterminedFor(sample))]
+    );
+    const pending = bySample.size === 1
+      ? perSample[0][1]
+      : mergeNotDetermined(perSample);
+    html += renderUndeterminedWarningHtml(pending);
     if (matrix) {
       html += renderResistanceMatrixHtml(matrix);
     } else {
-      html += renderDrProfileHtml(buildDrProfile(records));
+      html += renderDrProfileHtml(profile);
     }
   } else {
+    // A resistance run that called nothing lands here too, with no path to
+    // recognise the panel by. The warning is the only thing it can say.
+    html += renderUndeterminedOnlyHtml();
     // Genuine lineage panel: rebuild the hierarchy the flat paths describe.
     const counts = new Map();
     if (records.length > 0) {

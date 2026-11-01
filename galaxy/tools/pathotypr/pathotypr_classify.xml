@@ -70,6 +70,9 @@ pathotypr classify
     <outputs>
         <data name="detailed" format="tabular" label="${tool.name} on ${on_string}: per-marker hits" from_work_dir="result.tsv"/>
         <data name="summary" format="tabular" label="${tool.name} on ${on_string}: summary" from_work_dir="result_summary.tsv"/>
+        <!-- Always written. Without it the summary gives a count of markers that
+             could not be read and no way to see which ones. -->
+        <data name="undetermined" format="tabular" label="${tool.name} on ${on_string}: undetermined markers" from_work_dir="result_undetermined.tsv"/>
         <collection name="masked" type="list" label="${tool.name} on ${on_string}: masked FASTA">
             <filter>output_masked_fasta</filter>
             <discover_datasets pattern="(?P&lt;designation&gt;.+)_masked\.fasta" format="fasta" directory="."/>
@@ -77,7 +80,7 @@ pathotypr classify
     </outputs>
     <tests>
         <!-- One genome carrying the L2 -> L2.1 -> L2.1.1 path and a RIF marker. -->
-        <test expect_num_outputs="2">
+        <test expect_num_outputs="3">
             <param name="genomes" value="sample1.fasta" ftype="fasta"/>
             <param name="markers" value="markers.tsv" ftype="tabular"/>
             <param name="reference" value="reference.fasta" ftype="fasta"/>
@@ -96,12 +99,18 @@ pathotypr classify
                 <assert_contents>
                     <has_text text="rpoB"/>
                     <has_text text="S450L"/>
+                    <has_text text="evidence"/>
                     <has_n_lines n="5"/>
+                </assert_contents>
+            </output>
+            <output name="undetermined">
+                <assert_contents>
+                    <has_text text="reason"/>
                 </assert_contents>
             </output>
         </test>
         <!-- Two genomes at once, and the second one is a different lineage. -->
-        <test expect_num_outputs="2">
+        <test expect_num_outputs="3">
             <param name="genomes" value="sample1.fasta,sample2.fasta" ftype="fasta"/>
             <param name="markers" value="markers.tsv" ftype="tabular"/>
             <param name="reference" value="reference.fasta" ftype="fasta"/>
@@ -117,7 +126,7 @@ pathotypr classify
         <!-- The masked FASTA is a discovered collection, so its naming deserves
              a test of its own. The input genomes contain no N at all, so an N in
              the output can only have come from masking. -->
-        <test expect_num_outputs="3">
+        <test expect_num_outputs="4">
             <param name="genomes" value="sample1.fasta" ftype="fasta"/>
             <param name="markers" value="markers.tsv" ftype="tabular"/>
             <param name="reference" value="reference.fasta" ftype="fasta"/>

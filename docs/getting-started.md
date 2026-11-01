@@ -106,7 +106,10 @@ Call the known lineage SNPs in an assembled genome. `--nested-classification` tu
       --excel
     ```
 
-This writes `sample_lineage.tsv` (one row per marker hit), `sample_lineage_summary.tsv` (columns `genome`, `lineage:count`, `major_lineage`) — one row per genome; with `-i` each FASTA record counts as its own genome, and — because of `--excel` — the matching `.xlsx` files.
+This writes `sample_lineage.tsv` (one row per marker hit), `sample_lineage_summary.tsv` (one row per genome: `genome`, `lineage:count`, `major_lineage`, `undetermined`, `undetermined:count`) and `sample_lineage_undetermined.tsv` (the markers that could be read neither as present nor as absent). With `-i` each FASTA record counts as its own genome, and with `--excel` the matching `.xlsx` files are written as well.
+
+!!! warning "With the resistance panel, read the undetermined count before calling a genome susceptible"
+    A marker whose position the genome hides behind another change nearby is reported as undetermined rather than absent. A drug with no marker found but some undetermined has not been shown susceptible. See [Present, absent and undetermined](classify.md#present-absent-and-undetermined).
 
 !!! tip "Gene and amino-acid change columns"
     Pass a GFF3 annotation with `--gff` (for `-i`) to populate the `Gene`, `Gene_Start`, `Gene_End`, `AA_Pos`, and `AA_Change` columns — especially useful with the DR panel to name the affected gene and mutation. Without a GFF, `Gene_Start`, `Gene_End` and `AA_Pos` stay empty; `Gene` and `AA_Change` fall back to the marker TSV's own gene and mutation columns when the panel provides them. See [`classify`](classify.md) for GFF handling.
@@ -131,7 +134,7 @@ pathotypr split-fastq \
   --excel
 ```
 
-Outputs are `sample_genotype_<sample>_mutations.tsv` (per-marker detail: position, alleles, counts, ALT fraction, lineage) and `sample_genotype_summary.tsv` (lineage counts plus the major call).
+Outputs are `sample_genotype_<sample>_mutations.tsv` (per-marker detail: position, alleles, counts, ALT fraction, lineage), `sample_genotype_<sample>_undetermined.tsv` (the markers the reads could answer neither way) and `sample_genotype_summary.tsv` (lineage counts, the major call, and how many markers were left undetermined).
 
 !!! tip "Tuning calls for coverage"
     A variant is called when depth ≥ `--min-depth` (default `10`) **and** the ALT fraction ≥ `--min-alt-percent` (default `95`). Lower `--min-depth` for shallow sequencing, or lower `--min-alt-percent` if you expect mixed / heteroresistant samples.
@@ -177,12 +180,14 @@ This writes `sample_prediction.tsv` (plus `sample_prediction.xlsx`) with one row
 | `lineage` | Lineage label carried by the marker |
 | `Gene`, `Gene_Start`, `Gene_End` | Gene context (populated only with `--gff`) |
 | `AA_Pos`, `AA_Change` | Amino-acid position and change (only with `--gff`) |
+| `alleles_found` | `ALT`, or `ALT,REF` when the reference allele was found as well |
+| `evidence` | `kmer`, or the anchor that read the allele when a nearby change hid the k-mer |
 
-The companion `sample_lineage_summary.tsv` collapses this to a single row: the genome and its **major lineage** call (with sub-lineage when `--nested-classification` is on).
+The companion `sample_lineage_summary.tsv` collapses this to a single row: the genome, its **major lineage** call (with sub-lineage when `--nested-classification` is on), and how many markers could not be read. Those markers are listed one per row in `sample_lineage_undetermined.tsv`.
 
 ### `split-fastq` — mutations + summary
 
-`sample_genotype_<sample>_mutations.tsv` lists each called marker with its position, REF/ALT alleles, REF and ALT read counts, ALT fraction, and lineage. `sample_genotype_summary.tsv` gives one row per sample: the per-lineage marker counts and the final major-lineage call.
+`sample_genotype_<sample>_mutations.tsv` lists each called marker with its position, REF/ALT alleles, REF and ALT read counts, ALT fraction, and lineage. `sample_genotype_summary.tsv` gives one row per sample: the per-lineage marker counts, the final major-lineage call, and how many markers the reads could answer neither way. Those are listed one per row in `sample_genotype_<sample>_undetermined.tsv`, with `not_found` when no read carried either allele and `low_depth` when the two together fall below `--min-depth`. A marker nobody could read is not a marker that is absent, which matters most with a resistance panel.
 
 ### `predict` — predictions TSV
 

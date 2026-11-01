@@ -18,7 +18,7 @@ Every `pathotypr` subcommand writes tab-separated (TSV) result files, and most c
 | [`train`](train.md) | model bundle, `.importance.tsv`, `.importance.coords.tsv` | — (no `--excel`; accuracy is logged, not filed) |
 | [`predict`](predict.md) | predictions TSV | `.xlsx` with `--excel` |
 | [`classify`](classify.md) | detailed TSV, `_summary.tsv` | `.xlsx` with `--excel`; `_masked.fasta` with `--output-masked-fasta` |
-| [`split-fastq`](split-fastq.md) | per-sample `_mutations.tsv`, `_summary.tsv` | `.xlsx` with `--excel` |
+| [`split-fastq`](split-fastq.md) | per-sample `_mutations.tsv` and `_undetermined.tsv`, `_summary.tsv` | `.xlsx` with `--excel` |
 | [`match`](match.md) | best-match TSV (or stdout) | `.xlsx` with `--excel` **and** `-o` |
 
 ---
@@ -104,21 +104,22 @@ See also: [Prediction](algorithms/prediction.md), [`train`](train.md).
 
 ## `classify`
 
-Marker-based variant calling on assemblies. Writes a detailed per-marker table and a per-genome summary, plus optional Excel and masked-FASTA outputs. The `--output-prefix` (`-o`) drives all names.
+Marker-based variant calling on assemblies. Writes a detailed per-marker table, a per-genome summary and a table of the markers that could not be read, plus optional Excel and masked-FASTA outputs. The `--output-prefix` (`-o`) drives all names.
 
 | File | When | Content |
 |---|---|---|
 | `<prefix>.tsv` | always | One row per marker match per genome (the **detailed** table). |
-| `<prefix>_summary.tsv` | always | One row per genome with its major-lineage call. |
-| `<prefix>.xlsx`, `<prefix>_summary.xlsx` | with `--excel` | Excel copies of the two tables. |
+| `<prefix>_summary.tsv` | always | One row per genome with its major-lineage call and its count of undetermined markers. |
+| `<prefix>_undetermined.tsv` | always | One row per marker per genome that could be read neither as present nor as absent. Only the header when every marker was read. |
+| `<prefix>.xlsx`, `<prefix>_summary.xlsx`, `<prefix>_undetermined.xlsx` | with `--excel` | Excel copies of the three tables. |
 | `<input-stem>_masked.fasta` | with `--output-masked-fasta` | One file **per input assembly**, marker sites replaced by `N`, written to the prefix's parent directory. Only produced for reference-coordinate sequences (records whose length matches the reference); other inputs are skipped with the reason logged. Two inputs sharing a file stem do not overwrite each other — the second becomes `<stem>_2_masked.fasta`. See [classify](classify.md#output). |
 
 !!! note "Prefix handling"
-    If `--output-prefix` already ends in `.tsv` (e.g. `-o run.tsv`), the detailed file is used verbatim (`run.tsv`) and the summary drops the trailing `.tsv` before appending (`run_summary.tsv`). Otherwise `.tsv` / `_summary.tsv` are appended to the prefix.
+    If `--output-prefix` already ends in `.tsv` (e.g. `-o run.tsv`), the detailed file is used verbatim (`run.tsv`) and the summary and undetermined tables drop the trailing `.tsv` before appending (`run_summary.tsv`, `run_undetermined.tsv`). Otherwise `.tsv`, `_summary.tsv` and `_undetermined.tsv` are appended to the prefix.
 
 ### Detailed table — `<prefix>.tsv`
 
-**Header:** `genome  k-mer  k-merPOS  SNPgenome  SNPreference  REF  ALT  lineage  Gene  Gene_Start  Gene_End  AA_Pos  AA_Change`
+**Header:** `genome  k-mer  k-merPOS  SNPgenome  SNPreference  REF  ALT  lineage  Gene  Gene_Start  Gene_End  AA_Pos  AA_Change  alleles_found  evidence`
 
 | Column | Description |
 |---|---|
@@ -134,36 +135,79 @@ Marker-based variant calling on assemblies. Writes a detailed per-marker table a
 | `Gene_Start` | 1-based gene start from the GFF; empty if no annotation. |
 | `Gene_End` | Gene end from the GFF; empty if no annotation. |
 | `AA_Pos` | Amino-acid position of the change; empty if not resolvable. |
-| `AA_Change` | Amino-acid change — from GFF translation, otherwise the marker's mutation field; empty if neither. |
+| `AA_Change` | Amino-acid change, translated from the sample's own codon when a GFF is given, otherwise the marker's mutation field; empty if neither. The sample's codon is used rather than the reference with this marker's allele dropped into it, so a second change in the same codon does not produce an amino acid nobody carries. |
+| `alleles_found` | `ALT` when only the marker's alternative k-mer was found; `ALT,REF` when both turned up, meaning two copies of the region disagree or the alternative k-mer also occurs elsewhere, and an anchor then read this locus as carrying the variant. Both k-mers turning up is never on its own reported as the marker being present. |
+| `evidence` | `kmer` when the whole k-mer matched, or `left_anchor` / `right_anchor` / `both_anchors` when the allele was read from the flanks because a nearby change hid the k-mer. An anchor read establishes no genome coordinate, so `k-mer`, `k-merPOS` and `SNPgenome` are empty on those rows. |
 
 !!! note "Genomes with no marker hits still appear"
     A genome that matches no markers gets a single row containing only its name, with all remaining columns empty — so every input is accounted for.
 
 ### Summary table — `<prefix>_summary.tsv`
 
-**Header:** `genome  lineage:count  major_lineage`
+**Header:** `genome  lineage:count  major_lineage  undetermined  undetermined:count`
 
 | Column | Description |
 |---|---|
 | `genome` | Genome/sample name. |
 | `lineage:count` | Space-separated `lineage:count` pairs at **every hierarchical level** (each ancestor path prefix is counted), sorted by count descending, then by name. |
-| `major_lineage` | Final lineage call. With `--nested-classification`, the deepest fully-supported path wins; otherwise the most abundant lineage wins. |
+| `major_lineage` | Final call. For a lineage panel: with `--nested-classification` the deepest fully-supported path wins, otherwise the most abundant lineage. For a WHO resistance catalogue it is the resistance verdict instead, for example `Resistant: INH,RIF`. See [classify](classify.md#resistance-panels). |
+| `undetermined` | Number of markers that could be read neither way in this genome. |
+| `undetermined:count` | Those markers as `label:count` pairs under the **first level** of their path only (the drug for a resistance panel, the main lineage for a lineage panel), sorted like `lineage:count`. Empty when every marker was read. |
+
+### Undetermined table (`<prefix>_undetermined.tsv`)
+
+Every marker that neither the k-mers nor the anchors could read: a change on
+both sides of the variant, a region absent from the assembly, a contig break or
+a repeated anchor hid the position, so the marker is neither present nor ruled
+out. Markers sharing a position and reference allele are read together, so
+carrying one of them does not leave the others undetermined. See
+[classify](classify.md#present-absent-and-undetermined) for how to read these
+rows in a resistance panel.
+
+**Header:** `genome  SNPreference  REF  ALT  lineage  Gene  mutation  reason`
+
+| Column | Description |
+|---|---|
+| `genome` | Genome/sample name. |
+| `SNPreference` | 1-based marker position in the reference genome. |
+| `REF`, `ALT` | Alleles of the marker. |
+| `lineage` | Lineage (or drug) path of the marker. |
+| `Gene`, `mutation` | The marker's own gene and mutation fields; empty when the marker TSV has none. |
+| `reason` | `not_found`: nothing of the marker occurs and no anchor could read it. `anchors_disagree`: the two anchors read different alleles. `ambiguous_both_alleles`: both k-mers turned up and no anchor could say which allele the locus carries. `no_reference_kmer`: the marker has no usable reference k-mer (a reference allele outside A, C, G and T) and the anchors could not read it either. |
 
 === "Detailed"
 
     ```text
-    genome	k-mer	k-merPOS	SNPgenome	SNPreference	REF	ALT	lineage	Gene	Gene_Start	Gene_End	AA_Pos	AA_Change
-    sampleA	ACGT…GTCA	1523	1533	745	C	T	L2;L2.2	rv0667	759807	763325	450	S450L
-    sampleA	TTGA…CCAG	9021	9031	7362	G	A	L2	katG	2153889	2156111	315	
-    sampleB		Unclassified										
+    genome	k-mer	k-merPOS	SNPgenome	SNPreference	REF	ALT	lineage	Gene	Gene_Start	Gene_End	AA_Pos	AA_Change	alleles_found	evidence
+    sampleA	ACGT…GTCA	1523	1533	745	C	T	L2;L2.2	rv0667	759807	763325	450	S450L	ALT	kmer
+    sampleA	TTGA…CCAG	9021	9031	7362	G	A	L2	katG	2153889	2156111	315		ALT	kmer
+    sampleA				2155168	C	G	INH;INH-R;katG_S315T	katG	2153889	2156111	315	S315T	ALT	right_anchor
+    sampleB														
     ```
 
 === "Summary"
 
     ```text
-    genome	lineage:count	major_lineage
-    sampleA	L2:2 L2;L2.2:1	L2
-    sampleB		
+    genome	lineage:count	major_lineage	undetermined	undetermined:count
+    sampleA	L2:2 L2;L2.2:1	L2	3	L4:2 L1:1
+    sampleB		Unclassified	0	
+    ```
+
+=== "Summary, resistance panel"
+
+    ```text
+    genome	lineage:count	major_lineage	undetermined	undetermined:count
+    sampleA	INH:2 RIF:1 …	Resistant: INH,RIF	187	INH:91 RIF:62 EMB:34
+    sampleB	OTHER:1	No resistance markers found	0	
+    ```
+
+=== "Undetermined"
+
+    ```text
+    genome	SNPreference	REF	ALT	lineage	Gene	mutation	reason
+    sampleA	3836739	A	G	L4;L4.1			not_found
+    sampleA	3836741	C	T	L4;L4.2			ambiguous_both_alleles
+    sampleA	1834177	A	C	L1			anchors_disagree
     ```
 
 See also: [Assembly classification](algorithms/assembly-classification.md), [Marker format](marker_format.md).
@@ -177,7 +221,9 @@ Alignment-free genotyping from FASTQ reads. Writes one detailed table **per samp
 | File | When | Content |
 |---|---|---|
 | `<prefix>_<sample>_mutations.tsv` | always | Per-marker calls for one sample (one file per sample). |
-| `<prefix>_summary.tsv` | always | One row per sample with its major-lineage call. |
+| `<prefix>_<sample>_undetermined.tsv` | always | Markers the reads could answer neither way, one row each, with a `reason` of `not_found` or `low_depth`. Only the header when every marker was read. See [split-fastq](split-fastq.md#per-sample-undetermined-tsv). |
+| `<prefix>_summary.tsv` | always | One row per sample with its major-lineage call and its count of undetermined markers. |
+| `<prefix>_<sample>_mutations.xlsx`, `<prefix>_<sample>_undetermined.xlsx`, `<prefix>_summary.xlsx` | with `--excel` | Excel copies of the three tables. |
 | `<prefix>_<sample>_mutations.xlsx`, `<prefix>_summary.xlsx` | with `--excel` | Excel copies. |
 
 !!! note "Sample names in filenames are sanitised"
@@ -185,7 +231,7 @@ Alignment-free genotyping from FASTQ reads. Writes one detailed table **per samp
 
 ### Detailed table — `<prefix>_<sample>_mutations.tsv`
 
-**Header:** `pos  ref_allele  alt_allele  ref_count  alt_count  alt_fraction  lineage_path  extra_annotations...`
+**Header:** `pos  ref_allele  alt_allele  ref_count  alt_count  alt_fraction  lineage_path  evidence  extra_annotations...`
 
 Only markers meeting `--min-depth` coverage **and** `--min-alt-percent` are written.
 
@@ -194,24 +240,37 @@ Only markers meeting `--min-depth` coverage **and** `--min-alt-percent` are writ
 | `pos` | 1-based marker position. |
 | `ref_allele` | Reference allele. |
 | `alt_allele` | Alternate allele. |
-| `ref_count` | Reads supporting the REF k-mer. |
-| `alt_count` | Reads supporting the ALT k-mer. |
+| `ref_count` | Reads reading the reference allele. |
+| `alt_count` | Reads reading the alternate allele. |
 | `alt_fraction` | ALT as a percentage of `ref_count + alt_count` (2 decimals, `0`–`100`). |
 | `lineage_path` | `;`-joined lineage path for the marker. |
+| `evidence` | `kmer` when the marker's own k-mer matched, or `left_anchor` / `right_anchor` / `both_anchors` when its locus was read by counting from one side because a nearby change hid both k-mers. The counts on that row are then the anchor's. |
 | `extra_annotations…` | Zero or more **additional tab-separated columns** copied verbatim from the marker's annotation fields — present only when the marker defines them. |
 
 !!! tip "Excel colour coding"
     In the detailed `.xlsx`, the annotation columns collapse to a single `annotations` header, and **alt_fraction** is shaded red `< 50`, yellow `50–95`, green `≥ 95`.
 
+### Undetermined table (`<prefix>_<sample>_undetermined.tsv`)
+
+**Header:** `pos  ref_allele  alt_allele  ref_count  alt_count  lineage_path  reason`
+
+One row per marker the reads could answer neither way, with `reason` one of
+`not_found`, `low_depth`, `no_unique_anchor` or `anchors_disagree`. A marker
+read through a neighbour's window, or read from one of its own anchors, is not
+listed: it was answered. See
+[split-fastq](split-fastq.md#per-sample-undetermined-tsv).
+
 ### Summary table — `<prefix>_summary.tsv`
 
-**Header:** `genome  lineage:count  major_lineage`
+**Header:** `genome  lineage:count  major_lineage  undetermined  undetermined:count`
 
 | Column | Description |
 |---|---|
 | `genome` | Original sample name. |
 | `lineage:count` | Space-separated `lineage:count` pairs across all hierarchical levels, sorted by count descending, then by name. |
-| `major_lineage` | Final lineage call (`--nested-classification` enables hierarchical path validation; otherwise most-abundant wins). |
+| `major_lineage` | Final lineage call (`--nested-classification` enables hierarchical path validation; otherwise most-abundant wins). With a WHO drug-resistance panel, the drugs with a grade 1 or 2 marker instead. |
+| `undetermined` | How many markers the reads could answer neither way. |
+| `undetermined:count` | Those markers as `label:count` pairs under the first level of their path. Empty when every marker was read. |
 
 !!! warning "No indels in FASTQ mode"
     `split-fastq` calls SNPs/MNVs only. Insertions and deletions are detected reliably via the assembly-based [`classify`](classify.md) workflow.

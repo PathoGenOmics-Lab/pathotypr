@@ -40,6 +40,7 @@ pub mod excel;
 pub mod fasta_io;
 pub mod model;
 pub mod paired_end;
+pub mod resistance;
 pub mod sparse_tree;
 pub mod split_kmer;
 pub mod vectorizer;
