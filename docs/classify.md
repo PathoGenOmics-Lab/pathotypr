@@ -227,12 +227,14 @@ cannot do:
 
 ### A k-mer the reference itself carries
 
-Five markers of the WHO catalogue have an ALT k-mer that already sits
-elsewhere in H37Rv, two of them in PPE35, and another sixty-seven have a
-second copy of their reference window. Those words are in **every** genome, so
-finding one says nothing about the marker's own locus: before this was
-accounted for, `ndh c.168C>T` and `PPE35 I417V` read as present in every
-genome tested, the ancestor included.
+Of the WHO catalogue markers `classify` indexes, two have an ALT k-mer that
+already sits elsewhere in H37Rv (`ndh c.168C>T` and `PPE35 I417V`) and
+seventy-one have a second copy of their reference window. Those words are in
+**every** genome, so finding one says nothing about the marker's own locus:
+before this was accounted for, those two read as present in every genome
+tested, the ancestor included. The log gives the counts for the panel in use.
+`split-fastq` indexes a different set (no indels, longer substitutions) and
+finds five and sixty-seven.
 
 The reference is read once when the index is built, which is what turns a
 k-mer hit into the weak evidence it is:

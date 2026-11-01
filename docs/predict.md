@@ -126,9 +126,10 @@ A tab-separated file with a header row and one row per classified record. Column
 Example:
 
 ```text
-Header	Predicted_Lineage	Confidence	Confidence_Margin	Other_Votes
-sample_001	L4	0.9600	0.9300	L2:0.03,L1:0.01
-sample_002	L2	0.5400	0.0800	L4:0.46
+Header	Predicted_Lineage	Confidence	Confidence_Margin	Other_Votes	Kmers_Used
+sample_001	L4	0.9600	0.9300	L2:0.03,L1:0.01	4411512
+sample_002	L2	0.5400	0.0800	L4:0.46	4398877
+masked_003	Undetermined				0
 ```
 
 ### `predictions.xlsx` (only with `--excel`)

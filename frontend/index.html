@@ -424,7 +424,7 @@
                       <input type="number" id="train-max-depth" value="20" min="1" max="50">
                     </div>
                     <div class="form-group">
-                      <label>Min Leaf Samples <span class="help-tooltip">?<span class="tooltip-content">Minimum samples per leaf node. Default: 1. A node of twice this many samples or fewer is never split, so a high value with few genomes per lineage trains trees that never split at all and predict one lineage for everything.</span></span></label>
+                      <label>Min Leaf Samples <span class="help-tooltip">?<span class="tooltip-content">Minimum samples per leaf node. Default: 1. A node of twice this many samples or fewer is never split, so a high value keeps the trees from separating lineages with few genomes, and on a very small panel they never split at all.</span></span></label>
                       <input type="number" id="train-min-leaf" value="1" min="1" max="100">
                     </div>
                   </div>

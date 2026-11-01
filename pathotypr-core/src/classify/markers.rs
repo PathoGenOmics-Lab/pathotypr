@@ -739,11 +739,11 @@ fn build_index(mut markers: Vec<MarkerKmerEntry>, encoded: bool, anchor_len: usi
 /// Records which markers have a k-mer the reference genome itself carries.
 ///
 /// A marker is recognised by a word, and a word says what it matched and not
-/// where. The WHO catalogue has five markers whose alternative word already
-/// sits elsewhere in H37Rv, two of them in PPE35, so they read as present in
-/// every genome including the ancestor. Another sixty-seven have a second copy
-/// of their reference word, which reads as the reference allele while the real
-/// locus carries the variant.
+/// where. Of the WHO catalogue markers this index holds, two have an
+/// alternative word that already sits elsewhere in H37Rv (ndh c.168C>T and
+/// PPE35 I417V), so they read as present in every genome including the
+/// ancestor, and seventy-one have a second copy of their reference word, which
+/// reads as the reference allele while the real locus carries the variant.
 ///
 /// Knowing this from the reference is what lets a k-mer hit be treated as the
 /// weak evidence it is: those markers are settled by an anchor, which does say

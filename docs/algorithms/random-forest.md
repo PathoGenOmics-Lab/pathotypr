@@ -122,7 +122,7 @@ The top 500 features are exported with:
 |---|---|---|
 | `n_trees` | 100 | More trees → smoother predictions, diminishing returns past ~100 |
 | `max_depth` | 20 | Limits tree complexity; prevents memorization of training noise |
-| `min_samples_leaf` | 1 | The usual random-forest value: the bootstrap and the random choice of features already keep trees from memorising samples. It was 5, which forbade every split on panels with a few genomes per lineage. |
+| `min_samples_leaf` | 1 | The usual random-forest value: the bootstrap and the random choice of features already keep trees from memorising samples. It was 5, which kept trees too shallow to separate lineages with few genomes (on *M. bovis* sublineages of six genomes each: 31 of 32 calls at a vote margin of 0.15, against 32 of 32 at 0.50 with 1), and leaves every tree a single leaf on a panel of ten genomes. |
 | `max_features` | √(n_features) | Standard RF: decorrelates trees by forcing different feature subsets |
 | `bootstrap_seed` | 42 (master) | Ensures reproducibility; each tree derives its seed from this |
 

@@ -187,19 +187,20 @@ The companion `sample_lineage_summary.tsv` collapses this to a single row: the g
 
 ### `split-fastq` — mutations + summary
 
-`sample_genotype_<sample>_mutations.tsv` lists each called marker with its position, REF/ALT alleles, REF and ALT read counts, ALT fraction, and lineage. `sample_genotype_summary.tsv` gives one row per sample: the per-lineage marker counts, the final major-lineage call, and how many markers the reads could answer neither way. Those are listed one per row in `sample_genotype_<sample>_undetermined.tsv`, with `not_found` when no read carried either allele and `low_depth` when the two together fall below `--min-depth`. A marker nobody could read is not a marker that is absent, which matters most with a resistance panel.
+`sample_genotype_<sample>_mutations.tsv` lists each called marker with its position, REF/ALT alleles, REF and ALT read counts, ALT fraction, and lineage. `sample_genotype_summary.tsv` gives one row per sample: the per-lineage marker counts, the final major-lineage call, and how many markers the reads could answer neither way. Those are listed one per row in `sample_genotype_<sample>_undetermined.tsv`, with the reason: `not_found` when nothing read the locus, `low_depth` when too few reads did, and the rest explained in [split-fastq](split-fastq.md#per-sample-undetermined-tsv). A marker nobody could read is not a marker that is absent, which matters most with a resistance panel.
 
 ### `predict` — predictions TSV
 
-`sample_prediction.tsv` has one row per input sequence — except sequences shorter than the model's k-mer size, which are skipped with a warning:
+`sample_prediction.tsv` has one row per input sequence. A sequence that yields no k-mer (shorter than the model's k, or N-masked) is reported as `Undetermined` rather than dropped:
 
 | Column | Meaning |
 |---|---|
 | `Header` | Sequence header from the input FASTA |
-| `Predicted_Lineage` | Most-voted lineage label |
+| `Predicted_Lineage` | Most-voted lineage label, or `Undetermined` |
 | `Confidence` | Fraction of trees voting for the winner (0–1) |
 | `Confidence_Margin` | Gap between winner and runner-up (0–1) |
 | `Other_Votes` | Top 3 alternatives with their vote fractions |
+| `Kmers_Used` | k-mers the sequence yielded; zero for an `Undetermined` row |
 
 !!! example "Reading a confidence score"
     A `Confidence` of `0.95` means 95% of the trees agreed on the call; a `Confidence_Margin` of `0.40` means the winner drew 40% of the whole ensemble more than the runner-up (e.g. 60% of trees vs 20%). High values on both signal a clean, unambiguous prediction.

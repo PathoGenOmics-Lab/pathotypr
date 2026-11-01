@@ -53,7 +53,7 @@ pub async fn run_train(
         threads: params.threads,
         cv_folds: params.cv_folds,
         max_depth: params.max_depth.unwrap_or(20),
-        // 1, like the CLI: 5 turned sublineage panels into forests of stumps.
+        // 1, like the CLI: 5 kept trees too shallow to separate lineages with few genomes.
         min_samples_leaf: params.min_samples_leaf.unwrap_or(1),
         cancel_token: Some(cancel_token),
     };

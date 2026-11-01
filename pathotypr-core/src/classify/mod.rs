@@ -1657,9 +1657,10 @@ mod tests {
         );
     }
 
-    /// The WHO catalogue has five markers whose alternative k-mer H37Rv itself
-    /// carries, two of them in PPE35, so the word turns up in every genome and
-    /// the marker read as present everywhere, the ancestor included. When no
+    /// Two of the WHO catalogue markers classify indexes, ndh c.168C>T and
+    /// PPE35 I417V, have an alternative k-mer H37Rv itself carries, so the word
+    /// turns up in every genome and the marker read as present everywhere, the
+    /// ancestor included. When no
     /// anchor can tell the real locus from the copy, the only honest answer is
     /// that the marker was not read.
     #[test]

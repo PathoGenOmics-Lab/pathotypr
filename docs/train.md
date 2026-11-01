@@ -65,7 +65,7 @@ These are tolerated, with a warning in the log:
 | `-t, --threads <N>` | all cores | no | Number of CPU threads. |
 | `--cv-folds <N>` | off | no | Use stratified k-fold cross-validation for accuracy instead of a single split. The final model is always trained on ALL data. |
 | `--max-depth <N>` | `20` | no | Maximum tree depth. Lower reduces overfitting on small datasets. |
-| `--min-samples-leaf <N>` | `1` | no | Minimum samples per leaf. A node of `2N` samples or fewer is never split, so a high value with few genomes per lineage trains a forest of stumps; the run says so when it happens. |
+| `--min-samples-leaf <N>` | `1` | no | Minimum samples per leaf. A node of `2N` samples or fewer is never split, so a high value keeps the trees too shallow to separate lineages with few genomes, and on a very small panel leaves every tree a single leaf; the run says when trees end up as a single leaf. |
 
 ### Global flags
 

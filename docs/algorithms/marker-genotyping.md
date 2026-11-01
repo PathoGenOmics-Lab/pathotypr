@@ -154,7 +154,11 @@ about where it matched; a marker left without one is reported as
 `no_unique_anchor`. A read spanning the whole locus matches both anchors, so the
 two sides are never added up: the deeper one answers, and the other has to agree
 if it was read deeply enough to have an opinion, or the marker is reported as
-`anchors_disagree`. The pass runs over the reads a second time, with an index
+`anchors_disagree`. A marker whose ALT k-mer the reference itself carries, or
+whose window it carries twice, is never settled on read counts at all, because
+reads from the other copy count towards it just as well: it goes straight to
+the anchors, and is reported as `alt_kmer_in_reference` or `ref_kmer_repeated`
+when they cannot settle it either. The pass runs over the reads a second time, with an index
 holding only the markers still unsettled, and `--no-anchor-rescue` skips it.
 
 ### Marker TSV format

@@ -107,6 +107,7 @@ The marker database is built once and cached in memory, then reused for every sa
 
 | Option | Default | Required | Description |
 |---|---|---|---|
+| `--no-anchor-rescue` | `false` | no | Skip the second pass that reads a marker's locus from its anchors when its k-mers could not. Faster, and those markers are then reported as not determined. |
 | `-o, --output-prefix <PREFIX>` | `split` | no | Prefix for output files. |
 | `--excel` | `false` | no | Also write Excel (`.xlsx`) files. |
 | `-t, --threads <N>` | all cores | no | Number of CPU threads. |
@@ -205,15 +206,17 @@ them.
 
 !!! example "rpoB S450L behind a neighbour"
     A sample carrying S450L and a synonymous change seven bases away matches
-    neither k-mer of the marker: 112 reads cover the position and say the
-    variant is there, and the k-mers see none of it. The left anchor sits clear
-    of the neighbour, reads those 112 reads, and the marker is called with
-    `evidence` = `left_anchor`.
+    neither k-mer of the marker: 124 reads cover the position, every one of them
+    showing the variant, and the k-mers see none of it. The left anchor sits
+    clear of the neighbour, the 112 reads that carry it whole are read, and the
+    marker is called with `evidence` = `left_anchor`.
 
 This costs a second pass over the reads, which `--no-anchor-rescue` turns off.
-On a 6x whole-genome read set the run took 1.6 times as long with the pass as
-without it, and the pass resolved 15 of the 190 markers the k-mers had left
-unread.
+On a 6x whole-genome read set made from H37Rv itself, the run took about 1.5
+times as long with the pass, called nothing in either case, and settled all 72
+markers whose words the reference duplicates, which no read count can settle:
+262 markers were left unread without the pass and 190 with it, all of those at
+the edge of the reads' coverage.
 
 ## Output
 

@@ -856,9 +856,10 @@ pub fn scan_fastq_anchors(
 /// Records which markers have a k-mer the reference genome itself carries.
 ///
 /// A k-mer says what it matched and never where, so reads from a paralogous
-/// copy count towards the wrong marker. Five markers of the WHO catalogue have
-/// an ALT k-mer that already sits elsewhere in H37Rv, two of them in PPE35, and
-/// sixty-seven have a second copy of their reference window. Marking them here
+/// copy count towards the wrong marker. Of the WHO catalogue markers this
+/// module indexes, five have an ALT k-mer that already sits elsewhere in H37Rv
+/// (three of them in PPE35, one in ndh, one upstream of dnaA), and sixty-seven
+/// have a second copy of their reference window. Marking them here
 /// is what lets the caller refuse to settle them on read counts alone and ask
 /// the anchors, which do say where they matched.
 fn mark_reference_copies(markers: &mut [Marker], ref_seq: &[u8], kmer_len: usize) {

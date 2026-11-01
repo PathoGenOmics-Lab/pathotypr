@@ -81,7 +81,7 @@ Writes one predictions table to `--output`, streamed as sequences are classified
 | Column | Description |
 |---|---|
 | `Header` | Sequence header from the input FASTA. |
-| `Predicted_Lineage` | Most-voted class label across the ensemble. A record on which no tree cast a usable vote still gets a label, but with a `Confidence` at or near zero. |
+| `Predicted_Lineage` | Most-voted class label across the ensemble, or `Undetermined` when the record yielded no k-mer; `Confidence` and `Confidence_Margin` are then empty and `Kmers_Used` is zero. |
 | `Confidence` | Fraction of trees voting for the winner, `0`–`1` (4 decimals). |
 | `Confidence_Margin` | Winner votes minus runner-up votes, over total trees, `0`–`1` (4 decimals). |
 | `Other_Votes` | Up to the **top 3** runner-up labels as `label:fraction` (fraction to 2 decimals), comma-separated; empty when there are no other votes. |
@@ -290,17 +290,18 @@ Finds the single best-matching reference for a set of FASTQ reads. All input rea
 | `<output>` | when `-o` is given (otherwise printed to **stdout**) | Best-match report. |
 | `<output → .xlsx>` | with `--excel` **and** `-o` | Excel copy. |
 
-**Header:** `Query_Files  Best_Match_Reference  Shared_Kmer_Fraction`
+**Header:** `Query_Files  Best_Match_Reference  Shared_Kmer_Fraction  Query_Kmers`
 
 | Column | Description |
 |---|---|
 | `Query_Files` | Comma-separated list of all input FASTQ paths that were pooled into the query. |
 | `Best_Match_Reference` | Header of the top-scoring reference genome. |
 | `Shared_Kmer_Fraction` | Weighted k-mer containment score, `0`–`1` (4 decimals). |
+| `Query_Kmers` | The denominator: k-mer occurrences kept from the query after `--min-kmer-count`. |
 
 ```text
-Query_Files	Best_Match_Reference	Shared_Kmer_Fraction
-reads_R1.fastq.gz,reads_R2.fastq.gz	NC_000962.3 H37Rv	0.9873
+Query_Files	Best_Match_Reference	Shared_Kmer_Fraction	Query_Kmers
+reads_R1.fastq.gz,reads_R2.fastq.gz	NC_000962.3 H37Rv	0.9873	4283915
 ```
 
 !!! note "No match, no data row"

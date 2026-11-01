@@ -116,10 +116,11 @@ pub struct Args {
     /// value for a random forest, where the bootstrap and the random choice of
     /// features already keep trees from memorising samples.
     ///
-    /// It used to be 5, and a node of 10 samples or fewer is never split, so a
-    /// panel with a few genomes per lineage trained a forest of stumps: on
-    /// M. bovis sublineages two to five SNPs apart, 5 gave 31 of 32 calls with
-    /// a vote margin of 0.15, and 1 gave 32 of 32 with a margin of 0.50.
+    /// It used to be 5, and a node of 10 samples or fewer is never split, so
+    /// the trees stayed too shallow to separate lineages with few genomes: on
+    /// M. bovis sublineages two to five SNPs apart, with six genomes each, 5
+    /// gave 31 of 32 calls at a vote margin of 0.15 and 1 gave 32 of 32 at
+    /// 0.50. On a panel of ten genomes, 5 leaves every tree a single leaf.
     #[arg(long, default_value_t = 1)]
     pub min_samples_leaf: usize,
     /// Cancellation token for stopping the task (GUI only, not CLI).
@@ -779,12 +780,10 @@ pub fn run(args: Args) -> AppResult<TrainReport> {
         n_total,
     );
 
-    // --- OOB accuracy (free estimate from bootstrap) ---
-    // Uses the exact seeds from train_ensemble to reproduce bootstrap samples.
-    // A tree that never split predicts one label for everything. It happens by
-    // large --min-samples-leaf: a node of twice that many samples or fewer is
-    // never divided, so a panel with a few genomes per lineage trains a forest
-    // of stumps and used to save it without a word.
+    // A tree that never split predicts one label for everything. A node of twice
+    // --min-samples-leaf samples or fewer is never divided, so a panel small
+    // enough for its setting gets single-leaf trees, all of them on a panel of
+    // ten genomes at 5, and the model used to be saved without a word.
     let stumps = trees.iter().filter(|tree| tree.nodes.len() <= 1).count();
     if stumps == trees.len() {
         warn!(
@@ -802,6 +801,8 @@ pub fn run(args: Args) -> AppResult<TrainReport> {
         );
     }
 
+    // --- OOB accuracy (free estimate from bootstrap) ---
+    // Uses the exact seeds from train_ensemble to reproduce bootstrap samples.
     let oob_accuracy_pct = compute_oob_accuracy(
         &trees, &x_data_sparse, &y_data, &all_indices,
         num_classes, &tree_seeds, &label_encoder.int_to_label,

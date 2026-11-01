@@ -81,6 +81,10 @@ And when no anchor can read it:
 | not found | found as often as the reference has it | absent |
 | not found | found, but the reference has more copies | undetermined, `ref_kmer_repeated` |
 | not found | nothing of the site found | undetermined, `not_found` |
+| anything | the marker has no reference k-mer at all | undetermined, `no_reference_kmer` |
+
+Two anchors that both read the locus and disagree leave the marker undetermined
+as `anchors_disagree`, whatever the k-mers found.
 
 A k-mer is an exact match, so another change anywhere in the window (a
 synonymous substitution, a lineage polymorphism) hides both alleles. Before the

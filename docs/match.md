@@ -143,10 +143,11 @@ Query_Files	Best_Match_Reference	Shared_Kmer_Fraction	Query_Kmers
 !!! warning "Below a few fold coverage, do not raise `--min-kmer-count`"
     At low coverage a real k-mer is usually seen once, so dropping singletons
     throws away the evidence that tells two references apart and keeps the
-    repeats, which match everything. On 1 Mb of 0.15x reads, dropping them left
-    4.7% of the k-mers and scored the correct reference **1.0000**, a perfect
-    score from almost no data. Keeping them gave 0.8886 against 0.8824 and the
-    right answer.
+    repeats, which match everything. On 1 Mb of 0.15x reads, dropping them kept
+    4.7% of the distinct k-mers and scored the correct reference **1.0000** and
+    a reference 250 SNPs away 0.9990: a perfect score from almost no data, a
+    thousandth ahead. Keeping them scored the two 0.8897 and 0.8821, a margin
+    eight times wider.
 
     This used to happen on its own: the filter switched itself on above 100,000
     unique k-mers, so 1,450 reads of that sample scored 0.8886 and 1,500 reads
