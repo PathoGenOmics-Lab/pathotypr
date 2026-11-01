@@ -31,7 +31,7 @@ body:
     attributes:
       label: Version
       description: The output of `pathotypr --version`, or the version the desktop app shows.
-      placeholder: "pathotypr 1.0.2"
+      placeholder: "pathotypr 1.0.3"
     validations:
       required: true
 

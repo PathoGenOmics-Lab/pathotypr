@@ -17,7 +17,7 @@ body:
     id: version
     attributes:
       label: pathotypr version
-      placeholder: "e.g. 1.0.2"
+      placeholder: "e.g. 1.0.3"
     validations:
       required: true
 
