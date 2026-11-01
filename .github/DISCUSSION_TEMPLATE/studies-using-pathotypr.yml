@@ -33,7 +33,7 @@ body:
         and genomes with no hits were dropped from the summary rather than
         reported as unclassified. An analysis run on draft assemblies with 1.0.0
         wants reading with that in mind.
-      placeholder: pathotypr 1.0.2
+      placeholder: pathotypr 1.0.3
     validations:
       required: true
 
