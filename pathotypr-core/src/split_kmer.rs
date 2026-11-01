@@ -768,7 +768,9 @@ pub fn scan_fastq_anchors(
             while batch.len() < BATCH_SIZE {
                 if let Some(record) = rdr.next() {
                     match record {
-                        Ok(record) => batch.push(record.sequence()),
+                        // seq(), not sequence(): the newlines of a wrapped FASTA
+                        // would cut every k-mer that spans one.
+                        Ok(record) => batch.push(&record.seq()),
                         Err(e) => {
                             let mut first_error =
                                 parse_error.lock().unwrap_or_else(|e| e.into_inner());
@@ -1067,7 +1069,11 @@ pub fn scan_fastq_with_index(
                             break;
                         }
                     };
-                    batch.push(record.sequence());
+                    // seq() drops the line breaks a wrapped FASTA carries inside
+                    // its sequence; sequence() keeps them, and every k-mer that
+                    // spans one was skipped as holding an invalid base. Reads in
+                    // FASTQ have none, so for them nothing changes.
+                    batch.push(&record.seq());
 
                     record_count += 1;
                     if record_count & 8191 == 0 {
@@ -1385,6 +1391,44 @@ mod tests {
             !index.can_read(0),
             "the left anchor is repeated and the right one runs off the end"
         );
+    }
+
+    /// A wrapped FASTA carries newlines inside its sequence. Read raw, every
+    /// k-mer spanning one held an invalid base and was skipped, so a variant
+    /// whose k-mer crossed a line break was never seen.
+    #[test]
+    fn a_kmer_across_a_line_break_of_a_wrapped_fasta_is_counted() {
+        let reference = test_reference();
+        let k = 31;
+        let pos0 = 75;
+        let markers = vec![one_marker(&reference, pos0, "A", k)];
+        let (index, bloom) = build_marker_index(&markers);
+
+        let mut sample = reference.clone();
+        sample[pos0] = b'A';
+        // Lines of 70 bases put the variant at column 76 of the sequence, so
+        // its k-mer starts on the first line and ends on the second.
+        let mut wrapped = b">sample\n".to_vec();
+        for line in sample.chunks(70) {
+            wrapped.extend_from_slice(line);
+            wrapped.push(b'\n');
+        }
+        let dir = std::env::temp_dir().join(format!("pathotypr-wrap-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("wrapped.fasta");
+        std::fs::write(&path, &wrapped).unwrap();
+
+        let counts = scan_fastq_with_index(
+            &[path.to_str().unwrap().to_string()],
+            &index,
+            &bloom,
+            markers.len(),
+            &None,
+            k,
+        )
+        .unwrap();
+        std::fs::remove_dir_all(&dir).ok();
+        assert_eq!(counts[0][1], 1, "the alternate k-mer spans the line break and must be counted");
     }
 
     /// The counts are per allele, so a read carrying neither is neither.
