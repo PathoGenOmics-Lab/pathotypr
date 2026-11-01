@@ -50,6 +50,9 @@ else
         echo "Use --synthetic to generate test data."
         exit 1
     fi
+    # The bench has its own default location, so without this it can look
+    # somewhere other than the directory just validated.
+    export PATHOTYPR_TEST_DIR="$REAL_DIR"
     echo "Using real data from: $REAL_DIR"
 fi
 
