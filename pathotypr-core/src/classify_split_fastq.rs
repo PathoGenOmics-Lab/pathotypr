@@ -907,8 +907,14 @@ pub fn run(args: SplitFastqArgs) -> AppResult<()> {
             sample_name, detailed_output_path
         );
 
-        // Generate summary line
-        let mut sorted_lineages: Vec<(String, usize)> = lineage_counts
+        // Generate summary line. A resistance panel is tallied per drug; see
+        // resistance::per_drug_counts.
+        let shown_counts = if resistance_panel {
+            crate::resistance::per_drug_counts(&lineage_counts)
+        } else {
+            lineage_counts.clone()
+        };
+        let mut sorted_lineages: Vec<(String, usize)> = shown_counts
             .iter()
             .map(|(k, v)| (k.clone(), *v))
             .collect();

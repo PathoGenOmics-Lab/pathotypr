@@ -55,7 +55,12 @@ Labels parsed above: `L4`, `L2`.
 
 ## Marker TSV (`classify` and `split-fastq`)
 
-Tab-separated. Blank lines and lines beginning with `#` are ignored. A header row is **optional** and tolerated by both commands (see the admonition below).
+Tab-separated, with LF or CRLF line endings (the deposited panels use CRLF; both are read the same). Blank lines and lines beginning with `#` are ignored. A header row is **optional** and tolerated by both commands (see the admonition below).
+
+The same file format carries two kinds of panel, and the tools treat them differently:
+
+- a **lineage panel**, where the columns after the alleles are lineage levels (`L4`, `L4.9`);
+- a **resistance panel** in the shape of the WHO catalogue, where they are a drug, a phenotype, a marker name, a WHO grade, a gene and a mutation. See [Resistance panels](#resistance-panels-who-catalogue) below.
 
 ### Columns
 
@@ -81,11 +86,11 @@ Tab-separated. Blank lines and lines beginning with `#` are ignored. A header ro
 
     ```text
     #pos	ref	alt	level1	level2		gene	mutation
-    761155	C	T	L4	L4.9		gyrA	Ser95Thr
-    2155168	G	A	L2	L2.2		katG	Ser315Thr
+    761155	C	T	RIF	RIF-R		rpoB	S450L
+    2155168	C	G	INH	INH-R		katG	S315T
     ```
 
-    The blank column (two consecutive tabs) after `L4.9` / `L2.2` separates the lineage levels from the annotation columns.
+    The blank column (two consecutive tabs) after `RIF-R` / `INH-R` separates the levels from the annotation columns: the path of the first marker is `RIF;RIF-R`, its gene `rpoB` and its mutation `S450L`. A panel written this way is read as a **lineage** panel, with `RIF` and `INH` as its top levels; to be answered as a resistance panel it has to use the WHO shape below.
 
 === "Small indel (classify only)"
 
@@ -105,7 +110,7 @@ Tab-separated. Blank lines and lines beginning with `#` are ignored. A header ro
 - **Positions are 1-based** relative to the [reference genome](#reference-fasta).
 - Lineage levels are combined into a hierarchical, semicolon-joined path internally: `L4` + `L4.9` → `L4;L4.9`.
 - Annotation columns: `classify` uses the **first** annotation cell as the gene and the **second** as the mutation; `split-fastq` retains all trailing annotation cells. When a GFF is supplied to `classify`, gene/amino-acid values derived from the GFF take precedence, falling back to these columns.
-- A row is skipped if it has fewer than 4 columns, has a non-numeric position, or has an empty REF, ALT, or lineage path.
+- A row is skipped, with a warning that names it, if it has fewer than 4 columns, has a non-numeric position, or has an empty REF, ALT, or lineage path. The rest of the file is still read.
 - **Allele-length limit:** an allele must be shorter than the k-mer size. For `classify`, the allele must also leave room for the flanks, so effectively `max(len(REF), len(ALT)) ≤ kmer_size − 2 × min_flank_bases` (default `min_flank_bases` = 10); markers that exceed this are skipped.
 
 !!! info "Supported variant types differ by command"
@@ -125,6 +130,51 @@ Tab-separated. Blank lines and lines beginning with `#` are ignored. A header ro
     - `split-fastq` detects a header when the first data line (lower-cased) contains `pos`, `ref`, or `lineage`, and skips it.
 
     A header commented with a leading `#` works for both. See the [Marker format](marker_format.md) page for curation guidance and quality criteria.
+
+### Resistance panels (WHO catalogue)
+
+A resistance panel has nine columns and **no empty separator cell**, so all six
+columns after the alleles form the marker's path:
+
+```text
+#pos	ref	alt	drug	resistance	marker_name	grade	gene	mutation
+761155	C	T	RIF	RIF-R	rpoB_S450L	1) Assoc w R	rpoB	S450L
+2155168	C	G	INH	INH-R	katG_S315T	1) Assoc w R	katG	S315T
+759545	TA	CG	RIF	RIF-R	rpoB_c.-261A>G	5) Not assoc w R	rpoB	c.-261A>G
+```
+
+These rows are taken from the deposited panel. The path of the first one is
+`RIF;RIF-R;rpoB_S450L;1) Assoc w R;rpoB;S450L`, and it is read by position:
+the **first** level is the drug and the **fourth** is the WHO grade. The fifth
+and sixth are the gene and mutation the app shows on its resistance card; in the
+TSV outputs they stay inside the path, and the `Gene` column of `classify` is
+filled from the GFF when one is given.
+
+A panel is recognised as a resistance panel when at least half of its markers
+have a path of four levels or more whose fourth level reads as a WHO grade, so a
+lineage panel with one odd row is never mistaken for one. The grade decides what
+a marker found in a genome means:
+
+| Grade cell | Read as |
+|---|---|
+| `1) Assoc w R`, `2) Assoc w R - Interim` | associated with resistance: the drug is called resistant |
+| `3) Uncertain significance` | uncertain: reported, never called resistant |
+| `4) Not assoc w R - Interim`, `5) Not assoc w R` | not associated |
+| anything else, such as `TBProfiler_literature` | left out of the resistance call; the marker is still found and listed |
+
+The number before the parenthesis is what is read; without one, a cell
+containing "not assoc", "uncertain" or "assoc" is read by those words. The
+deposited panel has 402 rows graded `TBProfiler_literature`, which the call
+leaves out. With a
+resistance panel the summary's call is the list of drugs with a grade 1 or 2
+marker, for example `Resistant: INH,RIF`, instead of a lineage; see
+[classify](classify.md#resistance-panels).
+
+!!! note "Several rows per catalogue entry"
+    The deposited panel spells one catalogue mutation several ways: the single
+    base change, and longer alleles covering the same codon with its
+    neighbours. Each row is a marker of its own, and a sample can match more
+    than one of them for a single change.
 
 ---
 

@@ -1301,7 +1301,13 @@ pub fn run(args: Args) -> AppResult<()> {
         // Match the TSV exactly: sorted by count (then name) and space-joined.
         // Iterating the HashMap directly made the Excel column disagree with
         // its own TSV and vary between otherwise identical runs.
-        let lineage_counts_str = format_label_counts(&lineage_map);
+        // A resistance panel is tallied per drug; see resistance::per_drug_counts.
+        let shown_counts = if resistance_panel {
+            crate::resistance::per_drug_counts(&lineage_map)
+        } else {
+            lineage_map.clone()
+        };
+        let lineage_counts_str = format_label_counts(&shown_counts);
         let resistance_counts = resistance_panel.then(|| resistance_map.get(&genome)).flatten();
         let major_lineage = genome_call(&lineage_map, resistance_counts, args.nested_classification);
         let undetermined_counts = undetermined_count_map.get(&genome);
@@ -1322,7 +1328,7 @@ pub fn run(args: Args) -> AppResult<()> {
         }
         if disable_summary_excel { summary_excel_writer = None; }
 
-        if let Err(e) = write_summary(&mut summary_out, genome.clone(), &lineage_map, undetermined_counts, resistance_counts, args.nested_classification) {
+        if let Err(e) = write_summary(&mut summary_out, genome.clone(), &shown_counts, undetermined_counts, resistance_counts, args.nested_classification) {
             drop(summary_out); cleanup_generated_outputs(&generated_outputs); return Err(e);
         }
     }
