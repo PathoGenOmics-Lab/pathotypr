@@ -34,9 +34,34 @@ const N_TREES: u16 = 100;
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Structured report returned after a successful training run.
+/// The class with the most votes, ties broken by label rather than by index.
+///
+/// `max_by_key` keeps the last of equal keys and class indices follow the order
+/// labels first appear in the training FASTA, so a tie used to be settled by
+/// where a record sat in that file: reordering the input changed the call.
+fn most_voted<C: Ord>(votes: &[C], class_names: &[String]) -> usize {
+    votes
+        .iter()
+        .enumerate()
+        .max_by(|(left, a), (right, b)| {
+            a.cmp(b).then_with(|| {
+                class_names
+                    .get(*right)
+                    .map(String::as_str)
+                    .unwrap_or("")
+                    .cmp(class_names.get(*left).map(String::as_str).unwrap_or(""))
+            })
+        })
+        .map(|(class, _)| class)
+        .unwrap_or(0)
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct TrainReport {
-    pub accuracy_pct: f64,
+    /// None when no evaluation ran: an empty test set, or every CV fold
+    /// skipped. Zero would read as a measurement.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub accuracy_pct: Option<f64>,
     pub n_training: usize,
     pub n_test: usize,
     pub n_classes: usize,
@@ -324,6 +349,7 @@ fn compute_oob_accuracy(
     sample_indices: &[usize],
     num_classes: usize,
     tree_seeds: &[u64],
+    class_names: &[String],
 ) -> Option<f64> {
     let n_samples = sample_indices.len();
     if n_samples == 0 || trees.is_empty() {
@@ -363,12 +389,7 @@ fn compute_oob_accuracy(
         if oob_count[local_idx] == 0 {
             continue; // sample was in every bootstrap (very unlikely with 100 trees)
         }
-        let predicted = oob_votes[local_idx]
-            .iter()
-            .enumerate()
-            .max_by_key(|(_, &c)| c)
-            .map(|(cls, _)| cls)
-            .unwrap_or(0);
+        let predicted = most_voted(&oob_votes[local_idx], class_names);
         if predicted == y_data[sample_indices[local_idx]] {
             correct += 1;
         }
@@ -388,6 +409,7 @@ fn evaluate_ensemble(
     y_data: &[usize],
     test_indices: &[usize],
     num_classes: usize,
+    class_names: &[String],
 ) -> f64 {
     if test_indices.is_empty() {
         return 0.0;
@@ -402,12 +424,7 @@ fn evaluate_ensemble(
                 vote_counts[pred] += 1;
             }
         }
-        let best_class = vote_counts
-            .iter()
-            .enumerate()
-            .max_by_key(|(_, &c)| c)
-            .map(|(idx, _)| idx)
-            .unwrap_or(0);
+        let best_class = most_voted(&vote_counts, class_names);
         if best_class == y_data[idx] {
             correct += 1;
         }
@@ -430,6 +447,7 @@ fn stratified_cv(
     max_depth: usize,
     min_samples_leaf: usize,
     cancel_token: &Option<CancellationToken>,
+    class_names: &[String],
 ) -> AppResult<Vec<f64>> {
     let n = x_data.len();
 
@@ -441,13 +459,24 @@ fn stratified_cv(
         }
     }
 
-    // Shuffle within each class for randomness, then distribute into folds round-robin
+    // Shuffle within each class, then deal into folds round-robin with a
+    // cursor that carries across classes.
+    //
+    // Restarting at fold 0 for every class is what stratified folds are
+    // usually written as, and it is wrong whenever a class is smaller than k:
+    // fold j only ever receives a member of a class with more than j members,
+    // so with 20 lineages of 3 genomes and --cv-folds 10 the folds hold
+    // 20, 20, 20 and then seven empty ones. The empty folds were skipped with
+    // a warning while the summary still said "10-fold", and each of the three
+    // that ran held out a third of the data instead of a tenth.
     let mut rng = SmallRng::seed_from_u64(42);
     let mut fold_assignments = vec![0usize; n];
+    let mut cursor = 0usize;
     for class_group in &mut class_indices {
         class_group.shuffle(&mut rng);
-        for (i, &idx) in class_group.iter().enumerate() {
-            fold_assignments[idx] = i % k;
+        for &idx in class_group.iter() {
+            fold_assignments[idx] = cursor % k;
+            cursor += 1;
         }
     }
 
@@ -472,7 +501,7 @@ fn stratified_cv(
             cancel_token, false,
         )?;
 
-        let acc = evaluate_ensemble(&trees, x_data, y_data, &test_idx, num_classes);
+        let acc = evaluate_ensemble(&trees, x_data, y_data, &test_idx, num_classes, class_names);
         info!("  Fold {} accuracy: {:.2}%  (train={}, test={})", fold + 1, acc, train_idx.len(), test_idx.len());
         fold_accuracies.push(acc);
     }
@@ -523,7 +552,10 @@ pub fn run(args: Args) -> AppResult<TrainReport> {
     let n_total = x_data_sparse.len();
 
     // --- Accuracy estimation: CV or single split ---
-    let mut accuracy_pct = 0.0_f64;
+    // None until something is actually evaluated. It used to start at 0.0 and
+    // stay there when the test set was empty, so a successful run reported
+    // "Accuracy: 0.00%", which reads as a measurement.
+    let mut accuracy_pct: Option<f64> = None;
     let n_training;
     let n_test;
     let mut cv_fold_accuracies: Vec<f64> = Vec::new();
@@ -543,7 +575,7 @@ pub fn run(args: Args) -> AppResult<TrainReport> {
             &x_data_sparse, &y_data, k,
             n_features, num_classes, N_TREES,
             args.max_depth, args.min_samples_leaf,
-            cancel_token,
+            cancel_token, &label_encoder.int_to_label,
         )?;
 
         if !fold_accs.is_empty() {
@@ -554,7 +586,7 @@ pub fn run(args: Args) -> AppResult<TrainReport> {
             let std_dev = variance.sqrt();
 
             info!("  ✅ {}-fold CV accuracy: {:.2}% ± {:.2}%", k, mean, std_dev);
-            accuracy_pct = mean;
+            accuracy_pct = Some(mean);
             cv_mean_accuracy_pct = Some(mean);
             cv_std_accuracy_pct = Some(std_dev);
             cv_fold_accuracies = fold_accs;
@@ -591,10 +623,31 @@ pub fn run(args: Args) -> AppResult<TrainReport> {
                 args.max_depth, args.min_samples_leaf,
                 cancel_token, false,
             )?;
-            accuracy_pct = evaluate_ensemble(&eval_trees, &x_data_sparse, &y_data, &test_indices.to_vec(), num_classes);
-            info!("  ✅ Test Set Accuracy: {:.2}%", accuracy_pct);
+            let measured = evaluate_ensemble(
+                &eval_trees,
+                &x_data_sparse,
+                &y_data,
+                &test_indices.to_vec(),
+                num_classes,
+                &label_encoder.int_to_label,
+            );
+            accuracy_pct = Some(measured);
+            info!("  ✅ Test Set Accuracy: {:.2}%", measured);
+            // The split is a plain shuffle, so a lineage with few genomes can
+            // land entirely on one side. An accuracy that covers four of six
+            // lineages is not an accuracy for the panel.
+            let covered: std::collections::HashSet<usize> =
+                test_indices.iter().map(|&i| y_data[i]).collect();
+            if covered.len() < num_classes {
+                warn!(
+                    "  ⚠️ The test set covers {} of {} lineages, so that accuracy says nothing about the other {}. Use --cv-folds for a figure that covers every lineage, or read the out-of-bag accuracy below.",
+                    covered.len(),
+                    num_classes,
+                    num_classes - covered.len()
+                );
+            }
         } else {
-            info!("▶ Test set is empty, skipping evaluation.");
+            info!("▶ Test set is empty, so no accuracy was measured.");
         }
     }
 
@@ -620,9 +673,30 @@ pub fn run(args: Args) -> AppResult<TrainReport> {
 
     // --- OOB accuracy (free estimate from bootstrap) ---
     // Uses the exact seeds from train_ensemble to reproduce bootstrap samples.
+    // A tree that never split predicts one label for everything. It happens by
+    // default: --min-samples-leaf is 5 and a node of 10 samples or fewer is
+    // never divided, so a panel with a few genomes per lineage trains a forest
+    // of stumps and saves it without a word.
+    let stumps = trees.iter().filter(|tree| tree.nodes.len() <= 1).count();
+    if stumps == trees.len() {
+        warn!(
+            "⚠️ Every tree is a single leaf, so this model predicts one lineage for every input. With {} sequences over {} lineages, --min-samples-leaf {} forbids every split: a node of {} samples or fewer is never divided. Lower it, or train on more genomes per lineage.",
+            n_total,
+            num_classes,
+            args.min_samples_leaf,
+            args.min_samples_leaf * 2
+        );
+    } else if stumps > 0 {
+        warn!(
+            "⚠️ {} of the {} trees are a single leaf and give the same vote to every prediction.",
+            stumps,
+            trees.len()
+        );
+    }
+
     let oob_accuracy_pct = compute_oob_accuracy(
         &trees, &x_data_sparse, &y_data, &all_indices,
-        num_classes, &tree_seeds,
+        num_classes, &tree_seeds, &label_encoder.int_to_label,
     );
     if let Some(oob) = oob_accuracy_pct {
         info!("  🎯 Out-of-bag accuracy: {:.2}%", oob);
@@ -751,7 +825,7 @@ pub fn run(args: Args) -> AppResult<TrainReport> {
         training_time_secs
     );
     Ok(TrainReport {
-        accuracy_pct,
+        accuracy_pct,  // None when nothing was evaluated
         n_training,
         n_test,
         n_classes: num_classes,

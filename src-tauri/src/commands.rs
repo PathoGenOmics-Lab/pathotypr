@@ -77,7 +77,12 @@ pub async fn run_train(
             let accuracy_msg = if let (Some(mean), Some(std)) = (report.cv_mean_accuracy_pct, report.cv_std_accuracy_pct) {
                 format!("CV Accuracy: {:.2}% ± {:.2}%", mean, std)
             } else {
-                format!("Accuracy: {:.2}%", report.accuracy_pct)
+                match report.accuracy_pct {
+                    Some(accuracy) => format!("Accuracy: {:.2}%", accuracy),
+                    // Nothing was held out, so there is nothing to report. It
+                    // used to say 0.00%, which reads as a measurement.
+                    None => "Accuracy: not evaluated".to_string(),
+                }
             };
             let oob_msg = report.oob_accuracy_pct
                 .map(|oob| format!(" | OOB: {:.2}%", oob))

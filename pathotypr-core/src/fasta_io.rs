@@ -65,6 +65,7 @@ pub fn read_fasta(path: &str) -> AppResult<(Vec<String>, Vec<String>, Vec<String
     let mut lineages = Vec::new();
     let mut headers = Vec::new();
     let mut bytes_read: u64 = 0;
+    let mut skipped = 0usize;
 
     while let Some(record) = reader.next() {
         let record = record
@@ -84,6 +85,7 @@ pub fn read_fasta(path: &str) -> AppResult<(Vec<String>, Vec<String>, Vec<String
 
         if seq.is_empty() {
             warn!("Skipping entry with empty sequence: {}", header);
+            skipped += 1;
             continue;
         }
 
@@ -93,7 +95,19 @@ pub fn read_fasta(path: &str) -> AppResult<(Vec<String>, Vec<String>, Vec<String
     }
 
     pb.finish_and_clear();
-    info!("  Read {} sequences from {}", sequences.len(), path);
+    // Both numbers, because one on its own cannot be reconciled with the file:
+    // "Read 800 sequences" from a file of 1000 entries leaves the other 200 to
+    // be noticed by whoever counts the headers themselves.
+    if skipped > 0 {
+        info!(
+            "  Read {} sequences from {} ({} entries skipped for having no sequence)",
+            sequences.len(),
+            path,
+            skipped
+        );
+    } else {
+        info!("  Read {} sequences from {}", sequences.len(), path);
+    }
     Ok((sequences, lineages, headers))
 }
 

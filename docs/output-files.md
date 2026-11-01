@@ -76,7 +76,7 @@ Writes one predictions table to `--output`, streamed as sequences are classified
 | `<output>` | always | One row per input sequence. |
 | `<output → .xlsx>` | with `--excel` | Same columns, with conditional-formatting colours (see below). |
 
-**Header:** `Header  Predicted_Lineage  Confidence  Confidence_Margin  Other_Votes`
+**Header:** `Header  Predicted_Lineage  Confidence  Confidence_Margin  Other_Votes  Kmers_Used`
 
 | Column | Description |
 |---|---|
@@ -85,9 +85,10 @@ Writes one predictions table to `--output`, streamed as sequences are classified
 | `Confidence` | Fraction of trees voting for the winner, `0`–`1` (4 decimals). |
 | `Confidence_Margin` | Winner votes minus runner-up votes, over total trees, `0`–`1` (4 decimals). |
 | `Other_Votes` | Up to the **top 3** runner-up labels as `label:fraction` (fraction to 2 decimals), comma-separated; empty when there are no other votes. |
+| `Kmers_Used` | k-mers the record yielded. Zero means the model said nothing about it, and `Predicted_Lineage` is then `Undetermined` with the confidence columns empty. |
 
 ```text
-Header	Predicted_Lineage	Confidence	Confidence_Margin	Other_Votes
+Header	Predicted_Lineage	Confidence	Confidence_Margin	Other_Votes	Kmers_Used
 sample_A	L2.2.1	0.9800	0.9200	L2.2:0.04,L4:0.02
 sample_B	L4.3.4.2	0.7500	0.3000	L4.3:0.20,L4:0.05
 ```

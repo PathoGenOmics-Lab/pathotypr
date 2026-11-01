@@ -76,7 +76,9 @@ fn end_to_end_train_predict() {
         cancel_token: None,
     };
     let report = pathotypr_core::train::run(train_args).unwrap();
-    assert!(report.accuracy_pct >= 80.0, "Accuracy too low: {:.1}%", report.accuracy_pct);
+    // None would mean nothing was evaluated, which this run does do.
+    let accuracy = report.accuracy_pct.expect("the test split was evaluated");
+    assert!(accuracy >= 80.0, "Accuracy too low: {:.1}%", accuracy);
     assert_eq!(report.n_classes, 3);
     assert_eq!(report.n_trees, 100);
     assert!(report.oob_accuracy_pct.is_some());

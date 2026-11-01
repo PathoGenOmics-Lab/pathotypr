@@ -7541,7 +7541,10 @@ export function renderTrainSummaryCard(toolId, report) {
   const isCv = report.cv_mean_accuracy_pct != null;
   const accuracyValue = isCv
     ? `${Number(report.cv_mean_accuracy_pct).toFixed(2)}% ± ${Number(report.cv_std_accuracy_pct || 0).toFixed(2)}%`
-    : `${Number(report.accuracy_pct || 0).toFixed(2)}%`;
+    // Absent means no evaluation ran, which is not the same as zero.
+    : (report.accuracy_pct == null
+      ? 'not evaluated'
+      : `${Number(report.accuracy_pct).toFixed(2)}%`);
   const accuracySub = isCv
     ? `${(report.cv_fold_accuracies || []).length}-fold stratified CV`
     : `${report.n_test || 0} test samples`;
